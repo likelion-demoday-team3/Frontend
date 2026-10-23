@@ -4,8 +4,10 @@ import MyPageFrame, { Action, Field, Panel } from './MyPageFrame'
 import { updateMyPassword } from '../../features/members/api'
 
 export default function ChangePW() {
+  const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [message, setMessage] = useState<{ text: string; kind: 'error' | 'success' } | null>(null)
@@ -14,6 +16,10 @@ export default function ChangePW() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage(null)
+    if (!currentPassword) {
+      setMessage({ text: '현재 비밀번호를 입력해주세요.', kind: 'error' })
+      return
+    }
     if (newPassword.length < 8 || newPassword.length > 64) {
       setMessage({ text: '새 비밀번호는 8~64자로 입력해주세요.', kind: 'error' })
       return
@@ -24,7 +30,8 @@ export default function ChangePW() {
     }
     setSaving(true)
     try {
-      await updateMyPassword(newPassword)
+      await updateMyPassword(currentPassword, newPassword)
+      setCurrentPassword('')
       setNewPassword('')
       setConfirmation('')
       setMessage({ text: '비밀번호를 변경했어요.', kind: 'success' })
@@ -40,6 +47,13 @@ export default function ChangePW() {
       <Panel>
         <h2>새 비밀번호 설정</h2>
         <form onSubmit={submit}>
+          <PasswordField>
+            현재 비밀번호
+            <span className="inline-control password-input">
+              <input type={showCurrentPassword ? 'text' : 'password'} autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="현재 비밀번호를 입력해주세요" required />
+              <button type="button" className="eye-button" aria-label={showCurrentPassword ? '현재 비밀번호 숨기기' : '현재 비밀번호 표시'} aria-pressed={showCurrentPassword} onClick={() => setShowCurrentPassword((visible) => !visible)}><EyeIcon visible={showCurrentPassword} /></button>
+            </span>
+          </PasswordField>
           <PasswordField>
             새 비밀번호
             <span className="inline-control password-input">

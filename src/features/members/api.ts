@@ -55,10 +55,10 @@ export const updateMyProfile = (profile: UpdateMemberProfile) =>
 export const updateMyPhone = (phoneNumber: string) =>
   apiRequest<null>('/members/my/phone', { method: 'PUT', body: { phoneNumber } })
 
-export const updateMyPassword = (newPassword: string) =>
+export const updateMyPassword = (currentPassword: string, newPassword: string) =>
   apiRequest<null>('/members/my/password', {
     method: 'PATCH',
-    body: { newPassword },
+    body: { currentPassword, newPassword },
   })
 
 export const deleteMyMember = () => apiRequest<null>('/members/my', { method: 'DELETE' })
