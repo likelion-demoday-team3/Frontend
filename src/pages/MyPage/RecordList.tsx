@@ -43,9 +43,9 @@ export default function RecordList({ section }: { section: Section }) {
           <MatchCopy>
             <MatchNumbers>
               <MatchRate>—%</MatchRate>
-              <MatchRatio aria-label="매칭 성공 수 / 참가 소개팅 수">— / —</MatchRatio>
+              <MatchRatio aria-label="매칭 성공 수 / 참가 스터디 수">— / —</MatchRatio>
             </MatchNumbers>
-            <MatchCaption>매칭 성공 수 / 참가 소개팅 수</MatchCaption>
+            <MatchCaption>매칭 성공 수 / 참가 스터디 수</MatchCaption>
           </MatchCopy>
           <MatchMascot src="/kw1.svg" alt="매칭을 응원하는 키위 캐릭터" />
         </MatchSummary>
@@ -54,12 +54,12 @@ export default function RecordList({ section }: { section: Section }) {
         <FilterOptions aria-label="매칭 결과 필터">
           {([{ value: 'all', label: '전체' }, { value: 'success', label: '매칭성공' }, { value: 'failed', label: '매칭실패' }] as const).map((item) => <button key={item.value} type="button" className={filter === item.value ? 'selected' : ''} aria-pressed={filter === item.value} onClick={() => setFilter(item.value)}>{item.label}</button>)}
         </FilterOptions>
-        <Empty role="status">매칭 기록 API 연결 후 {filter === 'all' ? '성공률과 소개팅 기록' : filter === 'success' ? '매칭 성공 기록' : '매칭 실패 기록'}을 표시할게요.</Empty>
+        <Empty role="status">매칭 기록 API 연결 후 {filter === 'all' ? '성공률과 스터디 기록' : filter === 'success' ? '매칭 성공 기록' : '매칭 실패 기록'}을 표시할게요.</Empty>
       </Panel>
     </>}
 
-    {section === 'sent' && <Panel><h2>연락처 전송 기록</h2><Empty role="status">연락처 전송 기록 API 연결 후 소개팅 일시와 닉네임을 표시할게요.</Empty></Panel>}
-    {section === 'received' && <Panel><h2>받은 연락처 목록</h2><Empty role="status">받은 연락처 API 연결 후 소개팅 일시, 닉네임, 연락처를 표시할게요.</Empty></Panel>}
+    {section === 'sent' && <Panel><h2>연락처 전송 기록</h2><Empty role="status">연락처 전송 기록 API 연결 후 스터디 일시와 닉네임을 표시할게요.</Empty></Panel>}
+    {section === 'received' && <Panel><h2>받은 연락처 목록</h2><Empty role="status">받은 연락처 API 연결 후 스터디 일시, 닉네임, 연락처를 표시할게요.</Empty></Panel>}
   </MyPageFrame>
 }
 

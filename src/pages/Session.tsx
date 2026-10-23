@@ -413,7 +413,7 @@ export default function Session({ sessionId }: SessionProps) {
     let active = true;
     if (!getAccessToken()) {
       setLoading(false);
-      setLoadError("로그인 후 신청한 소개팅 세션에 입장할 수 있어요.");
+      setLoadError("로그인 후 신청한 스터디 세션에 입장할 수 있어요.");
       return () => {
         active = false;
       };
@@ -1102,7 +1102,7 @@ export default function Session({ sessionId }: SessionProps) {
                   ? "최종투표"
                   : assignment
                     ? `${assignment.roundNumber}번째 대화`
-                    : "소개팅"}
+                    : "스터디"}
             </h1>
             <div className="gem-balance" aria-label={`보석 ${gemsRemaining}개`}>
               <span className="gem" aria-hidden="true">
@@ -1171,7 +1171,7 @@ export default function Session({ sessionId }: SessionProps) {
           session.myStatus !== "ATTENDED" ? (
           <section className="state-card">
             <h1>신청한 세션이 아니에요</h1>
-            <p>소개팅 신청을 완료한 계정으로 입장해주세요.</p>
+            <p>스터디 신청을 완료한 계정으로 입장해주세요.</p>
             <button className="primary" type="button" onClick={leaveSession}>
               홈으로 돌아가기
             </button>
@@ -1189,7 +1189,7 @@ export default function Session({ sessionId }: SessionProps) {
         ) : (
           <>
             {lobbyVisible ? (
-              <section className="lobby-screen" aria-label="소개팅 로비">
+              <section className="lobby-screen" aria-label="스터디 로비">
                 {finalChoiceLobby ? (
                   <div
                     className="profile-group opposite-profiles"
@@ -1490,7 +1490,7 @@ export default function Session({ sessionId }: SessionProps) {
                 {phase !== "assigned" && (
                   <section className="session-intro">
                     <span className="eyebrow">KIIWEE LIVE SESSION</span>
-                    <h1>소개팅 세션</h1>
+                    <h1>스터디 세션</h1>
                     <p>{formatDate(session.startTime)}</p>
                   </section>
                 )}
@@ -1502,7 +1502,7 @@ export default function Session({ sessionId }: SessionProps) {
                       {phase === "connecting"
                         ? "로비에 입장하고 있어요"
                         : joinWindowOpen
-                          ? "소개팅에 입장할 수 있어요"
+                          ? "스터디에 입장할 수 있어요"
                           : now < opensAt
                             ? "입장 시간을 기다리고 있어요"
                             : "입장 시간이 지났어요"}
@@ -1536,7 +1536,7 @@ export default function Session({ sessionId }: SessionProps) {
                 {phase === "assigned" && assignment && (
                   <section
                     className="conversation-screen"
-                    aria-label="소개팅 대화"
+                    aria-label="스터디 대화"
                   >
                     <div
                       className="conversation-timer"

@@ -40,16 +40,16 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
     } finally { setBusy(null) }
   }
 
-  return <MyPageFrame title="소개팅 예약 확인" demo={demo}>
-    {reservations.length === 0 ? <Panel><h2>예약 내역</h2><p className="hint">진행 중인 소개팅 예약이 없어요.</p></Panel> : reservations.map(item => {
+  return <MyPageFrame title="스터디 예약 확인" demo={demo}>
+    {reservations.length === 0 ? <Panel><h2>예약 내역</h2><p className="hint">진행 중인 스터디 예약이 없어요.</p></Panel> : reservations.map(item => {
       const session = sessions.find(value => value.sessionId === item.sessionId)
       const attendance = session
         ? `${session.capacityPerGender - session.maleRemaining}:${session.capacityPerGender - session.femaleRemaining}`
         : '인원 정보 없음'
       return <Panel key={item.sessionId}>
-        <h2>소개팅 예약</h2>
+        <h2>스터디 예약</h2>
         <p className="hint">예약일자</p><strong>{dateLabel(item.appliedAt)}</strong>
-        <p className="hint" style={{ marginTop: '1.5rem' }}>소개팅일자</p><strong>{dateLabel(item.startTime)}</strong>
+        <p className="hint" style={{ marginTop: '1.5rem' }}>스터디 일자</p><strong>{dateLabel(item.startTime)}</strong>
         <p className="hint" style={{ marginTop: '1.5rem' }}>현재 인원 (남:여)</p><strong>{attendance}</strong>
         <div style={{ marginTop: '1.8rem' }}><Action type="button" disabled={busy === item.sessionId} onClick={() => void cancel(item)}>{busy === item.sessionId ? '취소 중…' : '예약취소'}</Action></div>
       </Panel>

@@ -87,7 +87,7 @@ export default function Calender({
     <CalendarStyles>
       <div className="section-heading">
         <div className="heading-copy">
-          <h1>소개팅 예약</h1>
+          <h1>스터디 예약</h1>
         </div>
         <button
           className={`icon-button calendar-toggle ${calendarOpen ? "expanded" : ""}`}
@@ -104,7 +104,7 @@ export default function Calender({
         <section
           className="calendar"
           id="booking-calendar"
-          aria-label="소개팅 날짜 선택"
+          aria-label="스터디 날짜 선택"
         >
           <div className="calendar-heading">
             <button
@@ -180,7 +180,7 @@ export default function Calender({
                       disabled={outside || past}
                       className={`calendar-day ${outside ? "outside" : ""} ${active ? "selected" : ""} ${hasSessions ? "has-sessions" : ""}`}
                       aria-pressed={active}
-                      aria-label={`${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}요일${hasSessions ? ", 소개팅 일정 있음" : ""}${todaySelected ? ", 오늘" : ""}`}
+                      aria-label={`${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}요일${hasSessions ? ", 스터디 일정 있음" : ""}${todaySelected ? ", 오늘" : ""}`}
                       onClick={() => onSelectDate(date)}
                     >
                       {date.getDate()}

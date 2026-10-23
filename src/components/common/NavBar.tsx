@@ -24,10 +24,13 @@ export default function NavBar({ isLoggedIn, onLoginRequired, activePage = 'home
   }
 
   return <NavBarStyles aria-label="주요 메뉴">
-    <a className={`nav-item${activePage === 'store' ? ' active' : ''}`} href="/store" aria-label="보석 상점" aria-current={activePage === 'store' ? 'page' : undefined}>
+    {isLoggedIn ? <a className={`nav-item${activePage === 'store' ? ' active' : ''}`} href="/store" aria-label="보석 상점" aria-current={activePage === 'store' ? 'page' : undefined}>
       <StoreIcon />
       <span>보석 상점</span>
-    </a>
+    </a> : <button type="button" className={`nav-item${activePage === 'store' ? ' active' : ''}`} onClick={selectRestrictedPage} aria-label="보석 상점">
+      <StoreIcon />
+      <span>보석 상점</span>
+    </button>}
     <a className={`nav-item${activePage === 'home' ? ' active' : ''}`} href="/home" aria-current={activePage === 'home' ? 'page' : undefined} aria-label="홈">
       <HomeIcon />
       <span>홈</span>

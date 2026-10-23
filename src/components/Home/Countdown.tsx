@@ -61,7 +61,7 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
   return (
     <CountdownCard
       className={nextApplication ? "has-application" : "empty-countdown"}
-      aria-label="소개팅 카운트다운"
+      aria-label="스터디 카운트다운"
     >
       <img
         className="countdown-mascot"
@@ -76,7 +76,7 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
           </p>
           <p className="countdown-confirmation">
             {capacity ? `${capacity}:${capacity} 로테이션` : "로테이션"}{" "}
-            소개팅으로 확정되었습니다!
+            스터디로 확정되었습니다!
           </p>
           <p
             className="countdown-time"
@@ -112,7 +112,7 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
           </button>
         </>
       ) : (
-        <p className="countdown-empty-message">신청한 소개팅이 없어요.</p>
+        <p className="countdown-empty-message">신청한 스터디가 없어요.</p>
       )}
     </CountdownCard>
   );

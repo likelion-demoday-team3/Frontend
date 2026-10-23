@@ -127,7 +127,7 @@ export default function ItsMe() {
     <MyPageFrame title="본인인증">
       <Panel>
         <h2>본인인증</h2>
-        <p className="hint">더 안전하고 신뢰할 수 있는 소개팅을 위해 본인인증을 진행해주세요.</p>
+        <p className="hint">더 안전하고 신뢰할 수 있는 스터디를 위해 본인인증을 진행해주세요.</p>
         {verifiedAt ? <p className="verification-date">본인인증 완료 · {dateLabel(verifiedAt)}</p> : verified ? <p className="verification-date">본인인증이 완료된 상태예요.</p> : <p className="verification-date pending">본인인증을 진행해주세요.</p>}
         <Action type="button" onClick={() => void startVerification()} disabled={verifying || verified}>
           {verifying ? '본인인증 진행 중…' : verified ? '본인인증 완료' : '본인인증하기'}

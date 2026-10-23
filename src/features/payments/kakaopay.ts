@@ -42,7 +42,7 @@ export type PaymentRefundResponse = {
 }
 
 export const getShopProducts = () =>
-  apiRequest<ShopProduct[]>('/shop/products')
+  apiRequest<ShopProduct[]>('/shop/products', { authenticated: false })
 
 export const createGemPaymentOrder = (productId: number) =>
   apiRequest<KakaoPayReadyResponse>('/payments/kakaopay/ready', {

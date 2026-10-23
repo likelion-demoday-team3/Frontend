@@ -168,7 +168,7 @@ export default function Scadule({
       </div>
       <section
         className="session-list"
-        aria-label={`${dateLabel(selectedDate)} 소개팅 목록`}
+        aria-label={`${dateLabel(selectedDate)} 스터디 목록`}
       >
         {loading && (
           <p className="session-empty" role="status">
@@ -236,7 +236,7 @@ export default function Scadule({
                   </h2>
                   <p>
                     {session.capacityPerGender}:{session.capacityPerGender}{" "}
-                    소개팅 · {remaining}자리 남음
+                    스터디 · {remaining}자리 남음
                   </p>
                 </div>
                 <button
@@ -311,7 +311,7 @@ export default function Scadule({
               </mark>
               <br />
               {pendingAction === "apply"
-                ? "소개팅에 참여하시겠어요?"
+                ? "스터디에 참여하시겠어요?"
                 : "신청을 취소할까요?"}
             </h2>
             <p className="dialog-description" id="booking-description">
@@ -323,7 +323,7 @@ export default function Scadule({
               {pendingAction === "apply" ? (
                 <>
                   <div>
-                    <span>소개팅 참가비</span>
+                    <span>스터디 참가비</span>
                     <strong>
                       <span className="gem">◆</span> {pending.entryFeeGem}개
                     </strong>

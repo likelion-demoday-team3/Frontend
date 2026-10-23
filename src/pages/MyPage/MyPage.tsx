@@ -100,10 +100,10 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
             나의 프로필 카드 <span>›</span>
           </a>
           <a href={`/mypage/record${suffix}`}>
-            소개팅 기록 <span>›</span>
+            스터디 기록 <span>›</span>
           </a>
           <a href={`/mypage/reservation${suffix}`}>
-            소개팅 예약 확인 <span>›</span>
+            스터디 예약 확인 <span>›</span>
           </a>
         </section>
         <section className="account-actions" aria-label="계정 관리">

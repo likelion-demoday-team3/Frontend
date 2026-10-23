@@ -61,6 +61,7 @@ export default function Store({
   );
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [paymentPending, setPaymentPending] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [paymentError, setPaymentError] = useState("");
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice | null>(
     readPaymentNotice,
@@ -70,12 +71,6 @@ export default function Store({
 
   useEffect(() => setGems(initialGems), [initialGems]);
   useEffect(() => {
-    if (!isLoggedIn) {
-      setProducts([]);
-      setProductsError("로그인 후 보석 상품을 확인할 수 있어요.");
-      setProductsLoading(false);
-      return;
-    }
     let active = true;
     setProductsLoading(true);
     getShopProducts()
@@ -99,7 +94,7 @@ export default function Store({
     return () => {
       active = false;
     };
-  }, [isLoggedIn]);
+  }, []);
   useEffect(() => {
     if (mockMode) {
       setGems(initialGems);
@@ -304,10 +299,14 @@ export default function Store({
                   type="button"
                   onClick={() => {
                     setPaymentError("");
+                    if (!isLoggedIn) {
+                      setLoginPromptOpen(true);
+                      return;
+                    }
                     setSelectedPackage(item);
                   }}
                 >
-                  구매하기
+                  충전하기
                 </button>
               </article>
             ))
@@ -318,9 +317,22 @@ export default function Store({
       {!embedded && (
         <NavBar
           isLoggedIn={isLoggedIn}
-          onLoginRequired={() => undefined}
+          onLoginRequired={() => setLoginPromptOpen(true)}
           activePage="store"
         />
+      )}
+
+      {loginPromptOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setLoginPromptOpen(false)}>
+          <section className="login-prompt-dialog" role="dialog" aria-modal="true" aria-labelledby="login-prompt-title" onClick={(event) => event.stopPropagation()}>
+            <h2 id="login-prompt-title">로그인이 필요한 서비스예요</h2>
+            <p>로그인하거나 회원가입하고 스터디를 신청해보세요.</p>
+            <div className="login-prompt-actions">
+              <a className="signup-link" href="/signup">회원가입</a>
+              <a className="login-link" href="/login">로그인</a>
+            </div>
+          </section>
+        </div>
       )}
 
       {selectedPackage && (
@@ -715,6 +727,49 @@ const StorePage = styled.div<{ $embedded: boolean; $open: boolean }>`
     background: var(--background);
     text-align: center;
     box-shadow: 0 1.5rem 5rem #1114;
+  }
+  .login-prompt-dialog {
+    width: min(34rem, calc(100vw - 4.8rem));
+    padding: 3rem 2rem 2rem;
+    border-radius: 2.9rem;
+    background: var(--background);
+    color: var(--ink);
+    box-shadow: 0 1.6rem 7rem #1113;
+  }
+  .login-prompt-dialog h2 {
+    font: 700 1.9rem/1.5 var(--font-body);
+    text-align: center;
+    letter-spacing: -0.06rem;
+  }
+  .login-prompt-dialog > p {
+    margin: 1.6rem 0 2rem;
+    color: #8b959b;
+    font-size: 1.1rem;
+    line-height: 1.8;
+    text-align: center;
+  }
+  .login-prompt-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem;
+  }
+  .login-prompt-actions a {
+    display: grid;
+    min-height: 4.8rem;
+    place-items: center;
+    border-radius: 1.3rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .login-prompt-actions .signup-link {
+    border: 0.1rem solid #e3e8df;
+    color: #85908b;
+  }
+  .login-prompt-actions .login-link {
+    background: var(--green);
+    color: #5622ad;
+    box-shadow: 0 0.4rem 0.9rem #bed47333;
   }
   .purchase-dialog h2 {
     font: 400 2.2rem/1.3 var(--display-font);
