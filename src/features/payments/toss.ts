@@ -42,8 +42,9 @@ export type PaymentRefundResponse = {
   gemBalance: number
 }
 
+// 백엔드는 /shop/products도 로그인을 요구하므로 비로그인은 상품을 볼 수 없다.
 export const getShopProducts = () =>
-  apiRequest<ShopProduct[]>('/shop/products', { authenticated: 'optional' })
+  apiRequest<ShopProduct[]>('/shop/products', { authenticated: true })
 
 export const createTossPaymentOrder = (productId: number) =>
   apiRequest<TossReadyResponse>('/payments/toss/ready', {
