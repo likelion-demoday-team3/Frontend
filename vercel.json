@@ -1,0 +1,96 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/charge-history",
+      "destination": "/store/history",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/home",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/signup",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/result",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/result-detail",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/contact",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/store",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/store/history",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/store/payment/result",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/shop/payment/:orderId/success",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/shop/payment/:orderId/cancel",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/shop/payment/:orderId/fail",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/charge-info",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/mypage",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/mypage/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/me-edit",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/card-edit",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/record",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/reservation",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/session/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
