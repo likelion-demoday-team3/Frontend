@@ -29,10 +29,10 @@ type ApiFailurePayload = {
   data?: unknown
 }
 
-export async function apiRequest<T>(path: string, options: { method?: string; body?: unknown; authenticated?: boolean } = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: { method?: string; body?: unknown; authenticated?: boolean | 'optional' } = {}): Promise<T> {
   const { method = 'GET', body, authenticated = true } = options
-  const accessToken = authenticated ? getAccessToken() : null
-  if (authenticated && !accessToken) {
+  const accessToken = authenticated === false ? null : getAccessToken()
+  if (authenticated === true && !accessToken) {
     throw new ApiError('로그인이 필요해요.', 'UNAUTHORIZED', 401)
   }
   let response: Response

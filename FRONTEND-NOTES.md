@@ -98,37 +98,20 @@ REST 시간 값은 UTC ISO 8601 문자열을 사용하고 화면에서 한국 �
 
 상점의 상품과 가격은 현재 화면에 표시하는 값입니다. 서버는 `productId`로 상품 가격과 지급할 보석을 자체 조회해야 하며 프론트가 보내는 금액을 결제 근거로 신뢰하면 안 됩니다.
 
-### 카카오페이 결제 연동
+### 토스페이먼츠 결제 연동
 
-프론트는 `src/features/payments/kakaopay.ts`에 모아 둔 앱 백엔드 계약을 사용합니다. 카카오페이 Secret Key와 원본 결제 API 호출은 백엔드에서 처리해야 합니다.
+프론트 결제 API 계약은 `src/features/payments/toss.ts`에 있습니다. 결제 준비·승인·중단·환불 API는 로그인 토큰을 사용하고, 결제 준비 API는 `{ productId }`를 보냅니다. 토스 Secret Key와 토스 승인 요청은 백엔드에서 처리하며, 결제창만 `@tosspayments/tosspayments-sdk`로 프론트에서 엽니다.
 
-1. 로그인한 사용자는 `GET /shop/products`에서 `{ productId, name, gemAmount }` 목록을 받습니다. 상점은 상품 이름과 보석 개수만 표시하며 현금 가격을 표시하지 않습니다.
-2. 상품을 누르면 프론트는 `POST /payments/kakaopay/ready`에 `{ "productId": 1 }`을 Bearer 토큰과 함께 보내고 PC·모바일 웹·웹뷰에 맞는 redirect URL로 이동합니다.
-3. 성공 callback에서 `orderId`와 `pg_token`으로 `POST /payments/kakaopay/approve`를 호출합니다. 응답 `{ orderId, grantedGem, gemBalance }`를 보관해 상점으로 돌아간 뒤 충전 완료 팝업에 표시합니다. 취소·실패 callback은 `/cancel`, `/fail` 경로에서 `POST /payments/{orderId}/abort`를 호출하고 결과에 맞는 안내와 함께 상점으로 돌아옵니다.
+1. 상점은 `GET /shop/products`에서 `{ productId, name, gemAmount, price, salePrice }`를 받아 상품을 표시합니다.
+2. 충전 요청은 `POST /payments/toss/ready`에 `{ productId }`를 보내며, 응답 `{ orderId, orderName, amount, gemAmount, clientKey, successUrl, failUrl }`의 값을 토스 SDK `requestPayment()`에 전달합니다. `amount`는 결제창 요청에만 사용합니다.
+3. 성공 callback은 `paymentKey`, `orderId`, `amount`를 읽고 `amount`를 숫자로 변환해 `POST /payments/toss/confirm`에 보냅니다. 성공 응답 `{ orderId, grantedGem, gemBalance }`를 상점 완료 안내에 표시합니다.
+4. 실패 또는 취소 callback은 `/fail` 경로에서 `code`, `message`, `orderId`를 읽고 `POST /payments/{orderId}/abort`를 호출합니다. 결제창이 페이지를 이동하지 않고 닫힌 경우에도 프론트에서 abort를 호출합니다. 별도의 `/cancel` callback 경로는 사용하지 않습니다.
 
-결제 API 경로는 `GET /shop/products`, `POST /payments/kakaopay/ready`, `POST /payments/kakaopay/approve`, `POST /payments/{orderId}/abort`, `POST /payments/{orderId}/refund`, `GET /payments/my`입니다. 보석 잔액과 보석 거래 내역은 기존 `GET /wallet/my`, `GET /wallet/my/history`를 계속 사용합니다. 승인 요청은 `{ "orderId": "...", "pgToken": "..." }`, 응답은 `{ "orderId", "grantedGem", "gemBalance" }`입니다.
+결제 API 경로는 `GET /shop/products`, `POST /payments/toss/ready`, `POST /payments/toss/confirm`, `POST /payments/{orderId}/abort`, `POST /payments/{orderId}/refund`, `GET /payments/my`입니다. 결제 승인은 중복 호출돼도 보석을 한 번만 지급하도록 서버에서 처리합니다. 보석 잔액과 보석 거래 내역은 `GET /wallet/my`, `GET /wallet/my/history`를 계속 사용합니다.
 
-### 주문 조회 및 결제 취소
+`GET /payments/my`는 `{ orderId, amount, productName, grantedGem, status, refundable, paidAt, canceledAt, createdAt }[]`를 반환합니다. `refundable`이 true인 결제에만 환불 버튼을 표시하며, 보석을 이미 사용했다면 환불 API가 409로 거절할 수 있으므로 `error.message`를 그대로 표시합니다. 날짜는 UTC 응답을 한국 시간으로 변환해 표시합니다.
 
-카카오페이 공식 주문조회와 결제취소 API도 백엔드에서 호출해야 합니다. 주문조회·승인·취소에는 카카오페이 `tid`가 필요하며, 카카오페이는 결제준비 응답의 TID를 주문번호와 매핑해 저장하도록 안내합니다. 결제취소는 승인된 결제에 대해서만 가능하고, 취소 금액 및 비과세/부가세 금액을 함께 검증해야 합니다. 따라서 프론트는 카카오페이에 직접 요청하지 않고 앱 백엔드의 사용자 권한 확인 API를 호출해야 합니다.
-
-카카오페이 원본 요청 필드와 현재 프론트→앱 백엔드 요청은 서로 다릅니다.
-
-- **준비(ready), 카카오페이 서버 호출:** 서버가 `cid`, `partner_order_id`, `partner_user_id`, `item_name`, `quantity`, `total_amount`, `tax_free_amount`, `approval_url`, `cancel_url`, `fail_url` 등을 구성해 전달합니다. 카카오페이 `Secret Key`는 서버에서만 사용합니다.
-- **승인(approve), 카카오페이 서버 호출:** 서버가 저장해 둔 `tid`와 callback의 `pg_token`, `cid`, `partner_order_id`, `partner_user_id`로 승인합니다.
-- **주문 조회(order), 카카오페이 서버 호출:** 앱 백엔드가 저장한 `tid`를 이용해 조회합니다.
-- **취소(cancel), 카카오페이 서버 호출:** 앱 백엔드가 `tid`, 취소 금액, 취소 비과세 금액(필요 시 취소 VAT 포함)을 결정해 호출합니다.
-- **프론트→앱 백엔드:** 결제 준비는 `{ "productId": 1 }`, 승인은 `{ "orderId": "...", "pgToken": "..." }`로 전달합니다. 중단은 본문 없이 호출합니다. 환불은 본문 없이 호출하며, 내 결제 내역은 `GET /payments/my?page=0&size=20`로 조회합니다.
-
-카카오페이 원본 응답 DTO의 주요 필드는 다음과 같습니다. 이 필드와 앱 백엔드가 프론트에 반환하는 DTO가 같다고 가정하지 마세요.
-
-- **ready 응답:** `tid`, `next_redirect_pc_url`, `next_redirect_mobile_url`, `next_redirect_app_url`, `created_at`. 현재 백엔드의 프론트 응답 예시는 별도 변환된 `{ orderId, gemAmount, pcRedirectUrl, mobileRedirectUrl, appRedirectUrl }`입니다.
-- **주문 조회 응답:** `tid`, `cid`, `status`, `partner_order_id`, `partner_user_id`, `payment_method_type`, `amount`, `item_name`, `quantity`, `created_at`, 승인/취소 시각 등 거래 정보.
-- **취소 응답:** 주문 조회 필드와 함께 `approved_cancel_amount`(이번 취소), `canceled_amount`(누적 취소), `cancel_available_amount`(남은 취소 가능액), `canceled_at` 등이 포함됩니다. 프론트는 백엔드가 반환하는 결과만 표시해야 합니다.
-
-`GET /payments/my`는 `{ orderId, productName, grantedGem, status, refundable, paidAt, canceledAt, createdAt }[]`를 반환합니다. `refundable`이 true인 결제에만 환불 버튼을 표시하며, 보석을 이미 사용했다면 환불 API가 409로 거절할 수 있으므로 `error.message`를 그대로 표시합니다. 날짜는 UTC 응답을 한국 시간으로 변환해 표시합니다.
-
-환불 API는 로그인 사용자 인증이 필요하며 `POST /payments/{orderId}/refund`로 본문 없이 호출합니다. 성공 응답은 `ApiResponse<PaymentRefundResponse>`이며 `data`는 `{ "orderId": "ORDER_123", "revokedGem": 20, "gemBalance": 80 }` 형식입니다. 오류도 `{ "success": false, "data": null, "error": { "code": "...", "message": "..." } }` envelope를 사용합니다. 확인된 오류는 `409 INVALID_STATE`(이미 환불, 환불 기간 만료, 결제 미완료, 보석 사용), `404 NOT_FOUND`(주문 없음 또는 다른 사용자 주문), `502 PAYMENT_FAILED`(카카오페이 오류)입니다. 기간 만료 메시지의 7일은 기본 설정 예시이며 설정에 따라 달라집니다. 공통 API 클라이언트는 envelope의 `error.code`와 `error.message`를 `ApiError`로 전달합니다.
+환불 API는 로그인 사용자 인증이 필요하며 `POST /payments/{orderId}/refund`로 본문 없이 호출합니다. 성공 응답 `data`는 `{ "orderId": "ORDER_123", "revokedGem": 20, "gemBalance": 80 }` 형식입니다. 오류는 공통 `{ success, data, error }` envelope로 반환되고, 공통 API 클라이언트가 `error.code`와 `error.message`를 `ApiError`로 전달합니다.
 
 ### PortOne 본인인증 연동
 
@@ -155,8 +138,8 @@ REST 시간 값은 UTC ISO 8601 문자열을 사용하고 화면에서 한국 �
 - `src/features/members/api.ts`: 내 회원 정보
 - `src/features/sessions/api.ts`, `types.ts`: 세션 REST API와 DTO
 - `src/features/wallet/api.ts`: 보석 잔액·거래 내역
-- `src/features/payments/kakaopay.ts`: 카카오페이 결제 준비·승인·주문 API 계약
-- `src/pages/Store/PaymentResult.tsx`: 결제 성공·취소·실패 callback 화면
+- `src/features/payments/toss.ts`: 토스페이먼츠 결제 준비·승인·주문 API 계약
+- `src/pages/Store/PaymentResult.tsx`: 토스 결제 성공·실패 callback 화면
 - `src/features/live/stomp.ts`: STOMP 실시간 연결과 메시지 계약
 - `src/mocks/handlers.js`: 개발용 REST·WebSocket 목업
 - `vite.config.ts`: 로컬 백엔드 REST proxy

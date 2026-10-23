@@ -46,12 +46,17 @@ export default function Home() {
     }).catch(cause => {
       if (!active) return
       if (cause instanceof ApiError && cause.status === 401) {
-        clearAccessToken()
-        setIsLoggedIn(false)
-        setSessions([])
-        setMySessions([])
-        setMyGender(null)
-        setLoadError('로그인이 만료됐어요. 다시 로그인해주세요.')
+        // The API client clears the token only for expired/invalid-token codes.
+        // A generic 401 from one data endpoint should not hide public navigation.
+        if (!getAccessToken()) {
+          setIsLoggedIn(false)
+          setSessions([])
+          setMySessions([])
+          setMyGender(null)
+          setLoadError('로그인이 만료됐어요. 다시 로그인해주세요.')
+        } else {
+          setLoadError(cause.message)
+        }
       } else {
         setLoadError(cause instanceof Error ? cause.message : '세션 정보를 불러오지 못했어요.')
       }

@@ -35,7 +35,7 @@ function routeFromPath(pathname: string): Route {
   if (route === "store/history" || route === "charge-history") return { page: "charge-history" };
   if (route === "charge-info") return { page: "charge-info" };
   if (route === "store/payment/result") return { page: "payment-result" };
-  if (/^shop\/payment\/[^/]+\/(success|cancel|fail)$/.test(route)) return { page: "payment-result" };
+  if (/^shop\/payment\/[^/]+\/(success|fail)$/.test(route)) return { page: "payment-result" };
   if (route === "mypage") return { page: "mypage" };
   if (route === "mypage/me" || route === "me-edit") return { page: "mypage-me" };
   if (route === "mypage/card" || route === "card-edit") return { page: "mypage-card" };

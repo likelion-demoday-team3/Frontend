@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
+import { ANONYMOUS, loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import NavBar from "../../components/common/NavBar";
 import { getAccessToken } from "../../features/auth/session";
 import { getMyWallet } from "../../features/wallet/api";
 import {
-  createGemPaymentOrder,
+  abortTossPaymentOrder,
+  createTossPaymentOrder,
   getShopProducts,
   type ShopProduct,
-} from "../../features/payments/kakaopay";
+} from "../../features/payments/toss";
 
 type PaymentNotice = {
   status: "success" | "cancelled" | "failed";
@@ -139,34 +141,42 @@ export default function Store({
     }
     setPaymentPending(true);
     setPaymentError("");
+    let orderId = "";
     try {
-      const order = await createGemPaymentOrder(selectedPackage.productId);
+      const order = await createTossPaymentOrder(selectedPackage.productId);
+      orderId = order.orderId;
       if (
         !order.orderId ||
-        !Number.isSafeInteger(order.gemAmount) ||
-        order.gemAmount <= 0
+        !Number.isSafeInteger(order.amount) ||
+        order.amount <= 0 ||
+        !order.clientKey ||
+        !order.orderName ||
+        !order.successUrl ||
+        !order.failUrl
       ) {
         throw new Error(
           "결제 주문 정보를 확인할 수 없어요. 백엔드 결제 설정을 확인해주세요.",
         );
       }
-      const userAgent = navigator.userAgent;
-      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
-      const isWebView =
-        /; wv\)/i.test(userAgent) ||
-        (/iPhone|iPad|iPod/i.test(userAgent) && !/Safari/i.test(userAgent));
-      const redirectUrl = isWebView
-        ? order.appRedirectUrl
-        : isMobile
-          ? order.mobileRedirectUrl
-          : order.pcRedirectUrl;
-      if (!redirectUrl) {
-        throw new Error(
-          "카카오페이 결제 주소를 확인할 수 없어요. 백엔드 결제 설정을 확인해주세요.",
-        );
-      }
-      window.location.href = redirectUrl;
+      const tossPayments = await loadTossPayments(order.clientKey);
+      const payment = tossPayments.payment({ customerKey: ANONYMOUS });
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: order.amount },
+        orderId: order.orderId,
+        orderName: order.orderName,
+        successUrl: order.successUrl,
+        failUrl: order.failUrl,
+      });
     } catch (cause) {
+      // SDK 결제창을 닫거나 열지 못한 경우에도 대기 주문을 정리합니다.
+      if (orderId) {
+        try {
+          await abortTossPaymentOrder(orderId);
+        } catch {
+          // Best effort cleanup; preserve the original checkout error.
+        }
+      }
       setPaymentError(
         cause instanceof Error
           ? cause.message
@@ -362,7 +372,7 @@ export default function Store({
               {formatWon(selectedPackage.salePrice ?? selectedPackage.price)}
             </strong>
             <p className="demo-note">
-              카카오페이 결제창에서 결제를 완료하면 보석이 충전돼요.
+              토스페이먼츠 결제창에서 결제를 완료하면 보석이 충전돼요.
             </p>
             {paymentError && (
               <p className="payment-error" role="alert">

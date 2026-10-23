@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import styled from 'styled-components'
-import { getMyPayments, refundKakaoPayOrder, type PaymentHistoryItem, type PaymentRefundResponse } from '../../features/payments/kakaopay'
+import { getMyPayments, refundTossPaymentOrder, type PaymentHistoryItem, type PaymentRefundResponse } from '../../features/payments/toss'
 import { getWalletHistory, type WalletHistoryItem } from '../../features/wallet/api'
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value))
@@ -85,7 +85,7 @@ export default function ChargeInfo() {
     setRefundPending(true)
     setRefundError('')
     try {
-      const result = await refundKakaoPayOrder(orderId)
+      const result = await refundTossPaymentOrder(orderId)
       setRefundResult(result)
       setPayment(current => current ? { ...current, status: 'REFUNDED', refundable: false, canceledAt: new Date().toISOString() } : current)
       setRefundState('success')
@@ -105,7 +105,7 @@ export default function ChargeInfo() {
   const gemAmount = payment?.grantedGem ?? (walletRecord && walletRecord.amount > 0 ? walletRecord.amount : 0)
   const productPackage = packageByGemAmount[namedGemAmount ?? gemAmount]
   const productName = isRefunded ? '보석 환불' : namedGemAmount ? '보석 ' + namedGemAmount + '개' : productPackage ? '보석 ' + productPackage.baseAmount + '개' : rawProductName || '확인할 수 없음'
-  const paymentAmount = payment?.paymentAmount ?? walletRecord?.paymentAmount ?? productPackage?.price ?? null
+  const paymentAmount = payment?.amount ?? walletRecord?.paymentAmount ?? productPackage?.price ?? null
 
   return <InfoPage>
     <header className="charge-header"><a href="/store/history" aria-label="충전 내역으로 돌아가기">‹</a><h1>충전 내역 상세</h1><span /></header>

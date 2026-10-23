@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import styled from 'styled-components'
-import { getMyPayments, type PaymentHistoryItem } from '../../features/payments/kakaopay'
+import { getMyPayments, type PaymentHistoryItem } from '../../features/payments/toss'
 import { getWalletHistory, type WalletHistoryItem } from '../../features/wallet/api'
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value))

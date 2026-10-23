@@ -1,12 +1,13 @@
 import { apiRequest } from '../api/client'
 
-/** KakaoPay checkout URLs returned by the backend after creating an order. */
-export type KakaoPayReadyResponse = {
+export type TossReadyResponse = {
   orderId: string
+  orderName: string
+  amount: number
   gemAmount: number
-  pcRedirectUrl: string
-  mobileRedirectUrl: string
-  appRedirectUrl: string
+  clientKey: string
+  successUrl: string
+  failUrl: string
 }
 
 export type ShopProduct = {
@@ -17,7 +18,7 @@ export type ShopProduct = {
   salePrice: number | null
 }
 
-export type KakaoPayApproveResponse = {
+export type TossConfirmResponse = {
   orderId: string
   grantedGem: number
   gemBalance: number
@@ -27,7 +28,7 @@ export type PaymentHistoryItem = {
   orderId: string
   productName: string
   grantedGem: number
-  paymentAmount?: number
+  amount?: number
   status: 'PAID' | 'REFUNDED'
   refundable: boolean
   paidAt: string
@@ -42,31 +43,35 @@ export type PaymentRefundResponse = {
 }
 
 export const getShopProducts = () =>
-  apiRequest<ShopProduct[]>('/shop/products', { authenticated: false })
+  apiRequest<ShopProduct[]>('/shop/products', { authenticated: 'optional' })
 
-export const createGemPaymentOrder = (productId: number) =>
-  apiRequest<KakaoPayReadyResponse>('/payments/kakaopay/ready', {
+export const createTossPaymentOrder = (productId: number) =>
+  apiRequest<TossReadyResponse>('/payments/toss/ready', {
     method: 'POST',
     body: { productId },
   })
 
-export const approveKakaoPayOrder = (orderId: string, pgToken: string) =>
-  apiRequest<KakaoPayApproveResponse>('/payments/kakaopay/approve', {
+export const confirmTossPayment = (input: {
+  orderId: string
+  paymentKey: string
+  amount: number
+}) =>
+  apiRequest<TossConfirmResponse>('/payments/toss/confirm', {
     method: 'POST',
-    body: { orderId, pgToken },
+    body: input,
   })
 
 export const getMyPayments = (page = 0, size = 20) =>
   apiRequest<PaymentHistoryItem[]>(`/payments/my?page=${page}&size=${Math.min(size, 50)}`)
 
-/** Aborts a payment order after KakaoPay cancellation/failure. */
-export const abortKakaoPayOrder = (orderId: string) =>
+/** Aborts a pending payment order after SDK failure or checkout cancellation. */
+export const abortTossPaymentOrder = (orderId: string) =>
   apiRequest<null>(`/payments/${encodeURIComponent(orderId)}/abort`, {
     method: 'POST',
   })
 
 /** Refunds an order owned by the authenticated user; the endpoint has no request body. */
-export const refundKakaoPayOrder = (orderId: string) =>
+export const refundTossPaymentOrder = (orderId: string) =>
   apiRequest<PaymentRefundResponse>(`/payments/${encodeURIComponent(orderId)}/refund`, {
     method: 'POST',
   })
