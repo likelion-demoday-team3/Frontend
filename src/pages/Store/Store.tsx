@@ -52,9 +52,7 @@ export default function Store({
   initialGems = 0,
   onClose,
 }: StoreProps) {
-  const mockMode =
-    import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== "false";
-  const [gems, setGems] = useState(mockMode ? initialGems : 0);
+  const [gems, setGems] = useState(initialGems);
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState("");
@@ -98,10 +96,6 @@ export default function Store({
     };
   }, []);
   useEffect(() => {
-    if (mockMode) {
-      setGems(initialGems);
-      return;
-    }
     if (!isLoggedIn) {
       setWalletError("로그인 후 보석 잔액을 확인할 수 있어요.");
       return;
@@ -125,7 +119,7 @@ export default function Store({
     return () => {
       active = false;
     };
-  }, [initialGems, isLoggedIn, mockMode]);
+  }, [isLoggedIn]);
   useEffect(() => {
     if (paymentNotice?.gemBalance != null) setGems(paymentNotice.gemBalance);
   }, [paymentNotice]);
@@ -459,9 +453,7 @@ export default function Store({
             </button>
             <h2 id="notification-title">알림</h2>
             <p className="empty-history">
-              {mockMode
-                ? "새로운 알림이 없어요."
-                : "알림 API 명세가 없어 아직 알림을 불러올 수 없어요."}
+              알림 API 명세가 없어 아직 알림을 불러올 수 없어요.
             </p>
           </section>
         </div>

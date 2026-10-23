@@ -18,7 +18,7 @@ const initialPartners: ContactPartner[] = [
 ]
 
 export default function Contact() {
-  const mockMode = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== "false";
+  const mockMode = false;
   const [gems, setGems] = useState(5)
   const [partners, setPartners] = useState(initialPartners)
 

@@ -5,7 +5,7 @@ import GuideBubble from "../../components/Session/GuideBubble";
 
 export default function Result() {
   const params = new URLSearchParams(window.location.search);
-  const mockMode = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== "false";
+  const mockMode = false;
   const matched = params.get("preview") !== "failed";
   const partnerAlreadyAccepted = params.get("preview") === "mutual";
   const [gems, setGems] = useState(5);

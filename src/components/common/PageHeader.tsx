@@ -7,16 +7,14 @@ import { getAccessToken } from '../../features/auth/session'
 
 export default function PageHeader({ title, gems = 5, onGemsChange }: { title: string; gems?: number; onGemsChange?: (gems: number) => void }) {
   const [shopOpen, setShopOpen] = useState(false)
-  const mockMode = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== 'false'
-  const [balance, setBalance] = useState<number | null>(mockMode ? gems : null)
+  const [balance, setBalance] = useState<number | null>(null)
 
   useEffect(() => {
-    if (mockMode) { setBalance(gems); return }
     if (!getAccessToken()) { setBalance(null); return }
     let active = true
     getMyWallet().then(wallet => { if (active) setBalance(wallet.gemBalance) }).catch(() => { if (active) setBalance(null) })
     return () => { active = false }
-  }, [gems, mockMode])
+  }, [gems])
 
   function updateGems(value: number) {
     setBalance(value)

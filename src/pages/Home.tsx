@@ -127,7 +127,7 @@ export default function Home() {
       <dialog ref={notificationsDialog} className="notification-dialog" aria-labelledby="notification-title" onCancel={() => setNotificationsOpen(false)} onClick={event => { if (event.target === event.currentTarget) setNotificationsOpen(false) }}>
         <div className="notification-dialog-body">
           <h2 id="notification-title">알림</h2>
-          <p>{!isLoggedIn ? '로그인하면 스터디 관련 알림을 확인할 수 있어요.' : import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== 'false' ? '새로운 알림이 없어요.' : '알림 API 명세가 없어 아직 알림을 불러올 수 없어요.'}</p>
+          <p>{!isLoggedIn ? '로그인하면 스터디 관련 알림을 확인할 수 있어요.' : '알림 API 명세가 없어 아직 알림을 불러올 수 없어요.'}</p>
           {isLoggedIn
             ? <button type="button" className="notification-action secondary" onClick={logout}>로그아웃</button>
             : <div className="notification-links"><a href="/signup" onClick={() => setNotificationsOpen(false)}>회원가입</a><a href="/login" onClick={() => setNotificationsOpen(false)}>로그인</a></div>}

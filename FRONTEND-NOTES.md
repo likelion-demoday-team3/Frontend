@@ -13,8 +13,6 @@
 프로젝트 루트에서 `.env.backend.example`을 `.env.local`로 복사합니다. 이미 `.env.local`이 있으면 복사본 대신 아래 값을 설정합니다.
 
 ```dotenv
-VITE_USE_MOCK_API=false
-VITE_AUTO_LOGIN_MOCK=false
 VITE_API_BASE_URL=
 VITE_WS_URL=ws://localhost:8080/ws
 ```
@@ -32,7 +30,7 @@ npm install
 npm run dev
 ```
 
-터미널에 표시되는 로컬 주소를 열고 로그인 또는 회원가입을 진행합니다. 백엔드 모드에서는 자동 로그인과 MSW 목업이 꺼져 있으므로 mock 계정이 동작하지 않습니다. 세션 API는 로그인이 필요하며, 실제 테스트 계정은 백엔드에서 준비해야 합니다.
+터미널에 표시되는 로컬 주소를 열고 로그인 또는 회원가입을 진행합니다. 세션 API는 로그인이 필요하며, 실제 테스트 계정은 백엔드에서 준비해야 합니다.
 
 ### 4. 연결 확인
 
@@ -45,13 +43,12 @@ npm run dev
 
 ## 환경별 설정
 
-| 상황 | `VITE_USE_MOCK_API` | `VITE_AUTO_LOGIN_MOCK` | API 주소 | WebSocket 주소 |
-| --- | --- | --- | --- | --- |
-| 화면 개발·목업 확인 | `true` | `true` 또는 `false` | 설정하지 않음 | 설정하지 않음 |
-| 로컬 백엔드 연결 | `false` | `false` | 비워 두면 `localhost:8080` 프록시 | `ws://localhost:8080/ws` |
-| 원격 백엔드 연결 | `false` | `false` | 백엔드 origin 지정 | 백엔드의 `wss://` 주소 지정 |
+| 상황 | API 주소 | WebSocket 주소 |
+| --- | --- | --- |
+| 로컬 백엔드 연결 | 비워 두면 `localhost:8080` 프록시 | `ws://localhost:8080/ws` |
+| 원격 백엔드 연결 | 백엔드 origin 지정 | 백엔드의 `wss://` 주소 지정 |
 
-`.env.example`은 목업 개발용이고 `.env.backend.example`은 실제 백엔드 연결용입니다. `.env.local`은 Git에서 제외됩니다. 배포 빌드에도 같은 환경 변수가 필요하므로 배포 환경에 설정한 뒤 새로 빌드해야 합니다. 브라우저에 노출되어도 되는 `VITE_` 변수에 비밀 키를 넣지 마세요.
+`.env.example`과 `.env.backend.example`은 백엔드 연결용 설정 예시입니다. `.env.local`은 Git에서 제외됩니다. 배포 빌드에도 같은 환경 변수가 필요하므로 배포 환경에 설정한 뒤 새로 빌드해야 합니다. 브라우저에 노출되어도 되는 `VITE_` 변수에 비밀 키를 넣지 마세요.
 
 ## 현재 연결된 API
 
@@ -126,10 +123,6 @@ REST 시간 값은 UTC ISO 8601 문자열을 사용하고 화면에서 한국 �
 - **WebSocket 연결 실패:** `VITE_WS_URL`, `/ws` 경로, HTTP와 HTTPS에 맞는 `ws://` 또는 `wss://`, STOMP CONNECT 인증 헤더 지원 여부를 확인합니다.
 - **응답을 불러오지 못함:** 서버가 공통 응답 envelope과 프론트 타입에 맞는 필드 및 enum을 반환하는지 확인합니다.
 
-## 목업으로 화면 확인
-
-`.env.example` 값을 `.env.local`에 적용하고 Vite를 재시작하면 MSW가 REST와 WebSocket 요청을 가로채 화면을 확인할 수 있습니다. 목업 테스트 계정은 `session.test@kiiwee.app` / `kiiwee1234`, 이메일 인증 코드는 `123456`입니다. 이 계정과 코드는 로컬 목업 전용이며 실제 백엔드 인증 정보가 아닙니다.
-
 ## 주요 파일
 
 - `src/features/api/client.ts`: REST 공통 클라이언트, envelope 및 인증 오류 처리
@@ -141,7 +134,6 @@ REST 시간 값은 UTC ISO 8601 문자열을 사용하고 화면에서 한국 �
 - `src/features/payments/toss.ts`: 토스페이먼츠 결제 준비·승인·주문 API 계약
 - `src/pages/Store/PaymentResult.tsx`: 토스 결제 성공·실패 callback 화면
 - `src/features/live/stomp.ts`: STOMP 실시간 연결과 메시지 계약
-- `src/mocks/handlers.js`: 개발용 REST·WebSocket 목업
 - `vite.config.ts`: 로컬 백엔드 REST proxy
 - `fromBackend/`: 백엔드 API·WebSocket 명세 원본 (프로젝트 상위 폴더)
 

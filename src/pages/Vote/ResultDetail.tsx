@@ -22,7 +22,7 @@ const lockedSections = [
 ];
 
 export default function ResultDetail() {
-  const mockMode = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== "false";
+  const mockMode = false;
   const [gems, setGems] = useState(5);
   const [unlocked, setUnlocked] = useState<number[]>([]);
 

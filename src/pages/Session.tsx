@@ -12,7 +12,7 @@ import Vote from "./Vote/Vote";
 import { getAccessToken } from "../features/auth/session";
 import { getSession, submitSessionVotes } from "../features/sessions/api";
 import type { SessionDetail } from "../features/sessions/types";
-import { connectLiveSession, isMockLiveEnabled } from "../features/live/stomp";
+import { connectLiveSession } from "../features/live/stomp";
 import type {
   LiveAssignment,
   LiveConnection,
@@ -21,6 +21,7 @@ import type {
 import { getMyWallet } from "../features/wallet/api";
 
 type SessionProps = { sessionId: number };
+const isMockLiveEnabled = false;
 type Phase = "ready" | "connecting" | "lobby" | "assigned" | "idle" | "voting";
 type PeerState = { connection: RTCPeerConnection; assignment: LiveAssignment };
 

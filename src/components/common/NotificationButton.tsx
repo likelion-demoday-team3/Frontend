@@ -2,7 +2,6 @@ import { useEffect, useId, useRef, useState } from 'react'
 import styled from 'styled-components'
 
 export default function NotificationButton({ className = '' }: { className?: string }) {
-  const mockMode = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== 'false'
   const [open, setOpen] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -21,7 +20,7 @@ export default function NotificationButton({ className = '' }: { className?: str
     </BellButton>
     <NoticeDialog ref={dialogRef} aria-labelledby={titleId} onCancel={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) setOpen(false) }}>
       <h2 id={titleId}>알림</h2>
-      <p>{mockMode ? '새로운 알림이 없어요.' : '알림 API 명세가 없어 아직 알림을 불러올 수 없어요.'}</p>
+      <p>알림 API 명세가 없어 아직 알림을 불러올 수 없어요.</p>
       <button type="button" onClick={() => setOpen(false)}>확인</button>
     </NoticeDialog>
   </>

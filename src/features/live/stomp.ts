@@ -33,8 +33,6 @@ export type LiveConnection = {
   sendSignal: (input: { sessionId: number; roomId: number; toMemberId: number; type: 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE'; payload: string }) => void
 }
 
-export const isMockLiveEnabled = import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_API !== 'false'
-
 export function connectLiveSession(
   sessionId: number,
   onMessage: (message: LiveMessage) => void,
