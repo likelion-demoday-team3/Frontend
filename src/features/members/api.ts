@@ -58,6 +58,9 @@ export const updateMyName = (name: string) =>
 export const updateMyPhone = (phoneNumber: string) =>
   apiRequest<null>('/members/my/phone', { method: 'PUT', body: { phoneNumber } })
 
+export const deleteMyPhone = () =>
+  apiRequest<null>('/members/my/phone', { method: 'DELETE' })
+
 export const updateMyInstagram = (instagramId: string) =>
   apiRequest<null>('/members/my/instagram', { method: 'PUT', body: { instagramId } })
 

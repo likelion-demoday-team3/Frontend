@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import styled from 'styled-components'
 import { getAccessToken, setAccessToken } from '../../features/auth/session'
-import { deleteMyInstagram, getLocalMemberName, getMyMember, type Member, setLocalMemberName, updateMyInstagram, updateMyName, updateMyPhone } from '../../features/members/api'
+import { deleteMyInstagram, deleteMyPhone, getLocalMemberName, getMyMember, type Member, setLocalMemberName, updateMyInstagram, updateMyName, updateMyPhone } from '../../features/members/api'
 import { login } from '../../features/signup/api'
 import MyPageFrame, { Action, Field, Panel } from './MyPageFrame'
 
@@ -12,6 +12,7 @@ const formatPhone = (value: string) => {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
 }
 const instagramHandle = (value: string) => value.trim().replace(/^@+/, '')
+const CONTACT_REQUIRED = '전화번호와 인스타그램 아이디 중 하나는 반드시 있어야 해요.'
 
 export default function MeEdit() {
   const [member, setMember] = useState<Member | null>(null)
@@ -67,14 +68,19 @@ export default function MeEdit() {
     setSaving(true)
     try {
       const trimmedName = name.trim()
+      const normalizedPhone = phone.replace(/-/g, '')
+      const normalizedInstagram = instagramHandle(instagramId)
+      if (!normalizedPhone && !normalizedInstagram) {
+        setError(CONTACT_REQUIRED)
+        return
+      }
       if (trimmedName && trimmedName !== initialName) {
         await updateMyName(trimmedName)
       }
-      const normalizedPhone = phone.replace(/-/g, '')
-      if (normalizedPhone && normalizedPhone !== member.phoneNumber) {
-        await updateMyPhone(normalizedPhone)
+      if (normalizedPhone !== (member.phoneNumber ?? '')) {
+        if (normalizedPhone) await updateMyPhone(normalizedPhone)
+        else await deleteMyPhone()
       }
-      const normalizedInstagram = instagramHandle(instagramId)
       if (normalizedInstagram !== initialInstagramId) {
         if (normalizedInstagram) await updateMyInstagram(normalizedInstagram)
         else await deleteMyInstagram()
@@ -89,6 +95,26 @@ export default function MeEdit() {
     } finally {
       setSaving(false)
     }
+  }
+
+  function removePhone() {
+    if (!instagramHandle(instagramId)) {
+      setNotice('')
+      setError(CONTACT_REQUIRED)
+      return
+    }
+    setError('')
+    setPhone('')
+  }
+
+  function removeInstagram() {
+    if (!phone.replace(/-/g, '')) {
+      setNotice('')
+      setError(CONTACT_REQUIRED)
+      return
+    }
+    setError('')
+    setInstagramId('')
   }
 
   async function verifyPassword(event: FormEvent<HTMLFormElement>) {
@@ -148,15 +174,21 @@ export default function MeEdit() {
             학교
             <input value={member?.university ?? ''} readOnly />
           </Field>
-          <Field>
+          <DeletableField>
             전화번호
-            <input type="tel" value={phone} onChange={(event) => setPhone(formatPhone(event.target.value))} placeholder="가입 시 입력한 전화번호" />
-          </Field>
+            <span className="field-with-action">
+              <input type="tel" value={phone} onChange={(event) => setPhone(formatPhone(event.target.value))} placeholder="가입 시 입력한 전화번호" />
+              <button type="button" className="delete-button" onClick={removePhone} disabled={!phone}>삭제</button>
+            </span>
+          </DeletableField>
           <InstagramField>
             인스타그램 아이디
-            <span className="instagram-input">
-              <span aria-hidden="true">@</span>
-              <input type="text" autoComplete="off" value={instagramId} onChange={(event) => setInstagramId(instagramHandle(event.target.value))} placeholder="아이디" />
+            <span className="field-with-action">
+              <span className="instagram-input">
+                <span aria-hidden="true">@</span>
+                <input type="text" autoComplete="off" value={instagramId} onChange={(event) => setInstagramId(instagramHandle(event.target.value))} placeholder="아이디" />
+              </span>
+              <button type="button" className="delete-button" onClick={removeInstagram} disabled={!instagramId}>삭제</button>
             </span>
           </InstagramField>
           {error && <p className="error" role="alert">{error}</p>}
@@ -195,7 +227,14 @@ const PasswordField = styled(Field)`
   .password-visibility svg { width: 2rem; height: 2rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 `
 
-const InstagramField = styled(Field)`
+const DeletableField = styled(Field)`
+  .field-with-action { display: flex; gap: .8rem; align-items: stretch; }
+  .field-with-action > input, .field-with-action > .instagram-input { flex: 1; min-width: 0; }
+  .delete-button { flex: 0 0 auto; padding: 0 1.4rem; border: .1rem solid #e2b4b4; border-radius: 1rem; background: #fff; color: #c0504d; font-size: 1.3rem; font-weight: 700; cursor: pointer; }
+  .delete-button:disabled { opacity: .45; cursor: default; }
+`
+
+const InstagramField = styled(DeletableField)`
   .instagram-input { display: flex; min-height: 4.6rem; align-items: center; padding-left: 1.2rem; border: .1rem solid #dfe5dc; border-radius: 1rem; background: #fff; color: var(--ink); font: 400 1.4rem var(--font-body); }
   .instagram-input input { min-height: 4.4rem; padding-left: .3rem; border: 0; background: transparent; }
   .instagram-input input:focus { outline: none; }
