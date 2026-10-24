@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import styled from 'styled-components'
 import { getAccessToken, setAccessToken } from '../../features/auth/session'
-import { deleteMyInstagram, getLocalMemberName, getMyMember, type Member, setLocalMemberName, updateMyInstagram, updateMyPhone } from '../../features/members/api'
+import { deleteMyInstagram, getLocalMemberName, getMyMember, type Member, setLocalMemberName, updateMyInstagram, updateMyName, updateMyPhone } from '../../features/members/api'
 import { login } from '../../features/signup/api'
 import MyPageFrame, { Action, Field, Panel } from './MyPageFrame'
 
@@ -16,6 +16,7 @@ const instagramHandle = (value: string) => value.trim().replace(/^@+/, '')
 export default function MeEdit() {
   const [member, setMember] = useState<Member | null>(null)
   const [name, setName] = useState('')
+  const [initialName, setInitialName] = useState('')
   const [phone, setPhone] = useState('')
   const [initialPhone, setInitialPhone] = useState('')
   const [instagramId, setInstagramId] = useState('')
@@ -42,7 +43,9 @@ export default function MeEdit() {
       .then((value) => {
         if (!active) return
         setMember(value)
-        setName(value.name ?? getLocalMemberName(value.email) ?? '')
+        const savedName = value.name ?? getLocalMemberName(value.email) ?? ''
+        setName(savedName)
+        setInitialName(savedName)
         const savedPhone = formatPhone(value.phoneNumber ?? '')
         setPhone(savedPhone)
         setInitialPhone(savedPhone)
@@ -63,6 +66,10 @@ export default function MeEdit() {
     setNotice('')
     setSaving(true)
     try {
+      const trimmedName = name.trim()
+      if (trimmedName && trimmedName !== initialName) {
+        await updateMyName(trimmedName)
+      }
       const normalizedPhone = phone.replace(/-/g, '')
       if (normalizedPhone && normalizedPhone !== member.phoneNumber) {
         await updateMyPhone(normalizedPhone)
@@ -72,10 +79,11 @@ export default function MeEdit() {
         if (normalizedInstagram) await updateMyInstagram(normalizedInstagram)
         else await deleteMyInstagram()
       }
-      setLocalMemberName(member.email, name)
+      if (trimmedName) setLocalMemberName(member.email, trimmedName)
+      setInitialName(trimmedName)
       setInitialPhone(phone)
       setInitialInstagramId(normalizedInstagram)
-      setNotice('정보를 저장했어요. 이름은 현재 이 브라우저에 저장됩니다.')
+      setNotice('정보를 저장했어요.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '정보를 저장하지 못했어요.')
     } finally {
@@ -153,8 +161,8 @@ export default function MeEdit() {
           </InstagramField>
           {error && <p className="error" role="alert">{error}</p>}
           {notice && <p className="success" role="status">{notice}</p>}
-          <Action type="button" disabled={saving || !member || (name === (member.name ?? getLocalMemberName(member.email) ?? '') && phone === initialPhone && instagramHandle(instagramId) === initialInstagramId)} onClick={() => void saveInfo()}>{saving ? '저장 중…' : '저장하기'}</Action>
-          <p className="hint">전화번호와 인스타그램 아이디는 계정에 저장돼요. 이름은 현재 이 브라우저에만 저장됩니다.</p>
+          <Action type="button" disabled={saving || !member || (name.trim() === initialName && phone === initialPhone && instagramHandle(instagramId) === initialInstagramId)} onClick={() => void saveInfo()}>{saving ? '저장 중…' : '저장하기'}</Action>
+          <p className="hint">이름·전화번호·인스타그램 아이디는 계정에 저장돼요.</p>
         </>}
       </Panel>
     </MyPageFrame>

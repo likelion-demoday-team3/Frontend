@@ -52,6 +52,9 @@ export const getMyProfile = () => apiRequest<MemberProfile>('/members/my/profile
 export const updateMyProfile = (profile: UpdateMemberProfile) =>
   apiRequest<MemberProfile>('/members/my/profile', { method: 'PUT', body: profile })
 
+export const updateMyName = (name: string) =>
+  apiRequest<null>('/members/my/name', { method: 'PUT', body: { name } })
+
 export const updateMyPhone = (phoneNumber: string) =>
   apiRequest<null>('/members/my/phone', { method: 'PUT', body: { phoneNumber } })
 
