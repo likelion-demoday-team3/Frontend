@@ -178,6 +178,7 @@ export default function Signup({
       try {
         const result = await signup({
           signupToken,
+          name: name.trim(),
           password,
           gender: selectedGender,
           birthDate: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,

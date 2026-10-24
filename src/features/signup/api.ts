@@ -12,6 +12,7 @@ export async function verifyCode(email: string, code: string) {
 export type SignupRequest = {
   // The verified email is represented by signupToken in the current API contract.
   signupToken: string
+  name: string
   password: string
   gender: 'MALE' | 'FEMALE'
   birthDate: string
