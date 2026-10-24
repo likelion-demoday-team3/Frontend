@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import styled from 'styled-components'
 import { getAccessToken, setAccessToken } from '../../features/auth/session'
-import { getLocalMemberName, getMyMember, type Member, setLocalMemberName, updateMyPhone } from '../../features/members/api'
+import { deleteMyInstagram, getLocalMemberName, getMyMember, type Member, setLocalMemberName, updateMyInstagram, updateMyPhone } from '../../features/members/api'
 import { login } from '../../features/signup/api'
 import MyPageFrame, { Action, Field, Panel } from './MyPageFrame'
 
@@ -11,7 +11,6 @@ const formatPhone = (value: string) => {
   if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
 }
-const instagramStorageKey = (email: string) => `kiiwee.memberInstagram:${email.trim().toLowerCase()}`
 const instagramHandle = (value: string) => value.trim().replace(/^@+/, '')
 
 export default function MeEdit() {
@@ -47,9 +46,9 @@ export default function MeEdit() {
         const savedPhone = formatPhone(value.phoneNumber ?? '')
         setPhone(savedPhone)
         setInitialPhone(savedPhone)
-        const savedInstagram = window.localStorage.getItem(instagramStorageKey(value.email)) ?? value.instagramId ?? ''
-        setInstagramId(instagramHandle(savedInstagram))
-        setInitialInstagramId(instagramHandle(savedInstagram))
+        const savedInstagram = instagramHandle(value.instagramId ?? '')
+        setInstagramId(savedInstagram)
+        setInitialInstagramId(savedInstagram)
       })
       .catch((cause) => {
         if (active) setError(cause instanceof Error ? cause.message : '회원 정보를 불러오지 못했어요.')
@@ -68,13 +67,15 @@ export default function MeEdit() {
       if (normalizedPhone && normalizedPhone !== member.phoneNumber) {
         await updateMyPhone(normalizedPhone)
       }
-      setLocalMemberName(member.email, name)
       const normalizedInstagram = instagramHandle(instagramId)
-      if (normalizedInstagram) window.localStorage.setItem(instagramStorageKey(member.email), `@${normalizedInstagram}`)
-      else window.localStorage.removeItem(instagramStorageKey(member.email))
+      if (normalizedInstagram !== initialInstagramId) {
+        if (normalizedInstagram) await updateMyInstagram(normalizedInstagram)
+        else await deleteMyInstagram()
+      }
+      setLocalMemberName(member.email, name)
       setInitialPhone(phone)
       setInitialInstagramId(normalizedInstagram)
-      setNotice('정보를 저장했어요. 이름과 인스타그램 아이디는 현재 이 브라우저에 저장됩니다.')
+      setNotice('정보를 저장했어요. 이름은 현재 이 브라우저에 저장됩니다.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '정보를 저장하지 못했어요.')
     } finally {
@@ -153,7 +154,7 @@ export default function MeEdit() {
           {error && <p className="error" role="alert">{error}</p>}
           {notice && <p className="success" role="status">{notice}</p>}
           <Action type="button" disabled={saving || !member || (name === (member.name ?? getLocalMemberName(member.email) ?? '') && phone === initialPhone && instagramHandle(instagramId) === initialInstagramId)} onClick={() => void saveInfo()}>{saving ? '저장 중…' : '저장하기'}</Action>
-          <p className="hint">전화번호는 계정에 저장돼요. 이름과 인스타그램 아이디는 현재 이 브라우저에만 저장됩니다.</p>
+          <p className="hint">전화번호와 인스타그램 아이디는 계정에 저장돼요. 이름은 현재 이 브라우저에만 저장됩니다.</p>
         </>}
       </Panel>
     </MyPageFrame>

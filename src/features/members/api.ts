@@ -55,6 +55,12 @@ export const updateMyProfile = (profile: UpdateMemberProfile) =>
 export const updateMyPhone = (phoneNumber: string) =>
   apiRequest<null>('/members/my/phone', { method: 'PUT', body: { phoneNumber } })
 
+export const updateMyInstagram = (instagramId: string) =>
+  apiRequest<null>('/members/my/instagram', { method: 'PUT', body: { instagramId } })
+
+export const deleteMyInstagram = () =>
+  apiRequest<null>('/members/my/instagram', { method: 'DELETE' })
+
 export const updateMyPassword = (currentPassword: string, newPassword: string) =>
   apiRequest<null>('/members/my/password', {
     method: 'PATCH',
