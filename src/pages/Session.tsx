@@ -284,33 +284,6 @@ export default function Session({ sessionId }: SessionProps) {
         ]
       : [];
   });
-  const [choiceProfileLayout, setChoiceProfileLayout] = useState<
-    Array<{ memberId: number; x: string; y: string; delay: string }>
-  >(() => {
-    const positions = createLobbyParticipants(
-      "opposite",
-      encounteredProfiles.map((profile) => profile.nickname),
-    );
-    return encounteredProfiles.map((profile, index) => ({
-      memberId: profile.memberId,
-      ...positions[index],
-    }));
-  });
-  const encounteredProfileIds = encounteredProfiles
-    .map((profile) => `${profile.memberId}-${profile.roundNumber}`)
-    .join(",");
-  useEffect(() => {
-    const positions = createLobbyParticipants(
-      "opposite",
-      encounteredProfiles.map((profile) => profile.nickname),
-    );
-    setChoiceProfileLayout(
-      encounteredProfiles.map((profile, index) => ({
-        memberId: profile.memberId,
-        ...positions[index],
-      })),
-    );
-  }, [encounteredProfileIds]);
   useEffect(() => {
     sessionStorage.setItem(`kiiwee.session-context:${sessionId}`, JSON.stringify({
       partners: encounteredProfiles,
@@ -324,34 +297,16 @@ export default function Session({ sessionId }: SessionProps) {
   } | null>(null);
   const [heartsRemaining, setHeartsRemaining] = useState(1);
   const [gemsRemaining, setGemsRemaining] = useState(isMockLiveEnabled ? 5 : 0);
-  const [shopOpen, setShopOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(
+    () => new URLSearchParams(window.location.search).get("paymentReturn") === "embedded",
+  );
   const [heartPurchaseQuantity, setHeartPurchaseQuantity] = useState(1);
   const [heartsSent, setHeartsSent] = useState<Record<number, number>>({});
   const [heartChargeOpen, setHeartChargeOpen] = useState(false);
+  const [heartRestrictionOpen, setHeartRestrictionOpen] = useState(false);
   const [isPartnerSpeaking, setIsPartnerSpeaking] = useState(false);
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
   const [profileCardOpen, setProfileCardOpen] = useState(false);
-  // 프로필 카드를 받은 순간 "○○님의 프로필 카드입니다" 알림을 잠깐 띄운다
-  const [cardNotice, setCardNotice] = useState<string | null>(null);
-  const cardNoticeTimerRef = useRef<number | null>(null);
-  const showCardNotice = useCallback((nickname: string) => {
-    setCardNotice(`${nickname}님의 프로필 카드입니다`);
-    if (cardNoticeTimerRef.current !== null) {
-      window.clearTimeout(cardNoticeTimerRef.current);
-    }
-    cardNoticeTimerRef.current = window.setTimeout(() => {
-      setCardNotice(null);
-      cardNoticeTimerRef.current = null;
-    }, 4000);
-  }, []);
-  useEffect(
-    () => () => {
-      if (cardNoticeTimerRef.current !== null) {
-        window.clearTimeout(cardNoticeTimerRef.current);
-      }
-    },
-    [],
-  );
   const [reportPopupOpen, setReportPopupOpen] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [now, setNow] = useState(Date.now);
@@ -628,7 +583,6 @@ export default function Session({ sessionId }: SessionProps) {
             },
             compatibility: null,
           });
-          if (message.partnerProfileCard) showCardNotice(nickname);
           setCurrentRound(message.roundNumber);
           startRequested.current = true;
           setPhase("assigned");
@@ -670,7 +624,6 @@ export default function Session({ sessionId }: SessionProps) {
             nickname,
           },
         });
-        showCardNotice(nickname);
         setCurrentRound((round) =>
           Math.max(round, message.assignment.roundNumber),
         );
@@ -717,7 +670,7 @@ export default function Session({ sessionId }: SessionProps) {
         window.dispatchEvent(new PopStateEvent("popstate"));
       }
     },
-    [handleSignal, showCardNotice],
+    [handleSignal],
   );
 
   useEffect(() => {
@@ -958,7 +911,6 @@ export default function Session({ sessionId }: SessionProps) {
                 },
               ],
         );
-        showCardNotice(mockAssignment.partnerAlias || "상대방");
       }
       setCallStatus("목업 연결 · 화면 테스트 중");
       setIsStarting(false);
@@ -1184,6 +1136,14 @@ export default function Session({ sessionId }: SessionProps) {
 
   const lobbyVisible = phase === "lobby" || phase === "idle";
 
+  function selectHeartParticipant(nickname: string) {
+    const encounteredProfile = encounteredProfiles.find(
+      (profile) => profile.nickname === nickname,
+    );
+    if (encounteredProfile) setSelectedProfile(encounteredProfile);
+    else setHeartRestrictionOpen(true);
+  }
+
   return (
     <SessionPage
       className={
@@ -1300,33 +1260,56 @@ export default function Session({ sessionId }: SessionProps) {
             {lobbyVisible ? (
               <section className="lobby-screen" aria-label="스터디 로비">
                 {finalChoiceLobby ? (
-                  <div
-                    className="profile-group opposite-profiles"
-                    role="group"
-                    aria-label="만난 상대 프로필"
-                  >
-                    {encounteredProfiles.map((profile, index) => {
-                      const position = choiceProfileLayout[index];
-                      return (
+                  <>
+                    <div
+                      className="profile-group opposite-profiles"
+                      role="group"
+                      aria-label="이성 참가자 프로필"
+                    >
+                      {lobbyParticipants.opposite.map((participant, index) => (
                         <button
                           className="profile-avatar choice-profile"
                           type="button"
-                          key={`${profile.memberId}-${profile.roundNumber}`}
+                          key={`opposite-${participant.nickname}-${index}`}
                           style={{
-                            left: position?.x ?? "50%",
-                            top: position?.y ?? "18%",
-                            animationDelay: position?.delay ?? "0s",
+                            left: participant.x,
+                            top: participant.y,
+                            animationDelay: participant.delay,
                           }}
-                          aria-label={`${profile.nickname}, ${profile.roundNumber}번째 대화에서 만남`}
-                          onClick={() => setSelectedProfile(profile)}
+                          aria-label={`이성 참가자 ${participant.nickname}`}
+                          onClick={() => selectHeartParticipant(participant.nickname)}
                         >
                           <span aria-hidden="true">
-                            {Array.from(profile.nickname)[0]}
+                            {Array.from(participant.nickname)[0]}
                           </span>
                         </button>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                    <div
+                      className="profile-group same-profiles"
+                      role="group"
+                      aria-label="동성 참가자 프로필"
+                    >
+                      {lobbyParticipants.same.map((participant, index) => (
+                        <button
+                          className="profile-avatar choice-profile"
+                          type="button"
+                          key={`same-${participant.nickname}-${index}`}
+                          style={{
+                            left: participant.x,
+                            top: participant.y,
+                            animationDelay: participant.delay,
+                          }}
+                          aria-label={`동성 참가자 ${participant.nickname}`}
+                          onClick={() => selectHeartParticipant(participant.nickname)}
+                        >
+                          <span aria-hidden="true">
+                            {Array.from(participant.nickname)[0]}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 ) : (
                   <div
                     className="profile-group opposite-profiles"
@@ -1451,11 +1434,6 @@ export default function Session({ sessionId }: SessionProps) {
                         {selectedProfile.roundNumber}번째 대화에서 만났어요
                       </p>
                       <h2 id="heart-modal-title">{selectedProfile.nickname}</h2>
-                      {(heartsSent[selectedProfile.memberId] ?? 0) > 0 && (
-                        <p className="heart-sent-count">
-                          보낸 하트 {heartsSent[selectedProfile.memberId]}개
-                        </p>
-                      )}
                       <div className="heart-balance-summary">
                         <span>잔여 하트</span>
                         <strong>
@@ -1592,6 +1570,38 @@ export default function Session({ sessionId }: SessionProps) {
                     </section>
                   </div>
                 )}
+                {heartRestrictionOpen && (
+                  <div
+                    className="heart-modal-backdrop"
+                    role="presentation"
+                    onClick={() => setHeartRestrictionOpen(false)}
+                  >
+                    <section
+                      className="heart-modal heart-restriction-modal"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="heart-restriction-title"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <button
+                        className="heart-modal-close"
+                        type="button"
+                        aria-label="닫기"
+                        onClick={() => setHeartRestrictionOpen(false)}
+                      >
+                        ×
+                      </button>
+                      <h2 id="heart-restriction-title">대화해본 사람만 선택할 수 있어요</h2>
+                      <button
+                        className="heart-send-button"
+                        type="button"
+                        onClick={() => setHeartRestrictionOpen(false)}
+                      >
+                        확인
+                      </button>
+                    </section>
+                  </div>
+                )}
               </section>
             ) : (
               <>
@@ -1658,20 +1668,6 @@ export default function Session({ sessionId }: SessionProps) {
                         {assignment.partnerProfileCard.nickname || "상대방"}
                       </p>
                     </div>
-                    {cardNotice && (
-                      <CardNotice
-                        type="button"
-                        role="status"
-                        aria-live="polite"
-                        onClick={() => {
-                          setCardNotice(null);
-                          setProfileCardOpen(true);
-                        }}
-                      >
-                        {cardNotice}
-                        <span>눌러서 보기</span>
-                      </CardNotice>
-                    )}
                     <div className="conversation-stage">
                       <div className="conversation-character-group">
                         <GuideBubble
@@ -1769,33 +1765,6 @@ export default function Session({ sessionId }: SessionProps) {
     </SessionPage>
   );
 }
-
-const CardNotice = styled.button`
-  position: absolute;
-  z-index: 5;
-  top: 9rem;
-  left: 50%;
-  display: grid;
-  gap: 0.2rem;
-  width: max-content;
-  max-width: calc(100% - 3.2rem);
-  padding: 1rem 1.8rem;
-  border: 0;
-  border-radius: 1.4rem;
-  background: #2f5d43;
-  box-shadow: 0 0.8rem 2.4rem #0003;
-  color: #fff;
-  font: 700 1.4rem/1.4 var(--font-body);
-  text-align: center;
-  transform: translateX(-50%);
-  cursor: pointer;
-
-  span {
-    color: #d6e8dc;
-    font-size: 1.1rem;
-    font-weight: 500;
-  }
-`;
 
 const SessionPage = styled.div`
   width: 100%;
@@ -2331,11 +2300,6 @@ const SessionPage = styled.div`
   }
   .heart-gem-balance strong {
     color: #2b302c;
-  }
-  .heart-sent-count {
-    margin-top: 0.8rem;
-    color: #66852b;
-    font: 600 1.3rem/1.4 var(--font-body);
   }
   .heart-send-button,
   .heart-buy-button {

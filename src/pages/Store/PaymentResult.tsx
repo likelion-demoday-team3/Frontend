@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 import { ApiError } from '../../features/api/client'
 import { abortTossPaymentOrder, confirmTossPayment } from '../../features/payments/toss'
+import { clearPaymentReturnLocation, getPaymentReturnLocation } from '../../features/payments/returnLocation'
 
 type CallbackAction = 'success' | 'fail'
 
@@ -12,13 +13,15 @@ type PaymentNotice = {
   message?: string
 }
 
-function returnToStore(notice: PaymentNotice) {
+function returnToOrigin(notice: PaymentNotice) {
   try {
     sessionStorage.setItem('kiiwee-payment-result', JSON.stringify(notice))
   } catch {
     // The store still opens with a generic status if session storage is unavailable.
   }
-  window.location.replace(`/store?payment=${notice.status}`)
+  const { href } = getPaymentReturnLocation(notice.status)
+  clearPaymentReturnLocation()
+  window.location.replace(href)
 }
 
 export default function PaymentResult() {
@@ -37,7 +40,7 @@ export default function PaymentResult() {
 
   useEffect(() => {
     if (!action || !orderId) {
-      setMessage('결제 정보를 확인할 수 없어요. 보석 상점으로 돌아가주세요.')
+      setMessage('결제 정보를 확인할 수 없어요. 결제를 시작한 화면으로 돌아가주세요.')
       return
     }
     if (started.current) return
@@ -45,40 +48,41 @@ export default function PaymentResult() {
 
     if (action === 'success') {
       if (!paymentKey || !Number.isSafeInteger(amount) || amount <= 0) {
-        returnToStore({ status: 'failed', message: '결제 승인 정보가 없어 보석을 충전하지 못했어요. 다시 시도해주세요.' })
+        returnToOrigin({ status: 'failed', message: '결제 승인 정보가 없어 보석을 충전하지 못했어요. 다시 시도해주세요.' })
         return
       }
       confirmTossPayment({ orderId, paymentKey, amount }).then(result => {
-        returnToStore({ status: 'success', grantedGem: result.grantedGem, gemBalance: result.gemBalance })
+        returnToOrigin({ status: 'success', grantedGem: result.grantedGem, gemBalance: result.gemBalance })
       }).catch(cause => {
         if (cause instanceof ApiError && cause.status === 401) return
-        returnToStore({ status: 'failed', message: cause instanceof Error ? cause.message : '결제 승인에 실패했어요. 다시 시도해주세요.' })
+        returnToOrigin({ status: 'failed', message: cause instanceof Error ? cause.message : '결제 승인에 실패했어요. 다시 시도해주세요.' })
       })
       return
     }
 
     abortTossPaymentOrder(orderId).then(() => {
       const cancelled = code === 'PAY_PROCESS_CANCELED'
-      returnToStore({
+      returnToOrigin({
         status: cancelled ? 'cancelled' : 'failed',
         message: cancelled ? '결제를 취소했습니다.' : failureMessage || '결제에 실패했어요. 다시 시도해주세요.',
       })
     }).catch(cause => {
       if (cause instanceof ApiError && cause.status === 401) return
-      returnToStore({
+      returnToOrigin({
         status: code === 'PAY_PROCESS_CANCELED' ? 'cancelled' : 'failed',
         message: failureMessage || (cause instanceof Error ? cause.message : '결제 중단을 처리하지 못했어요. 상점에서 다시 확인해주세요.'),
       })
     })
   }, [action, amount, code, failureMessage, orderId, paymentKey])
 
+  const returnLocation = getPaymentReturnLocation()
   return <ResultPage>
-    <a className="back" href="/store" aria-label="보석 상점으로 돌아가기">‹</a>
+    <a className="back" href={returnLocation.href} aria-label="결제를 시작한 화면으로 돌아가기">‹</a>
     <main>
       <div className="status-icon" aria-hidden="true">…</div>
       <h1>결제 처리 중</h1>
       <p>{message}</p>
-      <a className="primary" href="/store">보석 상점으로</a>
+      <a className="primary" href={returnLocation.href}>결제를 시작한 화면으로</a>
     </main>
   </ResultPage>
 }

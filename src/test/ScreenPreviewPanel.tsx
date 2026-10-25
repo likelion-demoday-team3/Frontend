@@ -17,7 +17,9 @@ export default function ScreenPreviewPanel() {
     <small>로컬 샘플 · DB 미사용</small>
     {previews.map(({ label, query }) => <a key={query} href={`/session/1?preview=${query}&showTest=1`}>{label}</a>)}
     <a href="/result?preview=mutual&showTest=1">매칭 결과</a>
+    <a href="/result?preview=failed&showTest=1">매칭 실패</a>
     <a href="/result-detail?preview=sample&showTest=1">결과 상세</a>
+    <a href="/contact?sessionId=1&preview=sample&showTest=1">연락처 주고받기</a>
   </Dock>
 }
 

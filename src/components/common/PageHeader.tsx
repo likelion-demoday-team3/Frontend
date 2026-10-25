@@ -6,7 +6,7 @@ import { getMyWallet } from '../../features/wallet/api'
 import { getAccessToken } from '../../features/auth/session'
 
 export default function PageHeader({ title, gems = 5, onGemsChange }: { title: string; gems?: number; onGemsChange?: (gems: number) => void }) {
-  const [shopOpen, setShopOpen] = useState(false)
+  const [shopOpen, setShopOpen] = useState(() => new URLSearchParams(window.location.search).get('paymentReturn') === 'embedded')
   const [balance, setBalance] = useState<number | null>(null)
 
   useEffect(() => {

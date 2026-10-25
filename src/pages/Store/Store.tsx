@@ -5,6 +5,10 @@ import NavBar from "../../components/common/NavBar";
 import { getAccessToken } from "../../features/auth/session";
 import { getMyWallet } from "../../features/wallet/api";
 import {
+  clearPaymentReturnLocation,
+  savePaymentReturnLocation,
+} from "../../features/payments/returnLocation";
+import {
   abortTossPaymentOrder,
   createTossPaymentOrder,
   getShopProducts,
@@ -135,6 +139,7 @@ export default function Store({
     }
     setPaymentPending(true);
     setPaymentError("");
+    savePaymentReturnLocation(embedded);
     let orderId = "";
     try {
       const order = await createTossPaymentOrder(selectedPackage.productId);
@@ -163,6 +168,7 @@ export default function Store({
         failUrl: order.failUrl,
       });
     } catch (cause) {
+      clearPaymentReturnLocation();
       // SDK 결제창을 닫거나 열지 못한 경우에도 대기 주문을 정리합니다.
       if (orderId) {
         try {
@@ -184,7 +190,15 @@ export default function Store({
   function closePaymentNotice() {
     setPaymentNotice(null);
     sessionStorage.removeItem("kiiwee-payment-result");
-    window.history.replaceState(null, "", window.location.pathname);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("payment");
+    params.delete("paymentReturn");
+    const query = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+    );
   }
 
   return (

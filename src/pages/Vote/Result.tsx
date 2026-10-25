@@ -75,7 +75,7 @@ export default function Result() {
               <div className="profile partner">
                 <div className="avatar">구</div>
                 <strong>구름산책</strong>
-                <span>{partnerAccepted ? "수락했어요" : "응답 대기 중"}</span>
+                <span>상대방</span>
               </div>
               <div className="decision-actions">
                 <button
@@ -97,21 +97,11 @@ export default function Result() {
                   거절
                 </button>
               </div>
-              {myDecision === "accepted" && (
-                <p className="decision-note" role="status">
-                  연락처 교환을 수락했어요.
-                </p>
-              )}
-              {myDecision === "declined" && (
-                <p className="decision-note" role="status">
-                  연락처 교환을 거절했어요.
-                </p>
-              )}
-              {partnerAccepted && (
-                <p className="partner-note">
-                  상대방도 연락처 교환을 수락했어요.
-                </p>
-              )}
+              <p className="partner-note" role="status">
+                {partnerAccepted
+                  ? "상대방도 연락처 교환을 수락했어요."
+                  : "응답 대기 중..."}
+              </p>
             </section>
           </>
         ) : (

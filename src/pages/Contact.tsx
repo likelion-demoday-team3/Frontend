@@ -10,12 +10,15 @@ type Partner = { memberId: number; nickname: string; roundNumber: number }
 export default function Contact() {
   const params = new URLSearchParams(window.location.search)
   const sessionId = Number(params.get('sessionId'))
+  const preview = params.has('preview') && (import.meta.env.DEV || params.has('showTest'))
   const [gems, setGems] = useState(0)
   const [partners, setPartners] = useState<Partner[]>([])
   const [shares, setShares] = useState<ContactShare[]>([])
   const [requests, setRequests] = useState<ContactRequest[]>([])
   const [myMemberId, setMyMemberId] = useState<number | null>(null)
   const [contactType, setContactType] = useState<ContactType>('PHONE')
+  const [contactTarget, setContactTarget] = useState<{ partner: Partner; action: 'send' | 'request' } | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<{ partner: Partner; kind: 'sent' | 'request' } | null>(null)
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -30,6 +33,27 @@ export default function Contact() {
   }
 
   useEffect(() => {
+    if (preview) {
+      setPartners([
+        { memberId: 2, nickname: '구름산책', roundNumber: 1 },
+        { memberId: 3, nickname: '달빛수집가', roundNumber: 2 },
+      ])
+      setMyMemberId(1)
+      setGems(5)
+      setRequests([{
+        id: 900,
+        sessionId: 1,
+        requesterId: 3,
+        targetId: 1,
+        contactType: 'PHONE',
+        status: 'PENDING',
+        chargedGem: 0,
+        createdAt: new Date().toISOString(),
+        respondedAt: null,
+      }])
+      setLoading(false)
+      return
+    }
     const stored = sessionId ? sessionStorage.getItem(`kiiwee.session-context:${sessionId}`) : null
     if (stored) {
       try {
@@ -42,22 +66,51 @@ export default function Contact() {
     refresh().catch(cause => { if (active) setError(cause instanceof Error ? cause.message : '연락처 정보를 불러오지 못했어요.') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [sessionId])
+  }, [sessionId, preview])
 
-  async function runAction(memberId: number, action: 'send' | 'request') {
+  async function runAction(memberId: number, action: 'send' | 'request', selectedType = contactType) {
     setBusyId(memberId); setError('')
     try {
-      if (action === 'send') await sendContact(sessionId, memberId, contactType)
-      else await requestContact(sessionId, memberId, contactType)
+      if (preview) {
+        const now = new Date().toISOString()
+        if (action === 'send') {
+          setShares(items => [...items, {
+            id: Date.now(), sessionId, senderId: 1, receiverId: memberId,
+            contactType: selectedType, contactValue: selectedType === 'PHONE' ? '010-1234-5678' : '@kiiwee_demo',
+            shareType: 'MANUAL', createdAt: now, sessionStartTime: now,
+            senderAlias: '내 닉네임', receiverAlias: partners.find(person => person.memberId === memberId)?.nickname ?? null,
+          }])
+        } else {
+          setRequests(items => [...items, {
+            id: Date.now(), sessionId, requesterId: 1, targetId: memberId,
+            contactType: selectedType, status: 'PENDING', chargedGem: 0, createdAt: now, respondedAt: null,
+          }])
+        }
+        return true
+      }
+      if (action === 'send') await sendContact(sessionId, memberId, selectedType)
+      else await requestContact(sessionId, memberId, selectedType)
       await refresh()
+      return true
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : '연락처 교환을 처리하지 못했어요.')
+      return false
     } finally { setBusyId(null) }
   }
 
   async function answerRequest(requestId: number, accept: boolean) {
     setBusyId(requestId); setError('')
-    try { await respondToContactRequest(sessionId, requestId, accept); await refresh() }
+    try {
+      if (preview) {
+        setRequests(items => items.map(item => item.id === requestId ? {
+          ...item,
+          status: accept ? 'ACCEPTED' : 'DECLINED',
+          respondedAt: new Date().toISOString(),
+        } : item))
+        return
+      }
+      await respondToContactRequest(sessionId, requestId, accept); await refresh()
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : '요청에 응답하지 못했어요.') }
     finally { setBusyId(null) }
   }
@@ -69,15 +122,11 @@ export default function Contact() {
       <section className="intro">
         <h2>연락처 주고받기</h2>
         <p>마음이 통했다면 연락처를 교환해보세요.</p>
-        {sessionId > 0 && <button type="button" className="refresh" onClick={() => { setLoading(true); refresh().catch(cause => setError(cause instanceof Error ? cause.message : '연락처 정보를 불러오지 못했어요.')).finally(() => setLoading(false)) }}>요청 새로고침</button>}
+        {preview && <span className="preview-badge">화면 미리보기 · 샘플 데이터</span>}
+        {sessionId > 0 && !preview && <button type="button" className="refresh" onClick={() => { setLoading(true); refresh().catch(cause => setError(cause instanceof Error ? cause.message : '연락처 정보를 불러오지 못했어요.')).finally(() => setLoading(false)) }}>요청 새로고침</button>}
       </section>
 
       {!sessionId ? <section className="pending-card" role="status"><h2>세션 정보가 없어요</h2><p>스터디 결과 화면에서 연락처 교환을 열어주세요.</p></section> : loading ? <section className="pending-card" role="status"><p>연락처 정보를 불러오는 중이에요…</p></section> : <>
-      <section className="contact-type" aria-label="공유할 연락처 종류">
-        <span>연락처 종류</span>
-        <button type="button" aria-pressed={contactType === 'PHONE'} className={contactType === 'PHONE' ? 'selected' : ''} onClick={() => setContactType('PHONE')}>전화번호</button>
-        <button type="button" aria-pressed={contactType === 'INSTAGRAM'} className={contactType === 'INSTAGRAM' ? 'selected' : ''} onClick={() => setContactType('INSTAGRAM')}>인스타그램</button>
-      </section>
       {error && <p className="error" role="alert">{error}</p>}
       {!partners.length && <section className="pending-card" role="status"><h2>대화 상대 정보가 없어요</h2><p>세션 화면에서 대화 상대 정보가 전달되지 않았습니다. 세션을 다시 열고 결과 화면으로 이동해주세요.</p></section>}
       <section className="partner-list" aria-label="대화 상대 목록">
@@ -92,16 +141,20 @@ export default function Contact() {
           <div className="partner-info">
             <span className="round">{partner.roundNumber}번째 대화</span>
             <h2>{partner.nickname}</h2>
-            {sent && <small>내 연락처를 보냈어요</small>}
             {received && shares.filter(item => item.sessionId === sessionId && item.receiverId === myMemberId && item.senderId === partner.memberId).map(item => <small key={item.id}>받은 연락처 · {item.contactValue ?? '삭제된 연락처'}</small>)}
-            {outgoingRequest && <p>연락처 공개 요청에 응답을 기다리고 있어요.</p>}
           </div>
           <div className="actions">
-            <button type="button" disabled={!myMemberId || sent || busyId === partner.memberId || gems < 1} onClick={() => void runAction(partner.memberId, 'send')}>
-              {sent ? '보냄' : '내 연락처 보내기'}{!sent && <small>◆ 1</small>}
+            <button type="button" disabled={!myMemberId || busyId === partner.memberId || (!sent && gems < 1)} onClick={() => {
+              if (sent) setCancelTarget({ partner, kind: 'sent' })
+              else { setError(''); setContactType('PHONE'); setContactTarget({ partner, action: 'send' }) }
+            }}>
+              {sent ? '전송 완료' : '연락처 보내기'}
             </button>
-            <button type="button" className="receive" disabled={!myMemberId || received || outgoingRequest || busyId === partner.memberId} onClick={() => void runAction(partner.memberId, 'request')}>
-              {received ? '받음' : outgoingRequest ? '요청 중' : '연락처 요청'}
+            <button type="button" className="receive" disabled={!myMemberId || received || busyId === partner.memberId} onClick={() => {
+              if (outgoingRequest) setCancelTarget({ partner, kind: 'request' })
+              else { setError(''); setContactType('PHONE'); setContactTarget({ partner, action: 'request' }) }
+            }}>
+              {received ? '받음' : outgoingRequest ? '요청 중' : '연락처 요청하기'}
             </button>
           </div>
         </article>})}
@@ -118,6 +171,39 @@ export default function Contact() {
         <span>연락처 주고받기에는 보석이 사용됩니다.</span>
       </section>
     </main>
+
+    {contactTarget && <div className="send-modal-backdrop" role="presentation" onClick={() => setContactTarget(null)}>
+      <section className="send-contact-dialog" role="dialog" aria-modal="true" aria-labelledby="send-contact-title" onClick={event => event.stopPropagation()}>
+        <button className="send-modal-close" type="button" aria-label="닫기" onClick={() => setContactTarget(null)}>×</button>
+        <p className="send-modal-round">{contactTarget.partner.roundNumber}번째 대화에서 만났어요</p>
+        <h2 id="send-contact-title">{contactTarget.partner.nickname}</h2>
+        {contactTarget.action === 'send'
+          ? <div className="gem-cost"><span>차감 보석</span><strong><span aria-hidden="true">◆</span> 1개</strong></div>
+          : <p className="request-cost-note">상대방이 연락처 요청을 수락하면 보석 1개가 차감돼요.</p>}
+        <p className="contact-type-label">{contactTarget.action === 'send' ? '보낼 연락처 종류를 선택해주세요' : '요청할 연락처 종류를 선택해주세요'}</p>
+        <div className="contact-type-picker" role="group" aria-label={contactTarget.action === 'send' ? '보낼 연락처 종류' : '요청할 연락처 종류'}>
+          <button type="button" aria-pressed={contactType === 'PHONE'} className={contactType === 'PHONE' ? 'selected' : ''} onClick={() => setContactType('PHONE')}>전화번호</button>
+          <button type="button" aria-pressed={contactType === 'INSTAGRAM'} className={contactType === 'INSTAGRAM' ? 'selected' : ''} onClick={() => setContactType('INSTAGRAM')}>인스타그램</button>
+        </div>
+        {error && <p className="dialog-error" role="alert">{error}</p>}
+        <button className="send-contact-confirm" type="button" disabled={busyId === contactTarget.partner.memberId || (contactTarget.action === 'send' && gems < 1)} onClick={async () => {
+          const target = contactTarget
+          const completed = await runAction(target.partner.memberId, target.action, contactType)
+          if (completed) setContactTarget(null)
+        }}>{busyId === contactTarget.partner.memberId ? '처리 중…' : contactTarget.action === 'send' ? '연락처 보내기' : '연락처 요청하기'}</button>
+      </section>
+    </div>}
+
+    {cancelTarget && <div className="send-modal-backdrop" role="presentation" onClick={() => setCancelTarget(null)}>
+      <section className="send-contact-dialog cancel-contact-dialog" role="dialog" aria-modal="true" aria-labelledby="cancel-contact-title" onClick={event => event.stopPropagation()}>
+        <button className="send-modal-close" type="button" aria-label="닫기" onClick={() => setCancelTarget(null)}>×</button>
+        <h2 id="cancel-contact-title">취소하시겠습니까?</h2>
+        <p>{cancelTarget.kind === 'sent'
+          ? '이미 전송된 연락처는 상대방에게 전달되어 회수할 수 없어요.'
+          : '연락처 요청 취소 기능은 아직 연결되지 않았어요.'}</p>
+        <button className="send-contact-confirm" type="button" onClick={() => setCancelTarget(null)}>확인</button>
+      </section>
+    </div>}
 
     <a className="finish-button" href="/home">종료하기</a>
   </ContactPage>
@@ -137,10 +223,8 @@ const ContactPage = styled.div`
   .intro h2 { font: 400 2.3rem/1.3 var(--display-font); }
   .intro p { margin-top: 0.7rem; color: #899188; font-size: 1.2rem; }
   .refresh { margin-top:.8rem; padding:.6rem 1rem; border:1px solid #e2e8dc; border-radius:99px; background:#fff; color:#536057; font-size:1rem; }
+  .preview-badge { display:inline-block; margin-top:.8rem; padding:.4rem .8rem; border-radius:99px; background:#f2ffd1; color:#6c832f; font-size:1rem; }
   .pending-card { display: grid; min-height: 28rem; align-content: center; justify-items: center; gap: 1rem; padding: 2rem; border: 1px solid #e4e9df; border-radius: 1.8rem; background: white; text-align: center; }
-  .contact-type { display:flex; align-items:center; gap:.6rem; margin-bottom:1rem; color:#536057; font-size:1.1rem; }
-  .contact-type button { min-height:3.5rem; padding:0 1rem; border:1px solid #e2e8dc; border-radius:99px; background:#fff; color:#536057; }
-  .contact-type button.selected { border-color:var(--green); background:var(--green); color:#273219; font-weight:700; }
   .error { margin-bottom:1rem; color:#c7554a; font-size:1.1rem; }
   .request-card { display:grid; gap:1rem; margin:1rem 0; padding:1.3rem; border:1px solid #e4e9df; border-radius:1.2rem; background:#fff; }
   .pending-card h2 { font: 400 1.9rem/1.4 var(--display-font); }
@@ -160,9 +244,30 @@ const ContactPage = styled.div`
   .actions button { display: flex; min-height: 4.2rem; align-items: center; justify-content: center; gap: 0.6rem; border: 0; border-radius: 1rem; background: var(--green); color: var(--ink); font-size: 1.25rem; font-weight: 700; }
   .actions button.receive { border: 1px solid #e2e8dc; background: white; }
   .actions button:disabled { border-color: #e5e8e2; background: #f0f2ed; color: #a1a89c; }
-  .actions button small { color: #31aee0; font-size: 1rem; }
+  .send-modal-backdrop { position:fixed; z-index:60; inset:0; display:grid; place-items:center; padding:2.4rem; background:#10161080; }
+  .send-contact-dialog { position:relative; display:flex; width:min(100%,34rem); max-height:calc(100dvh - 3.2rem); flex-direction:column; align-items:center; overflow-y:auto; padding:3rem 2.4rem 2.4rem; border:.1rem solid #8b6d51; border-radius:2rem; background:#fbfff1; color:#2b302c; box-shadow:0 1rem 3rem #10161030; text-align:center; }
+  .send-modal-close { position:absolute; top:1rem; right:1.2rem; display:grid; width:3.2rem; height:3.2rem; place-items:center; border:0; border-radius:0; background:transparent; color:#2b302c; font:400 2.8rem/1 var(--font-body); }
+  .send-modal-round { margin-top:.8rem; color:#899188; font:500 1.4rem/1.4 var(--font-body); }
+  .send-contact-dialog h2 { margin-top:.4rem; color:#2b302c; font:700 2.4rem/1.3 var(--display-font); }
+  .gem-cost { display:flex; width:100%; min-height:5.8rem; align-items:center; justify-content:space-between; gap:1rem; margin-top:2rem; padding:1.5rem 1.6rem; border-radius:1.4rem; background:#f2f7e7; color:#899188; font:400 1.4rem/1.4 var(--font-body); text-align:left; }
+  .gem-cost strong { display:inline-flex; align-items:center; gap:.6rem; color:#2b302c; font-size:1.8rem; font-weight:700; white-space:nowrap; }
+  .gem-cost strong span { color:#31bfff; }
+  .request-cost-note { width:100%; margin-top:1.6rem; color:#737e73; font-size:1.1rem; line-height:1.6; }
+  .contact-type-label { margin:1.8rem 0 .9rem; color:#737e73; font-size:1.2rem; }
+  .contact-type-picker { display:grid; width:100%; grid-template-columns:1fr 1fr; gap:.8rem; }
+  .contact-type-picker button { min-height:4.5rem; border:1px solid #e0e6dc; border-radius:1.2rem; background:#fff; color:#536057; font-size:1.2rem; font-weight:650; }
+  .contact-type-picker button.selected { border-color:#c8cec4; background:#e4e8df; color:#536057; }
+  .dialog-error { margin-top:1rem; color:#c7554a; font-size:1.1rem; line-height:1.5; }
+  .send-contact-confirm { width:100%; min-height:5rem; margin-top:1.6rem; border:0; border-radius:1.2rem; background:#e5ff76; color:#273219; font-size:1.4rem; font-weight:750; }
+  .send-contact-confirm:disabled { background:#e4e8df; color:#929a8d; }
+  .cancel-contact-dialog h2 { margin:1rem 0 1.2rem; }
+  .cancel-contact-dialog > p { color:#737e73; font-size:1.2rem; line-height:1.7; }
   .guide { display: grid; gap: 1rem; margin-top: 1.4rem; padding: 1.5rem; border-radius: 1.4rem; background: #f5f8ef; color: #707a6e; font-size: 1.1rem; line-height: 1.7; }
   .guide span { color: #8a9b67; font-size: 1rem; }
   .finish-button { display: flex; min-height: 5.2rem; align-items: center; justify-content: center; gap: 1rem; margin-top: 2rem; border-radius: 1.4rem; background: #011020; color: white; font-weight: 700; text-decoration: none; }
-  @media (max-width: 37.4rem) { padding-right: 2.4rem; padding-left: 2.4rem; }
+  @media (max-width: 37.4rem) {
+    padding-right: 2.4rem;
+    padding-left: 2.4rem;
+    .send-contact-dialog { padding:3rem 2.4rem 2.4rem; border-radius:2rem; }
+  }
 `
