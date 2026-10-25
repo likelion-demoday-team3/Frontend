@@ -132,9 +132,9 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
             )}
           </InterestEditor>
         </Field>
+        <p className="hint">관심사는 엔터로 추가하고, 최대 5개까지 입력할 수 있어요.</p>
         {error && <p className="error" role="alert">{error}</p>}
         <Action type="button" disabled={saving || demo} onClick={() => void saveProfile()}>{saving ? '저장 중…' : '프로필 카드 저장'}</Action>
-        <p className="hint">관심사는 엔터로 추가하고, 최대 5개까지 입력할 수 있어요.</p>
       </>}
     </Panel>
     {dialog && <SaveDialogBackdrop role="presentation" onClick={() => setDialog(null)}>
