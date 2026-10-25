@@ -131,8 +131,8 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
               />
             )}
           </InterestEditor>
+          <InterestHint className="hint">관심사는 엔터로 추가하고, 최대 5개까지 입력할 수 있어요.</InterestHint>
         </Field>
-        <p className="hint">관심사는 엔터로 추가하고, 최대 5개까지 입력할 수 있어요.</p>
         {error && <p className="error" role="alert">{error}</p>}
         <Action type="button" disabled={saving || demo} onClick={() => void saveProfile()}>{saving ? '저장 중…' : '프로필 카드 저장'}</Action>
       </>}
@@ -167,4 +167,12 @@ const InterestEditor = styled.div`
   .chip-remove { display: grid; width: 1.8rem; height: 1.8rem; place-items: center; padding: 0; border: 0; border-radius: 50%; background: #cfe0d5; color: #2f5d43; font-size: 1.4rem; line-height: 1; cursor: pointer; }
   .chip-input { flex: 1; min-width: 8rem; min-height: 3rem; padding: 0 .2rem; border: 0; background: transparent; color: var(--ink); font: 400 1.4rem var(--font-body); }
   .chip-input:focus { outline: none; }
+`
+
+const InterestHint = styled.p`
+  margin-top: .8rem;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  font-weight: 400;
+  line-height: 1.6;
 `

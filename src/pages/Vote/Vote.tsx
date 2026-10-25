@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import styled from "styled-components";
+import type { OwnVote } from "../../features/sessions/resultsApi";
 
 export type VoteCandidate = {
   memberId: number;
@@ -13,9 +14,10 @@ type VoteProps = {
   allowLocalSubmit?: boolean;
   onSubmit?: (rankedMemberIds: number[]) => Promise<unknown>;
   votingEndsAt?: string | null;
+  initialVote?: OwnVote | null;
 };
 
-export default function Vote({ candidates, myAlias, allowLocalSubmit = false, onSubmit, votingEndsAt = null }: VoteProps) {
+export default function Vote({ candidates, myAlias, allowLocalSubmit = false, onSubmit, votingEndsAt = null, initialVote = null }: VoteProps) {
   const [rankedIds, setRankedIds] = useState<Array<number | null>>([
     null,
     null,
@@ -26,6 +28,12 @@ export default function Vote({ candidates, myAlias, allowLocalSubmit = false, on
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!initialVote) return;
+    setRankedIds([initialVote.rankedMemberIds[0] ?? null, initialVote.rankedMemberIds[1] ?? null, initialVote.rankedMemberIds[2] ?? null]);
+    setSubmitted(initialVote.submitted);
+  }, [initialVote]);
 
   useEffect(() => {
     if (!votingEndsAt) return;

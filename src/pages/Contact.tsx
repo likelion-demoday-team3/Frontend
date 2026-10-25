@@ -1,32 +1,65 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import PageHeader from '../components/common/PageHeader'
+import { getMyWallet } from '../features/wallet/api'
+import { getContactShares, type ContactShare } from '../features/records/api'
+import { getContactRequests, requestContact, respondToContactRequest, sendContact, type ContactRequest, type ContactType } from '../features/sessions/interactionApi'
 
-type ContactPartner = {
-  id: number
-  nickname: string
-  initial: string
-  accepted: boolean
-  sent: boolean
-  received: boolean
-}
-
-const initialPartners: ContactPartner[] = [
-  { id: 1, nickname: '구름산책', initial: '구', accepted: true, sent: false, received: false },
-  { id: 2, nickname: '달빛수집가', initial: '달', accepted: false, sent: false, received: false },
-  { id: 3, nickname: '포근한오후', initial: '포', accepted: true, sent: false, received: false },
-]
+type Partner = { memberId: number; nickname: string; roundNumber: number }
 
 export default function Contact() {
-  const mockMode = false;
-  const [gems, setGems] = useState(5)
-  const [partners, setPartners] = useState(initialPartners)
+  const params = new URLSearchParams(window.location.search)
+  const sessionId = Number(params.get('sessionId'))
+  const [gems, setGems] = useState(0)
+  const [partners, setPartners] = useState<Partner[]>([])
+  const [shares, setShares] = useState<ContactShare[]>([])
+  const [requests, setRequests] = useState<ContactRequest[]>([])
+  const [myMemberId, setMyMemberId] = useState<number | null>(null)
+  const [contactType, setContactType] = useState<ContactType>('PHONE')
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<number | null>(null)
+  const [error, setError] = useState('')
 
-  function spendGem(id: number, action: 'sent' | 'received') {
-    const partner = partners.find(item => item.id === id)
-    if (!partner || gems < 1 || partner[action] || (action === 'received' && !partner.accepted)) return
-    setGems(value => value - 1)
-    setPartners(items => items.map(item => item.id === id ? { ...item, [action]: true } : item))
+  async function refresh() {
+    const [wallet, sent, received, requestHistory] = await Promise.all([
+      getMyWallet(), getContactShares('SENT'), getContactShares('RECEIVED'), getContactRequests(),
+    ])
+    setGems(wallet.gemBalance)
+    setShares([...sent.items, ...received.items])
+    setRequests(requestHistory.items)
+  }
+
+  useEffect(() => {
+    const stored = sessionId ? sessionStorage.getItem(`kiiwee.session-context:${sessionId}`) : null
+    if (stored) {
+      try {
+        const context = JSON.parse(stored) as { partners?: Partner[]; myMemberId?: number }
+        setPartners(context.partners ?? [])
+        setMyMemberId(context.myMemberId ?? null)
+      } catch { /* 잘못된 임시 화면 상태는 무시하고 안내를 표시 */ }
+    }
+    let active = true
+    refresh().catch(cause => { if (active) setError(cause instanceof Error ? cause.message : '연락처 정보를 불러오지 못했어요.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [sessionId])
+
+  async function runAction(memberId: number, action: 'send' | 'request') {
+    setBusyId(memberId); setError('')
+    try {
+      if (action === 'send') await sendContact(sessionId, memberId, contactType)
+      else await requestContact(sessionId, memberId, contactType)
+      await refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : '연락처 교환을 처리하지 못했어요.')
+    } finally { setBusyId(null) }
+  }
+
+  async function answerRequest(requestId: number, accept: boolean) {
+    setBusyId(requestId); setError('')
+    try { await respondToContactRequest(sessionId, requestId, accept); await refresh() }
+    catch (cause) { setError(cause instanceof Error ? cause.message : '요청에 응답하지 못했어요.') }
+    finally { setBusyId(null) }
   }
 
   return <ContactPage>
@@ -35,38 +68,52 @@ export default function Contact() {
     <main>
       <section className="intro">
         <h2>연락처 주고받기</h2>
-        <p>{mockMode ? '화면 미리보기 · 샘플 데이터' : '마음이 통했다면 연락처를 교환해보세요.'}</p>
+        <p>마음이 통했다면 연락처를 교환해보세요.</p>
+        {sessionId > 0 && <button type="button" className="refresh" onClick={() => { setLoading(true); refresh().catch(cause => setError(cause instanceof Error ? cause.message : '연락처 정보를 불러오지 못했어요.')).finally(() => setLoading(false)) }}>요청 새로고침</button>}
       </section>
 
-      {!mockMode ? <section className="pending-card" role="status"><h2>연락처 교환 API 명세 대기 중</h2><p>연락처 교환 의사, 보석 차감, 공개할 연락처와 내역 조회 계약이 없어 실제 교환 기능을 사용할 수 없어요.</p></section> : <>
+      {!sessionId ? <section className="pending-card" role="status"><h2>세션 정보가 없어요</h2><p>스터디 결과 화면에서 연락처 교환을 열어주세요.</p></section> : loading ? <section className="pending-card" role="status"><p>연락처 정보를 불러오는 중이에요…</p></section> : <>
+      <section className="contact-type" aria-label="공유할 연락처 종류">
+        <span>연락처 종류</span>
+        <button type="button" aria-pressed={contactType === 'PHONE'} className={contactType === 'PHONE' ? 'selected' : ''} onClick={() => setContactType('PHONE')}>전화번호</button>
+        <button type="button" aria-pressed={contactType === 'INSTAGRAM'} className={contactType === 'INSTAGRAM' ? 'selected' : ''} onClick={() => setContactType('INSTAGRAM')}>인스타그램</button>
+      </section>
+      {error && <p className="error" role="alert">{error}</p>}
+      {!partners.length && <section className="pending-card" role="status"><h2>대화 상대 정보가 없어요</h2><p>세션 화면에서 대화 상대 정보가 전달되지 않았습니다. 세션을 다시 열고 결과 화면으로 이동해주세요.</p></section>}
       <section className="partner-list" aria-label="대화 상대 목록">
-        {partners.map((partner, index) => <article className="partner-card" key={partner.id}>
+        {partners.map((partner, index) => {
+          const sent = shares.some(item => item.sessionId === sessionId && item.senderId === myMemberId && item.receiverId === partner.memberId)
+          const received = shares.some(item => item.sessionId === sessionId && item.receiverId === myMemberId && item.senderId === partner.memberId)
+          const outgoingRequest = requests.some(item => item.sessionId === sessionId && item.requesterId === myMemberId && item.targetId === partner.memberId && item.status === 'PENDING')
+          return <article className="partner-card" key={partner.memberId}>
           <div className={`avatar tone-${index % 2}`} aria-label={`${partner.nickname} 프로필 사진`}>
-            <span>{partner.initial}</span>
+            <span>{Array.from(partner.nickname)[0]}</span>
           </div>
           <div className="partner-info">
-            <span className="round">{partner.id}번째 대화</span>
+            <span className="round">{partner.roundNumber}번째 대화</span>
             <h2>{partner.nickname}</h2>
-            {partner.accepted
-              ? <p className="accepted">연락처 교환 수락</p>
-              : <p>상대방 응답 대기 중</p>}
-            {partner.sent && <small>내 연락처를 보냈어요</small>}
-            {partner.received && <small>연락처를 받았어요 · 010-1234-5678</small>}
+            {sent && <small>내 연락처를 보냈어요</small>}
+            {received && shares.filter(item => item.sessionId === sessionId && item.receiverId === myMemberId && item.senderId === partner.memberId).map(item => <small key={item.id}>받은 연락처 · {item.contactValue ?? '삭제된 연락처'}</small>)}
+            {outgoingRequest && <p>연락처 공개 요청에 응답을 기다리고 있어요.</p>}
           </div>
           <div className="actions">
-            <button type="button" disabled={partner.sent || gems < 1} onClick={() => spendGem(partner.id, 'sent')}>
-              {partner.sent ? '보냄' : '보내기'}{!partner.sent && <small>◆ 1</small>}
+            <button type="button" disabled={!myMemberId || sent || busyId === partner.memberId || gems < 1} onClick={() => void runAction(partner.memberId, 'send')}>
+              {sent ? '보냄' : '내 연락처 보내기'}{!sent && <small>◆ 1</small>}
             </button>
-            <button type="button" className="receive" disabled={!partner.accepted || partner.received || gems < 1} onClick={() => spendGem(partner.id, 'received')}>
-              {partner.received ? '받음' : '받기'}{!partner.received && <small>◆ 1</small>}
+            <button type="button" className="receive" disabled={!myMemberId || received || outgoingRequest || busyId === partner.memberId} onClick={() => void runAction(partner.memberId, 'request')}>
+              {received ? '받음' : outgoingRequest ? '요청 중' : '연락처 요청'}
             </button>
           </div>
-        </article>)}
+        </article>})}
       </section>
+      {requests.filter(request => request.sessionId === sessionId && request.targetId === myMemberId && request.status === 'PENDING').map(request => <article className="request-card" key={request.id}>
+        <p>상대방이 {request.contactType === 'PHONE' ? '전화번호' : '인스타그램'} 연락처를 요청했어요.</p>
+        <div className="actions"><button type="button" disabled={busyId === request.id} onClick={() => void answerRequest(request.id, true)}>수락</button><button type="button" className="receive" disabled={busyId === request.id} onClick={() => void answerRequest(request.id, false)}>거절</button></div>
+      </article>)}
       </>}
 
       <section className="guide" aria-label="연락처 교환 안내">
-        <p>보내기를 클릭하면 내 연락처가 상대에게 가고, 받기를 클릭하면 상대의 연락처를 받을 수 있습니다. 상대가 수락한 경우에만 연락처를 받을 수 있습니다.</p>
+        <p>내 연락처 보내기는 보석 1개를 사용합니다. 연락처 요청은 상대가 수락하면 요청자에게 보석 1개가 차감됩니다. 매칭된 상대의 연락처는 무료로 공유될 수 있습니다.</p>
         <p>주고받은 연락처는 마이페이지에서 확인할 수 있습니다. 세션이 종료되면 세션 정보는 삭제되지만 연락처 기록은 남습니다.</p>
         <span>연락처 주고받기에는 보석이 사용됩니다.</span>
       </section>
@@ -89,7 +136,13 @@ const ContactPage = styled.div`
   .intro { padding: 2.8rem 0 1.8rem; text-align: center; }
   .intro h2 { font: 400 2.3rem/1.3 var(--display-font); }
   .intro p { margin-top: 0.7rem; color: #899188; font-size: 1.2rem; }
+  .refresh { margin-top:.8rem; padding:.6rem 1rem; border:1px solid #e2e8dc; border-radius:99px; background:#fff; color:#536057; font-size:1rem; }
   .pending-card { display: grid; min-height: 28rem; align-content: center; justify-items: center; gap: 1rem; padding: 2rem; border: 1px solid #e4e9df; border-radius: 1.8rem; background: white; text-align: center; }
+  .contact-type { display:flex; align-items:center; gap:.6rem; margin-bottom:1rem; color:#536057; font-size:1.1rem; }
+  .contact-type button { min-height:3.5rem; padding:0 1rem; border:1px solid #e2e8dc; border-radius:99px; background:#fff; color:#536057; }
+  .contact-type button.selected { border-color:var(--green); background:var(--green); color:#273219; font-weight:700; }
+  .error { margin-bottom:1rem; color:#c7554a; font-size:1.1rem; }
+  .request-card { display:grid; gap:1rem; margin:1rem 0; padding:1.3rem; border:1px solid #e4e9df; border-radius:1.2rem; background:#fff; }
   .pending-card h2 { font: 400 1.9rem/1.4 var(--display-font); }
   .pending-card p { max-width: 28rem; color: #818a7f; font-size: 1.25rem; line-height: 1.7; }
   .partner-list { display: grid; gap: 1rem; }

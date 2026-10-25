@@ -29,6 +29,7 @@ export type LiveMessage =
   | { kind: 'idle'; roundNumber: number; breakSeconds: number }
   | { kind: 'signal'; roomId: number; fromMemberId: number; type: 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE'; payload: string }
   | { kind: 'voting-started'; votingEndsAt: string }
+  | { kind: 'results-ready'; sessionId: number; coupleCount: number }
 
 export type LiveConnection = {
   disconnect: () => void
@@ -98,6 +99,7 @@ export function connectLiveSession(
         subscribe('/user/queue/live/round-idle')
         subscribe('/user/queue/live/signal')
         subscribe('/user/queue/live/voting-started')
+        subscribe('/user/queue/live/results-ready')
         sendFrame('SEND', { destination: '/app/live/join', 'content-type': 'application/json' }, JSON.stringify({ sessionId }))
       } else if (command === 'MESSAGE') {
         try {
@@ -108,6 +110,7 @@ export function connectLiveSession(
           else if (destination?.endsWith('/round-idle')) onMessage({ kind: 'idle', ...payload })
           else if (destination?.endsWith('/signal')) onMessage({ kind: 'signal', ...payload })
           else if (destination?.endsWith('/voting-started')) onMessage({ kind: 'voting-started', ...payload })
+          else if (destination?.endsWith('/results-ready')) onMessage({ kind: 'results-ready', ...payload })
         } catch {
           onError('실시간 메시지를 읽지 못했어요. 연결을 다시 시도해주세요.')
         }

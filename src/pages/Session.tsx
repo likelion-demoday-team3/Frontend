@@ -19,9 +19,11 @@ import type {
   LiveMessage,
 } from "../features/live/stomp";
 import { getMyWallet } from "../features/wallet/api";
+import { getHeartStatus, sendHeart as sendHeartRequest } from "../features/sessions/interactionApi";
+import { getOwnVote, type OwnVote } from "../features/sessions/resultsApi";
+import { getIceServers } from "../features/live/api";
 
 type SessionProps = { sessionId: number };
-const isMockLiveEnabled = false;
 type Phase = "ready" | "connecting" | "lobby" | "assigned" | "idle" | "voting";
 type PeerState = { connection: RTCPeerConnection; assignment: LiveAssignment };
 
@@ -205,6 +207,8 @@ function createVotePreviewSession(sessionId: number): SessionDetail {
 }
 
 export default function Session({ sessionId }: SessionProps) {
+  const previewParams = new URLSearchParams(window.location.search);
+  const isMockLiveEnabled = previewParams.has("preview") && (import.meta.env.DEV || previewParams.has("showTest"));
   const heartPreviewMode =
     isMockLiveEnabled &&
     new URLSearchParams(window.location.search).get("preview") === "hearts";
@@ -241,6 +245,9 @@ export default function Session({ sessionId }: SessionProps) {
   const [assignment, setAssignment] = useState<LiveAssignment | null>(
     oneToOnePreviewMode ? createMockAssignment(sessionId, 1) : null,
   );
+  const [myLiveMemberId, setMyLiveMemberId] = useState<number | null>(
+    oneToOnePreviewMode || votePreviewMode || heartPreviewMode ? 1 : null,
+  );
   const [currentRound, setCurrentRound] = useState(1);
   const [conversationEndsAt, setConversationEndsAt] = useState<number | null>(
     null,
@@ -253,6 +260,7 @@ export default function Session({ sessionId }: SessionProps) {
     number | null
   >(null);
   const [votingEndsAt, setVotingEndsAt] = useState<string | null>(null);
+  const [ownVote, setOwnVote] = useState<OwnVote | null>(null);
   const [encounteredProfiles, setEncounteredProfiles] = useState<
     Array<{ nickname: string; roundNumber: number; memberId: number }>
   >(() => {
@@ -303,6 +311,12 @@ export default function Session({ sessionId }: SessionProps) {
       })),
     );
   }, [encounteredProfileIds]);
+  useEffect(() => {
+    sessionStorage.setItem(`kiiwee.session-context:${sessionId}`, JSON.stringify({
+      partners: encounteredProfiles,
+      myMemberId: myLiveMemberId ?? assignment?.memberId ?? null,
+    }));
+  }, [sessionId, encounteredProfiles, myLiveMemberId, assignment?.memberId]);
   const [selectedProfile, setSelectedProfile] = useState<{
     nickname: string;
     roundNumber: number;
@@ -359,6 +373,7 @@ export default function Session({ sessionId }: SessionProps) {
     null,
   );
   const liveRef = useRef<LiveConnection | null>(null);
+  const iceServersRef = useRef<RTCIceServer[] | null>(null);
   const peerRef = useRef<PeerState | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -398,6 +413,19 @@ export default function Session({ sessionId }: SessionProps) {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (isMockLiveEnabled || !getAccessToken()) return;
+    let active = true;
+    getHeartStatus(sessionId).then((status) => {
+      if (!active) return;
+      setHeartsRemaining(status.freeHeartRemaining ? 1 : 0);
+      setHeartsSent(Object.fromEntries(status.sentTo.map((memberId) => [memberId, 1])));
+    }).catch((cause) => {
+      if (active) setError(cause instanceof Error ? cause.message : "하트 상태를 불러오지 못했어요.");
+    });
+    return () => { active = false };
+  }, [sessionId]);
 
   useEffect(() => {
     if (phase !== "lobby" && phase !== "idle") return;
@@ -468,6 +496,29 @@ export default function Session({ sessionId }: SessionProps) {
     };
   }, [sessionId, sessionPreviewMode]);
 
+  useEffect(() => {
+    if (phase !== "voting" || isMockLiveEnabled || !getAccessToken()) return;
+    let active = true;
+    getOwnVote(sessionId).then((vote) => { if (active) setOwnVote(vote) })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "제출한 투표를 불러오지 못했어요."); });
+    return () => { active = false };
+  }, [phase, sessionId]);
+
+  useEffect(() => {
+    if (isMockLiveEnabled || !getAccessToken()) return;
+    let active = true;
+    getIceServers(sessionId).then((config) => {
+      if (active) iceServersRef.current = config.iceServers.map(server => ({
+        urls: server.urls,
+        ...(server.username ? { username: server.username } : {}),
+        ...(server.credential ? { credential: server.credential } : {}),
+      }));
+    }).catch(() => {
+      // API 일시 장애 시 기존 공개 STUN 서버로 WebRTC를 유지합니다.
+    });
+    return () => { active = false };
+  }, [sessionId]);
+
   const sendSignal = useCallback(
     (input: Parameters<LiveConnection["sendSignal"]>[0]) => {
       liveRef.current?.sendSignal(input);
@@ -530,6 +581,7 @@ export default function Session({ sessionId }: SessionProps) {
   const handleMessage = useCallback(
     (message: LiveMessage) => {
       if (message.kind === "joined") {
+        setMyLiveMemberId(message.memberId);
         if (
           message.status === "ASSIGNED" &&
           message.roomId !== null &&
@@ -591,6 +643,7 @@ export default function Session({ sessionId }: SessionProps) {
               : "로비 입장 완료",
         );
       } else if (message.kind === "assigned") {
+        setMyLiveMemberId(message.assignment.memberId);
         // 상대는 서버가 정한 세션 별칭으로 기록한다
         const nickname =
           message.assignment.partnerAlias ||
@@ -658,6 +711,10 @@ export default function Session({ sessionId }: SessionProps) {
         setFinalChoiceCountdown(null);
         setPhase("voting");
         setConnectionStatus("최종 투표 진행 중");
+      } else if (message.kind === "results-ready") {
+        liveRef.current?.disconnect();
+        window.history.pushState(null, "", `/result?sessionId=${message.sessionId}`);
+        window.dispatchEvent(new PopStateEvent("popstate"));
       }
     },
     [handleSignal, showCardNotice],
@@ -692,7 +749,7 @@ export default function Session({ sessionId }: SessionProps) {
         }
         streamRef.current = stream;
         const connection = new RTCPeerConnection({
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+          iceServers: iceServersRef.current ?? [{ urls: "stun:stun.l.google.com:19302" }],
         });
         peerRef.current = { connection, assignment: currentAssignment };
         stream
@@ -1062,36 +1119,53 @@ export default function Session({ sessionId }: SessionProps) {
     setPhase("voting");
   }
 
-  function sendHeart(profile: {
+  async function sendHeart(profile: {
     nickname: string;
     roundNumber: number;
     memberId: number;
   }) {
-    if (!isMockLiveEnabled) {
-      setError("하트 전송 API 명세가 없어 서버 연동 후 사용할 수 있어요.");
+    if ((heartsSent[profile.memberId] ?? 0) > 0) return;
+    if (isMockLiveEnabled) {
+      setHeartsRemaining((count) => Math.max(0, count - 1));
+      setHeartsSent((sent) => ({ ...sent, [profile.memberId]: 1 }));
+      setSelectedProfile(null);
       return;
     }
-    if ((heartsSent[profile.memberId] ?? 0) > 0) return;
     if (heartsRemaining < 1) {
       setHeartPurchaseQuantity(1);
+      setSelectedProfile(profile);
       setHeartChargeOpen(true);
       return;
     }
-    setHeartsRemaining((count) => count - 1);
-    setHeartsSent((sent) => ({
-      ...sent,
-      [profile.memberId]: (sent[profile.memberId] ?? 0) + 1,
-    }));
-    setSelectedProfile(null);
+    try {
+      await sendHeartRequest(sessionId, profile.memberId);
+      setHeartsRemaining(0);
+      setHeartsSent((sent) => ({ ...sent, [profile.memberId]: 1 }));
+      setSelectedProfile(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "하트를 보내지 못했어요.");
+    }
   }
 
-  function buyHeart() {
-    if (!isMockLiveEnabled) return;
+  async function buyHeart() {
     const quantity = Math.max(
       1,
       Math.min(heartPurchaseQuantity, gemsRemaining),
     );
     if (gemsRemaining < quantity) return;
+    if (!isMockLiveEnabled && selectedProfile) {
+      try {
+        await sendHeartRequest(sessionId, selectedProfile.memberId);
+        const wallet = await getMyWallet();
+        setGemsRemaining(wallet.gemBalance);
+        setHeartsSent((sent) => ({ ...sent, [selectedProfile.memberId]: 1 }));
+        setHeartChargeOpen(false);
+        setSelectedProfile(null);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "하트를 보내지 못했어요.");
+      }
+      return;
+    }
     setGemsRemaining((count) => count - quantity);
     setHeartsRemaining((count) => count + quantity);
     setHeartChargeOpen(false);
@@ -1214,6 +1288,7 @@ export default function Session({ sessionId }: SessionProps) {
           <Vote
             candidates={encounteredProfiles}
             myAlias={session.myAlias}
+            initialVote={ownVote}
             allowLocalSubmit={isMockLiveEnabled}
             onSubmit={(rankedMemberIds) =>
               submitSessionVotes(sessionId, rankedMemberIds)
@@ -1391,10 +1466,7 @@ export default function Session({ sessionId }: SessionProps) {
                       <button
                         className="heart-send-button"
                         type="button"
-                        disabled={
-                          !isMockLiveEnabled ||
-                          (heartsSent[selectedProfile.memberId] ?? 0) > 0
-                        }
+                        disabled={(heartsSent[selectedProfile.memberId] ?? 0) > 0}
                         onClick={() => sendHeart(selectedProfile)}
                       >
                         {(heartsSent[selectedProfile.memberId] ?? 0) > 0
@@ -1406,7 +1478,7 @@ export default function Session({ sessionId }: SessionProps) {
                       <button
                         className="heart-charge-button"
                         type="button"
-                        disabled={!isMockLiveEnabled}
+                        disabled={false}
                         onClick={() => {
                           setHeartPurchaseQuantity(1);
                           setHeartChargeOpen(true);
@@ -1442,9 +1514,10 @@ export default function Session({ sessionId }: SessionProps) {
                       <p className="heart-profile-round">
                         {isMockLiveEnabled
                           ? "보석 1개로 하트 1개를 충전해요."
-                          : "하트 충전 API 명세가 없어 사용할 수 없어요."}
+                          : `${selectedProfile?.nickname ?? "상대방"}에게 하트를 보내면 보석 1개가 사용돼요.`}
                       </p>
                       <div className="heart-charge-summary">
+                        {!isMockLiveEnabled ? <div className="heart-charge-summary-row"><span>하트 전송 비용</span><strong><i className="gem-mark" aria-hidden="true">◆</i>1개</strong></div> : <>
                         <div className="heart-charge-quantity-row">
                           <span>구매할 하트</span>
                           <div className="heart-quantity-control">
@@ -1501,6 +1574,7 @@ export default function Session({ sessionId }: SessionProps) {
                             {heartPurchaseQuantity}개
                           </strong>
                         </div>
+                        </>}
                       </div>
                       <p className="heart-gem-balance">
                         보유 보석 <strong>{gemsRemaining}개</strong>
@@ -1508,11 +1582,11 @@ export default function Session({ sessionId }: SessionProps) {
                       <button
                         className="heart-send-button"
                         type="button"
-                        disabled={!isMockLiveEnabled || gemsRemaining < 1}
+                        disabled={!isMockLiveEnabled && gemsRemaining < 1}
                         onClick={buyHeart}
                       >
                         {gemsRemaining > 0
-                          ? `하트 ${heartPurchaseQuantity}개 충전하기`
+                          ? isMockLiveEnabled ? `하트 ${heartPurchaseQuantity}개 충전하기` : "보석 1개 사용하고 보내기"
                           : "보석이 부족해요"}
                       </button>
                     </section>

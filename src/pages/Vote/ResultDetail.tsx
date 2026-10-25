@@ -1,40 +1,71 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
 import styled from "styled-components";
 import PageHeader from "../../components/common/PageHeader";
+import { getMyWallet } from "../../features/wallet/api";
+import { getResultProducts, getResultDetails, getVoteSummary, purchaseResult, type ResultDetails, type ResultProduct, type ResultProductInfo, type VoteSummary } from "../../features/sessions/resultsApi";
+import { createPreviewResult, previewResultProducts } from '../../test/previewFixtures'
 
-const lockedSections = [
-  {
-    id: 3,
-    title: "나의 1순위가 선택한 사람들",
-    people: ["달빛수집가", "초록새벽"],
-  },
-  {
-    id: 4,
-    title: "나를 1순위로 선택한 사람들",
-    people: ["구름산책", "포근한오후"],
-  },
-  {
-    id: 5,
-    title: "나의 1순위를 선택한 사람들",
-    people: ["느린토끼", "햇살한스푼"],
-  },
-];
+const productLabels: Record<ResultProduct, string> = {
+  FIRST_CHOOSERS: '나를 1순위로 선택한 사람',
+  MY_FIRST_CHOICE_RANK: '내 1순위가 나를 선택한 순위',
+  USER_RANKINGS: '특정 참여자의 선택 순위',
+  ALL_RANKINGS: '전체 참여자의 선택 순위',
+  BUNDLE: '결과 묶음',
+}
 
 export default function ResultDetail() {
-  const mockMode = false;
-  const [gems, setGems] = useState(5);
-  const [unlocked, setUnlocked] = useState<number[]>([]);
+  const sessionId = Number(new URLSearchParams(window.location.search).get('sessionId'))
+  const previewParams = new URLSearchParams(window.location.search)
+  const preview = previewParams.has('preview') && (import.meta.env.DEV || previewParams.has('showTest'))
+  const [gems, setGems] = useState(0)
+  const [catalog, setCatalog] = useState<ResultProductInfo[]>([])
+  const [summary, setSummary] = useState<VoteSummary | null>(null)
+  const [details, setDetails] = useState<ResultDetails[]>([])
+  const [targetIds, setTargetIds] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState<ResultProduct | null>(null)
+  const [error, setError] = useState('')
 
-  function unlock(sectionId: number) {
-    if (gems < 1 || unlocked.includes(sectionId)) return;
-    setGems((value) => value - 1);
-    setUnlocked((value) => [...value, sectionId]);
+  useEffect(() => {
+    if (preview) { setCatalog(previewResultProducts); setSummary({ sessionId: 1, coupleCount: 3 }); setGems(5); setLoading(false); return }
+    if (!sessionId) { setError('세션 정보가 없어 결과를 불러올 수 없어요.'); setLoading(false); return }
+    let active = true
+    Promise.all([getMyWallet(), getVoteSummary(sessionId), getResultProducts(sessionId)]).then(([wallet, result, products]) => {
+      if (!active) return
+      setGems(wallet.gemBalance); setSummary(result); setCatalog(products); setError('')
+    }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : '결과를 불러오지 못했어요.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [sessionId, preview])
+
+  async function unlock(product: ResultProduct, targetRequired: boolean) {
+    if (preview) {
+      setDetails(items => [...items.filter(item => item.product !== product), createPreviewResult(product)])
+      setGems(value => Math.max(0, value - (previewResultProducts.find(item => item.product === product)?.priceGem ?? 1)))
+      return
+    }
+    const targetId = targetRequired ? Number(targetIds[product]) : undefined
+    if (!sessionId || (targetRequired && (!targetId || targetId <= 0))) {
+      setError('대상 참여자 ID를 입력해주세요.'); return
+    }
+    setBusy(product); setError('')
+    try {
+      const result = await purchaseResult(sessionId, product, targetId)
+      setDetails(items => [...items.filter(item => item.product !== product), result.data])
+      const [wallet, unlocked] = await Promise.all([
+        getMyWallet(), getResultDetails(sessionId, product, targetId),
+      ])
+      setGems(wallet.gemBalance)
+      setDetails(items => [...items.filter(item => item.product !== product), unlocked])
+    } catch (cause) { setError(cause instanceof Error ? cause.message : '결과를 열람하지 못했어요.') }
+    finally { setBusy(null) }
   }
+
   function goToContact(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
     event.stopPropagation();
-    window.history.pushState(null, "", "/contact");
+    window.history.pushState(null, "", `/contact?sessionId=${sessionId}`);
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
 
@@ -42,77 +73,34 @@ export default function ResultDetail() {
     <DetailPage>
       <PageHeader title="투표 결과" gems={gems} onGemsChange={setGems} />
       <main>
-        {!mockMode ? <section className="pending-card" role="status"><h2>상세 결과 API 연결 준비 중</h2><p>매칭 커플 수 요약 API 경로를 확인했어요. 응답 형식을 확인한 뒤 연결할게요. 상세 결과와 보석 차감은 별도 API 명세가 필요해요.</p></section> : <>
-        <p className="intro">이번 세션의 투표 결과를 확인해보세요. <span>미리보기</span></p>
-
-        <section className="summary-card match-count">
-          <span className="section-number">01</span>
-          <div>
-            <h2>매칭된 커플 수</h2>
-            <p>서로를 1순위로 선택한 커플</p>
-          </div>
-          <strong className="count">
-            3<span>커플</span>
-          </strong>
-        </section>
-
-        <section className="summary-card crossed-count">
-          <span className="section-number">02</span>
-          <div>
-            <h2>아쉽게 엇갈린 커플 수</h2>
-            <p>한 사람은 1순위, 다른 사람은 2순위로 선택</p>
-          </div>
-          <strong className="count">
-            2<span>커플</span>
-          </strong>
-        </section>
-
-        {lockedSections.map((section) => {
-          const isUnlocked = unlocked.includes(section.id);
-          return (
-            <section
-              className={`people-card${isUnlocked ? " is-unlocked" : ""}`}
-              key={section.id}
-            >
-              <div className="people-heading">
-                <span className="section-number">0{section.id}</span>
-                <h2>{section.title}</h2>
-              </div>
-              {isUnlocked ? (
-                <ul aria-label={section.title}>
-                  {section.people.map((person, index) => (
-                    <li key={person}>
-                      <span className={`avatar tone-${index % 2}`}>
-                        {Array.from(person)[0]}
-                      </span>
-                      <span>{person}</span>
-                      <span className="small-arrow" aria-hidden="true">
-                        ↗
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="locked-content">
-                  <button
-                    type="button"
-                    disabled={gems < 1}
-                    onClick={() => unlock(section.id)}
-                  >
-                    보석 1개로 열람
-                  </button>
-                </div>
-              )}
+        {loading ? <section className="pending-card" role="status"><p>투표 결과를 불러오는 중이에요…</p></section> : error && !catalog.length && !preview ? <section className="pending-card" role="alert"><h2>결과를 불러오지 못했어요</h2><p>{error}</p></section> : <>
+          <p className="intro">이번 세션의 투표 결과를 확인해보세요. {preview && <span>미리보기</span>}</p>
+          {!preview && summary && <section className="summary-card match-count"><span className="section-number">01</span><div><h2>매칭된 커플 수</h2><p>서로를 1순위로 선택한 커플</p></div><strong className="count">{summary.coupleCount}<span>커플</span></strong></section>}
+          {error && <p className="error" role="alert">{error}</p>}
+          {catalog.map((item, index) => {
+            const unlocked = details.find(detail => detail.product === item.product)
+            return <section className="people-card" key={item.product}>
+              <div className="people-heading"><span className="section-number">{String(index + 2).padStart(2, '0')}</span><h2>{productLabels[item.product]}</h2></div>
+              {item.targetRequired && <label className="target-input">대상 참여자 ID<input type="number" min="1" value={targetIds[item.product] ?? ''} onChange={event => setTargetIds(values => ({ ...values, [item.product]: event.target.value }))} /></label>}
+              {unlocked ? <ResultContents details={unlocked} /> : <div className="locked-content"><button type="button" disabled={gems < item.priceGem || busy !== null} onClick={() => void unlock(item.product, item.targetRequired)}>{busy === item.product ? '열람 중…' : `보석 ${item.priceGem}개로 열람`}</button></div>}
             </section>
-          );
-        })}
+          })}
         </>}
       </main>
-      <a className="next-button" href="/contact" onClick={goToContact}>
+      <a className="next-button" href={`/contact?sessionId=${sessionId}`} onClick={goToContact}>
         마지막 단계로 가기
       </a>
     </DetailPage>
   );
+}
+
+function ResultContents({ details }: { details: ResultDetails }) {
+  return <div className="unlocked-results">
+    {details.firstChoosers.length > 0 && <ul>{details.firstChoosers.map(person => <li key={person.memberId}>{person.alias}</li>)}</ul>}
+    {details.myRank && <p>내 1순위 <strong>{details.myRank.myFirstChoice.alias}</strong>의 선택에서 나는 <strong>{details.myRank.rankOfMe ? `${details.myRank.rankOfMe}순위` : '선택되지 않았어요'}</strong></p>}
+    {details.rankings.map(ranking => <p key={ranking.voter.memberId}><strong>{ranking.voter.alias}</strong>{ranking.submitted ? `: ${ranking.choices.map(choice => `${choice.rank}순위 ${choice.target.alias}`).join(' · ') || '선택 없음'}` : ': 미제출'}</p>)}
+    {!details.firstChoosers.length && !details.myRank && !details.rankings.length && <p>해당하는 결과가 없어요.</p>}
+  </div>
 }
 
 const DetailPage = styled.div`
