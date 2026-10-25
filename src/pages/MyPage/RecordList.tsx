@@ -66,7 +66,14 @@ export default function RecordList({ section }: { section: Section }) {
   const rangedMatches = matches.filter(item => inRange(item.sessionStartTime, range, startDate, endDate))
   const matchedCount = rangedMatches.filter(item => item.matched).length
   const visibleMatches = rangedMatches.filter(item => filter === 'all' || (filter === 'success') === item.matched)
-  const visibleShares = shares.filter(item => inRange(item.sessionStartTime, range, startDate, endDate))
+  // 매칭 결과에서 넘어오면 그 소개팅에서 그 상대가 보낸 연락처만 보여준다 (기간 선택과 무관)
+  const params = section === 'received' ? new URLSearchParams(window.location.search) : null
+  const focusSessionId = Number(params?.get('sessionId')) || null
+  const focusSenderId = Number(params?.get('from')) || null
+  const focused = focusSessionId !== null && focusSenderId !== null
+  const visibleShares = focused
+    ? shares.filter(item => item.sessionId === focusSessionId && item.senderId === focusSenderId)
+    : shares.filter(item => inRange(item.sessionStartTime, range, startDate, endDate))
   const status = loading
     ? <Empty role="status">기록을 불러오는 중이에요…</Empty>
     : error ? <Empty role="alert">{error}<br /><button type="button" onClick={() => setReload(value => value + 1)}>다시 불러오기</button></Empty>
@@ -106,7 +113,9 @@ export default function RecordList({ section }: { section: Section }) {
         {status ?? (visibleMatches.length ? <RecordRows>
           {visibleMatches.map(item => <li key={item.sessionId}>
             <div><time dateTime={item.sessionStartTime}>{dateLabel(item.sessionStartTime)}</time>
-              <strong>{item.matched ? `${item.partnerAlias ?? '상대방'}님과 매칭` : '매칭되지 않았어요'}</strong></div>
+              {item.matched && item.partnerMemberId
+                ? <a className="partner-link" href={`/mypage/record/received?sessionId=${item.sessionId}&from=${item.partnerMemberId}`}>{item.partnerAlias ?? '상대방'}님과 매칭 ›</a>
+                : <strong>매칭되지 않았어요</strong>}</div>
             <span className={item.matched ? 'badge success' : 'badge'}>{item.matched ? '매칭성공' : '매칭실패'}</span>
           </li>)}
         </RecordRows> : <Empty role="status">{filter === 'all' ? '참여한 스터디 기록이 없어요.' : filter === 'success' ? '매칭 성공 기록이 없어요.' : '매칭 실패 기록이 없어요.'}</Empty>)}
@@ -115,6 +124,7 @@ export default function RecordList({ section }: { section: Section }) {
 
     {section !== 'matches' && <Panel>
       <h2>{titles[section]}</h2>
+      {focused && <FocusNote>매칭된 상대의 연락처만 보고 있어요. <a href="/mypage/record/received">전체 목록 보기</a></FocusNote>}
       {status ?? (visibleShares.length ? <RecordRows>
         {visibleShares.map(item => <li key={item.id}>
           <div><time dateTime={item.sessionStartTime}>{dateLabel(item.sessionStartTime)}</time>
@@ -122,7 +132,7 @@ export default function RecordList({ section }: { section: Section }) {
             {section === 'received' && <span className="contact">{contactLabel[item.contactType]} · {item.contactValue ?? '삭제된 연락처'}</span>}</div>
           {section === 'sent' && <span className="badge">{contactLabel[item.contactType]}</span>}
         </li>)}
-      </RecordRows> : <Empty role="status">{section === 'sent' ? '연락처를 보낸 기록이 없어요.' : '받은 연락처가 없어요.'}</Empty>)}
+      </RecordRows> : <Empty role="status">{section === 'sent' ? '연락처를 보낸 기록이 없어요.' : focused ? '이 상대에게서 받은 연락처가 아직 없어요.' : '받은 연락처가 없어요.'}</Empty>)}
     </Panel>}
   </MyPageFrame>
 }
@@ -198,4 +208,10 @@ const RecordRows = styled.ul`
   .contact { overflow-wrap: anywhere; color: #2f5d43; font-size: 1.25rem; font-weight: 600; }
   .badge { flex: 0 0 auto; padding: .4rem .9rem; border-radius: 99rem; background: #eef1ec; color: #647065; font-size: 1.1rem; font-weight: 700; }
   .badge.success { background: var(--green); color: #273219; }
+  .partner-link { overflow-wrap: anywhere; color: #2f5d43; font-size: 1.35rem; font-weight: 700; text-decoration: underline; text-underline-offset: .3rem; }
+`
+
+const FocusNote = styled.p`
+  margin-top: 1rem; color: #69756b; font-size: 1.15rem; line-height: 1.6;
+  a { color: #2f5d43; font-weight: 700; }
 `
