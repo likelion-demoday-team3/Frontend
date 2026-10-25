@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import styled from 'styled-components'
 import MyPageFrame, { Action, Panel } from './MyPageFrame'
 import { getAccessToken } from '../../features/auth/session'
 import { cancelSession, getMySessions, getSessions } from '../../features/sessions/api'
@@ -12,19 +13,28 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [message, setMessage] = useState(demo ? '시연용 예약 내역이에요.' : '')
   const [busy, setBusy] = useState<number | null>(null)
+  const [confirming, setConfirming] = useState<MySession | null>(null)
 
   useEffect(() => {
     if (demo || !getAccessToken()) return
     let active = true
     Promise.all([getMySessions(), getSessions()]).then(([mine, all]) => {
       if (!active) return
+      // 세션 자체가 취소돼도 내 신청 상태는 APPLIED로 남는다. 취소된 세션도 구분해서 보여준다
       setReservations(mine.filter(item => item.myStatus === 'APPLIED'))
       setSessions(all)
     }).catch(cause => { if (active) setMessage(cause instanceof Error ? cause.message : '예약 내역을 불러오지 못했어요.') })
     return () => { active = false }
   }, [demo])
 
+  function requestCancel(reservation: MySession) {
+    // 진행 확정 뒤 취소는 환불이 없으니 한 번 더 묻는다
+    if (reservation.sessionStatus === 'READY') setConfirming(reservation)
+    else void cancel(reservation)
+  }
+
   async function cancel(reservation: MySession) {
+    setConfirming(null)
     if (demo) {
       setReservations(current => current.filter(item => item.sessionId !== reservation.sessionId))
       setMessage('시연 예약을 취소했어요.')
@@ -42,18 +52,51 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
 
   return <MyPageFrame title="스터디 예약 확인" demo={demo}>
     {reservations.length === 0 ? <Panel><h2>예약 내역</h2><p className="hint">진행 중인 스터디 예약이 없어요.</p></Panel> : reservations.map(item => {
+      const cancelled = item.sessionStatus === 'CANCELLED'
       const session = sessions.find(value => value.sessionId === item.sessionId)
       const attendance = session
         ? `${session.capacityPerGender - session.maleRemaining}:${session.capacityPerGender - session.femaleRemaining}`
         : '인원 정보 없음'
-      return <Panel key={item.sessionId}>
-        <h2>스터디 예약</h2>
+      return <ReservationPanel key={item.sessionId} data-cancelled={cancelled || undefined} aria-disabled={cancelled || undefined}>
+        <h2>스터디 예약{cancelled && <span className="badge">취소된 스터디</span>}{item.sessionStatus === 'READY' && <span className="badge ready">진행 확정</span>}</h2>
         <p className="hint">예약일자</p><strong>{dateLabel(item.appliedAt)}</strong>
         <p className="hint" style={{ marginTop: '1.5rem' }}>스터디 일자</p><strong>{dateLabel(item.startTime)}</strong>
-        <p className="hint" style={{ marginTop: '1.5rem' }}>현재 인원 (남:여)</p><strong>{attendance}</strong>
-        <div style={{ marginTop: '1.8rem' }}><Action type="button" disabled={busy === item.sessionId} onClick={() => void cancel(item)}>{busy === item.sessionId ? '취소 중…' : '예약취소'}</Action></div>
-      </Panel>
+        {cancelled
+          ? <p className="hint" style={{ marginTop: '1.5rem' }}>인원 미달 또는 운영 사정으로 취소되어 참가비가 전액 환불됐어요.</p>
+          : <>
+            <p className="hint" style={{ marginTop: '1.5rem' }}>현재 인원 (남:여)</p><strong>{attendance}</strong>
+            <div style={{ marginTop: '1.8rem' }}><Action type="button" disabled={busy === item.sessionId} onClick={() => requestCancel(item)}>{busy === item.sessionId ? '취소 중…' : '예약취소'}</Action></div>
+          </>}
+      </ReservationPanel>
     })}
     {message && <p className="success" role="status">{message}</p>}
+    {confirming && <ConfirmBackdrop role="presentation" onClick={() => setConfirming(null)}>
+      <section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="cancel-dialog-title" aria-describedby="cancel-dialog-message" onClick={event => event.stopPropagation()}>
+        <h2 id="cancel-dialog-title">정말 취소할까요?</h2>
+        <p id="cancel-dialog-message">진행이 확정된 스터디라 지금 취소하면 참가비가 환불되지 않아요.</p>
+        <div className="actions">
+          <button type="button" className="secondary" autoFocus onClick={() => setConfirming(null)}>돌아가기</button>
+          <button type="button" className="danger" onClick={() => void cancel(confirming)}>취소하기</button>
+        </div>
+      </section>
+    </ConfirmBackdrop>}
   </MyPageFrame>
 }
+
+const ReservationPanel = styled(Panel)`
+  h2 { display: flex; align-items: center; gap: .8rem; }
+  .badge { padding: .3rem .8rem; border-radius: 99rem; background: #eef1ec; color: #647065; font-size: 1.05rem; font-weight: 700; }
+  .badge.ready { background: var(--green); color: #273219; }
+  &[data-cancelled] { opacity: .55; pointer-events: none; user-select: none; }
+`
+
+const ConfirmBackdrop = styled.div`
+  position: fixed; z-index: 60; inset: 0; display: grid; place-items: center; padding: 2rem; background: #18221c77;
+  .confirm-dialog { width: min(100%, 34rem); padding: 2.4rem 2rem 2rem; border-radius: 2rem; background: var(--background); box-shadow: 0 1.5rem 5rem #1114; text-align: center; }
+  .confirm-dialog h2 { font: 700 1.8rem/1.4 var(--display-font); }
+  .confirm-dialog p { margin-top: 1rem; color: #69756b; font-size: 1.2rem; line-height: 1.7; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin-top: 2rem; }
+  .actions button { min-height: 4.4rem; border: 0; border-radius: 1rem; font: 600 1.3rem var(--font-body); cursor: pointer; }
+  .actions .secondary { background: #e9edeb; color: #2f3a32; }
+  .actions .danger { background: #bd5547; color: #fff; }
+`
