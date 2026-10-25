@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { getAccessToken } from '../../features/auth/session'
-import { getLocalMemberName, getMyMember, getMyProfile, updateMyProfile, type MemberProfile, type UpdateMemberProfile } from '../../features/members/api'
+import { getMyMember, getMyProfile, updateMyProfile, type MemberProfile, type UpdateMemberProfile } from '../../features/members/api'
 import MyPageFrame, { Action, Field, Panel } from './MyPageFrame'
 
 const emptyProfile: UpdateMemberProfile = {
@@ -19,7 +19,6 @@ const toPayload = (profile: MemberProfile): UpdateMemberProfile => ({
 export default function CardEdit({ demo = false }: { demo?: boolean }) {
   const [values, setValues] = useState<UpdateMemberProfile>(emptyProfile)
   const [interestDraft, setInterestDraft] = useState('')
-  const [name, setName] = useState('')
   const [university, setUniversity] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -28,7 +27,6 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
 
   useEffect(() => {
     if (demo) {
-      setName('이서강')
       setUniversity('서강대학교')
       setValues({ idealType: '곰상', datingStyle: '전시회나 맛집 탐방', contactStyle: '전화 선호', loveStyle: '천천히 알아가는 편', interests: ['전시', '러닝'] })
       setLoading(false)
@@ -42,7 +40,6 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
     let active = true
     Promise.all([getMyMember(), getMyProfile()]).then(([member, profile]) => {
       if (!active) return
-      setName(member.name ?? getLocalMemberName(member.email) ?? '')
       setUniversity(profile.university || member.university)
       setValues(toPayload(profile))
       setError('')
@@ -105,7 +102,6 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
     <Panel>
       <ProfilePhoto aria-hidden="true"><span>프로필<br />사진</span></ProfilePhoto>
       {loading ? <p className="hint" role="status">프로필 정보를 불러오는 중이에요…</p> : <>
-        <Field>이름<input value={name} readOnly /></Field>
         <Field>학교 정보<input value={university} readOnly /></Field>
         <Field>이상형<input maxLength={200} value={values.idealType ?? ''} onChange={event => update('idealType', event.target.value)} placeholder="이상형을 입력해주세요" /></Field>
         <Field>데이트 스타일<input maxLength={200} value={values.datingStyle ?? ''} onChange={event => update('datingStyle', event.target.value)} placeholder="선호하는 데이트를 입력해주세요" /></Field>
