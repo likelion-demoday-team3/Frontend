@@ -64,9 +64,21 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [message, setMessage] = useState(demo ? '시연용 예약 내역이에요.' : '')
   const [busy, setBusy] = useState<number | null>(null)
+  const [loading, setLoading] = useState(!demo)
+  const [loginRequired, setLoginRequired] = useState(false)
 
   useEffect(() => {
-    if (demo || !getAccessToken()) return
+    if (demo) return
+    if (!getAccessToken()) {
+      // 안내 문구를 잠깐 보여준 뒤 로그인 화면으로 보낸다
+      setLoading(false)
+      setLoginRequired(true)
+      const timer = window.setTimeout(() => {
+        window.history.pushState(null, '', '/login')
+        window.dispatchEvent(new PopStateEvent('popstate'))
+      }, 1500)
+      return () => window.clearTimeout(timer)
+    }
     let active = true
     Promise.all([getMySessions(), getSessions()]).then(([mine, all]) => {
       if (!active) return
@@ -74,6 +86,7 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
       setReservations(mine.filter(item => item.myStatus === 'APPLIED'))
       setSessions(all)
     }).catch(cause => { if (active) setMessage(cause instanceof Error ? cause.message : '예약 내역을 불러오지 못했어요.') })
+      .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [demo])
 
@@ -85,16 +98,20 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
     }
     setBusy(reservation.sessionId); setMessage('')
     try {
-      await cancelSession(reservation.sessionId)
+      const { refundedGem } = await cancelSession(reservation.sessionId)
       setReservations(current => current.filter(item => item.sessionId !== reservation.sessionId))
-      setMessage('예약을 취소했어요.')
+      setMessage(refundedGem > 0 ? `예약을 취소했어요. 보석 ${refundedGem}개가 환불됐어요.` : '예약을 취소했어요. 환불된 보석은 없어요.')
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : '예약 취소에 실패했어요.')
     } finally { setBusy(null) }
   }
 
   return <MyPageFrame title="스터디 예약 확인" demo={demo}>
-    {reservations.length === 0 ? <Panel><h2>예약 내역</h2><p className="hint">진행 중인 스터디 예약이 없어요.</p></Panel> : reservations.map(item => {
+    {loading || loginRequired || reservations.length === 0 ? <Panel><h2>예약 내역</h2><p className="hint" role="status">{
+      loading ? '예약 내역을 불러오는 중이에요…'
+        : loginRequired ? '진행 중인 스터디 예약을 보려면 로그인이 필요해요.'
+        : '진행 중인 스터디 예약이 없어요.'
+    }</p></Panel> : reservations.map(item => {
       const cancelled = item.sessionStatus === 'CANCELLED'
       const session = sessions.find(value => value.sessionId === item.sessionId)
       const attendance = session
