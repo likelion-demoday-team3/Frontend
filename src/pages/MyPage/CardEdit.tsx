@@ -96,7 +96,13 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
         <Field>데이트 스타일<input maxLength={200} value={values.datingStyle ?? ''} onChange={event => update('datingStyle', event.target.value)} placeholder="선호하는 데이트를 입력해주세요" /></Field>
         <Field>연락 스타일<input maxLength={200} value={values.contactStyle ?? ''} onChange={event => update('contactStyle', event.target.value)} placeholder="연락 스타일을 입력해주세요" /></Field>
         <Field>연애 스타일<input maxLength={200} value={values.loveStyle ?? ''} onChange={event => update('loveStyle', event.target.value)} placeholder="연애 스타일을 입력해주세요" /></Field>
-        <Field>관심사 (쉼표로 구분)<input maxLength={104} value={interestText} onChange={event => { setInterestText(event.target.value); setNotice('') }} placeholder="전시, 러닝, 보드게임" /></Field>
+        <Field>관심사 (쉼표로 구분)<input maxLength={104} value={interestText} onChange={event => {
+          const next = event.target.value
+          // 관심사가 5개를 넘기면 6번째 항목 입력을 막는다 (쉼표로 구분된 비어있지 않은 항목 기준)
+          if (next.split(',').map(item => item.trim()).filter(Boolean).length > 5) return
+          setInterestText(next)
+          setNotice('')
+        }} placeholder="전시, 러닝, 보드게임" /></Field>
         {error && name && <p className="error" role="alert">{error}</p>}
         {notice && <p className="success" role="status">{notice}</p>}
         <Action type="button" disabled={saving || demo || !name} onClick={() => void saveProfile()}>{saving ? '저장 중…' : '프로필 카드 저장'}</Action>
