@@ -193,9 +193,7 @@ export default function MeEdit() {
           </InstagramField>
           {error && <p className="error" role="alert">{error}</p>}
           {notice && <p className="success" role="status">{notice}</p>}
-          <Action type="button" disabled={saving || !member || (name.trim() === initialName && phone === initialPhone && instagramHandle(instagramId) === initialInstagramId)} onClick={() => void saveInfo()}>{saving ? '저장 중…' : '저장하기'}</Action>
-          <p className="hint">이름·전화번호·인스타그램 아이디는 계정에 저장돼요.</p>
-        </>}
+          <Action type="button" disabled={saving || !member || (name.trim() === initialName && phone === initialPhone && instagramHandle(instagramId) === initialInstagramId)} onClick={() => void saveInfo()}>{saving ? '저장 중…' : '저장하기'}</Action>        </>}
       </Panel>
     </MyPageFrame>
   )
