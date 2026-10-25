@@ -161,6 +161,7 @@ function createMockAssignment(
   sessionId: number,
   roundNumber: number,
 ): LiveAssignment {
+  const alias = createSessionNickname();
   return {
     sessionId,
     roundId: sessionId * 10 + roundNumber,
@@ -169,10 +170,11 @@ function createMockAssignment(
     tableNo: roundNumber,
     memberId: 1,
     partnerMemberId: roundNumber + 1,
+    partnerAlias: alias,
     partnerProfileCard: {
       memberId: roundNumber + 1,
       university: "연세대학교",
-      nickname: createSessionNickname(),
+      nickname: alias,
       idealType: "대화가 잘 통하는 사람",
       datingStyle: "전시회나 맛집 탐방",
       contactStyle: "하루에 몇 번 연락하는 편",
@@ -315,6 +317,27 @@ export default function Session({ sessionId }: SessionProps) {
   const [isPartnerSpeaking, setIsPartnerSpeaking] = useState(false);
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
   const [profileCardOpen, setProfileCardOpen] = useState(false);
+  // 프로필 카드를 받은 순간 "○○님의 프로필 카드입니다" 알림을 잠깐 띄운다
+  const [cardNotice, setCardNotice] = useState<string | null>(null);
+  const cardNoticeTimerRef = useRef<number | null>(null);
+  const showCardNotice = useCallback((nickname: string) => {
+    setCardNotice(`${nickname}님의 프로필 카드입니다`);
+    if (cardNoticeTimerRef.current !== null) {
+      window.clearTimeout(cardNoticeTimerRef.current);
+    }
+    cardNoticeTimerRef.current = window.setTimeout(() => {
+      setCardNotice(null);
+      cardNoticeTimerRef.current = null;
+    }, 4000);
+  }, []);
+  useEffect(
+    () => () => {
+      if (cardNoticeTimerRef.current !== null) {
+        window.clearTimeout(cardNoticeTimerRef.current);
+      }
+    },
+    [],
+  );
   const [reportPopupOpen, setReportPopupOpen] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [now, setNow] = useState(Date.now);
@@ -516,13 +539,15 @@ export default function Session({ sessionId }: SessionProps) {
         ) {
           const roundNumber = message.roundNumber;
           const partnerMemberId = message.partnerMemberId;
+          // 재접속: 서버가 돌려준 상대 별칭과 프로필 카드로 복원한다
+          const nickname = message.partnerAlias || "상대방";
           setEncounteredProfiles((profiles) =>
             profiles.some((profile) => profile.roundNumber === roundNumber)
               ? profiles
               : [
                   ...profiles,
                   {
-                    nickname: "상대방",
+                    nickname,
                     roundNumber,
                     memberId: partnerMemberId,
                   },
@@ -536,18 +561,22 @@ export default function Session({ sessionId }: SessionProps) {
             tableNo: message.tableNo ?? 0,
             memberId: message.memberId,
             partnerMemberId: message.partnerMemberId,
+            partnerAlias: message.partnerAlias,
             partnerProfileCard: {
-              memberId: message.partnerMemberId,
-              university: null,
-              nickname: null,
-              idealType: null,
-              datingStyle: null,
-              contactStyle: null,
-              loveStyle: null,
-              interests: [],
+              ...(message.partnerProfileCard ?? {
+                memberId: message.partnerMemberId,
+                university: null,
+                idealType: null,
+                datingStyle: null,
+                contactStyle: null,
+                loveStyle: null,
+                interests: [],
+              }),
+              nickname,
             },
             compatibility: null,
           });
+          if (message.partnerProfileCard) showCardNotice(nickname);
           setCurrentRound(message.roundNumber);
           startRequested.current = true;
           setPhase("assigned");
@@ -562,9 +591,11 @@ export default function Session({ sessionId }: SessionProps) {
               : "로비 입장 완료",
         );
       } else if (message.kind === "assigned") {
+        // 상대는 서버가 정한 세션 별칭으로 기록한다
         const nickname =
+          message.assignment.partnerAlias ||
           message.assignment.partnerProfileCard.nickname ||
-          createSessionNickname();
+          "상대방";
         setEncounteredProfiles((profiles) =>
           profiles.some(
             (profile) => profile.roundNumber === message.assignment.roundNumber,
@@ -586,6 +617,7 @@ export default function Session({ sessionId }: SessionProps) {
             nickname,
           },
         });
+        showCardNotice(nickname);
         setCurrentRound((round) =>
           Math.max(round, message.assignment.roundNumber),
         );
@@ -628,7 +660,7 @@ export default function Session({ sessionId }: SessionProps) {
         setConnectionStatus("최종 투표 진행 중");
       }
     },
-    [handleSignal],
+    [handleSignal, showCardNotice],
   );
 
   useEffect(() => {
@@ -869,6 +901,7 @@ export default function Session({ sessionId }: SessionProps) {
                 },
               ],
         );
+        showCardNotice(mockAssignment.partnerAlias || "상대방");
       }
       setCallStatus("목업 연결 · 화면 테스트 중");
       setIsStarting(false);
@@ -1551,6 +1584,20 @@ export default function Session({ sessionId }: SessionProps) {
                         {assignment.partnerProfileCard.nickname || "상대방"}
                       </p>
                     </div>
+                    {cardNotice && (
+                      <CardNotice
+                        type="button"
+                        role="status"
+                        aria-live="polite"
+                        onClick={() => {
+                          setCardNotice(null);
+                          setProfileCardOpen(true);
+                        }}
+                      >
+                        {cardNotice}
+                        <span>눌러서 보기</span>
+                      </CardNotice>
+                    )}
                     <div className="conversation-stage">
                       <div className="conversation-character-group">
                         <GuideBubble
@@ -1648,6 +1695,33 @@ export default function Session({ sessionId }: SessionProps) {
     </SessionPage>
   );
 }
+
+const CardNotice = styled.button`
+  position: absolute;
+  z-index: 5;
+  top: 9rem;
+  left: 50%;
+  display: grid;
+  gap: 0.2rem;
+  width: max-content;
+  max-width: calc(100% - 3.2rem);
+  padding: 1rem 1.8rem;
+  border: 0;
+  border-radius: 1.4rem;
+  background: #2f5d43;
+  box-shadow: 0 0.8rem 2.4rem #0003;
+  color: #fff;
+  font: 700 1.4rem/1.4 var(--font-body);
+  text-align: center;
+  transform: translateX(-50%);
+  cursor: pointer;
+
+  span {
+    color: #d6e8dc;
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+`;
 
 const SessionPage = styled.div`
   width: 100%;

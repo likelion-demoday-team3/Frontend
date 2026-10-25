@@ -8,6 +8,8 @@ export type LiveAssignment = {
   tableNo: number
   memberId: number
   partnerMemberId: number
+  /** 세션 안에서 보여줄 상대 별칭. 서버가 조회하지 못하면 null */
+  partnerAlias: string | null
   partnerProfileCard: {
     memberId: number
     university: string | null
@@ -22,7 +24,7 @@ export type LiveAssignment = {
 }
 
 export type LiveMessage =
-  | { kind: 'joined'; sessionId: number; memberId: number; status: 'JOINED' | 'ASSIGNED' | 'IDLE'; roundId: number | null; roundNumber: number | null; roomId: number | null; tableNo: number | null; partnerMemberId: number | null }
+  | { kind: 'joined'; sessionId: number; memberId: number; status: 'JOINED' | 'ASSIGNED' | 'IDLE'; roundId: number | null; roundNumber: number | null; roomId: number | null; tableNo: number | null; partnerMemberId: number | null; partnerAlias: string | null; partnerProfileCard: LiveAssignment['partnerProfileCard'] | null }
   | { kind: 'assigned'; assignment: LiveAssignment }
   | { kind: 'idle'; roundNumber: number; breakSeconds: number }
   | { kind: 'signal'; roomId: number; fromMemberId: number; type: 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE'; payload: string }
