@@ -4,6 +4,7 @@ import Calender, { getToday } from '../components/Home/Calender'
 import Countdown from '../components/Home/Countdown'
 import Scadule from '../components/Home/Scadule'
 import NavBar from '../components/common/NavBar'
+import BusinessInfo from '../components/common/BusinessInfo'
 import { getMyMember } from '../features/members/api'
 import { getMySessions, getSessions } from '../features/sessions/api'
 import type { MySession, Session } from '../features/sessions/types'
@@ -114,6 +115,8 @@ export default function Home() {
         />
       </main>
 
+      <BusinessInfo />
+
       <NavBar isLoggedIn={isLoggedIn} onLoginRequired={() => setLoginPrompt(true)} />
 
       <dialog ref={loginDialog} className="booking-dialog auth-prompt" aria-labelledby="login-prompt-title" onCancel={() => setLoginPrompt(false)} onClick={event => { if (event.target === event.currentTarget) setLoginPrompt(false) }}>
@@ -146,7 +149,7 @@ const HomeShell = styled.div`
 
   .home-header { display: flex; align-items: center; justify-content: space-between; padding: calc(2.4rem + env(safe-area-inset-top)) 3rem 1.8rem; }
   .home-header img { display: block; width: 9rem; height: 4rem; object-fit: contain; }
-  .home-content { padding: 0 3rem calc(11.2rem + env(safe-area-inset-bottom)); }
+  .home-content { padding: 0 3rem 1.6rem; }
   .notification-button { display: grid; place-items: center; width: 4.4rem; height: 4.4rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ink); }
   .notification-button:hover { background: #2b302c08; }
   .notification-button svg { width: 2.8rem; height: 2.8rem; }
