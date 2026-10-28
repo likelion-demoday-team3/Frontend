@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
-import { ANONYMOUS, loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import NavBar from "../../components/common/NavBar";
 import { getAccessToken } from "../../features/auth/session";
 import { getMyWallet } from "../../features/wallet/api";
@@ -9,11 +8,12 @@ import {
   savePaymentReturnLocation,
 } from "../../features/payments/returnLocation";
 import {
-  abortTossPaymentOrder,
-  createTossPaymentOrder,
+  abortPaymentOrder,
+  createNicePayOrder,
   getShopProducts,
+  openNicePayCheckout,
   type ShopProduct,
-} from "../../features/payments/toss";
+} from "../../features/payments/nicepay";
 
 type PaymentNotice = {
   status: "success" | "cancelled" | "failed";
@@ -142,37 +142,29 @@ export default function Store({
     savePaymentReturnLocation(embedded);
     let orderId = "";
     try {
-      const order = await createTossPaymentOrder(selectedPackage.productId);
+      const order = await createNicePayOrder(selectedPackage.productId);
       orderId = order.orderId;
       if (
         !order.orderId ||
         !Number.isSafeInteger(order.amount) ||
         order.amount <= 0 ||
-        !order.clientKey ||
-        !order.orderName ||
-        !order.successUrl ||
-        !order.failUrl
+        !order.clientId ||
+        !order.goodsName ||
+        !order.returnUrl
       ) {
         throw new Error(
           "결제 주문 정보를 확인할 수 없어요. 백엔드 결제 설정을 확인해주세요.",
         );
       }
-      const tossPayments = await loadTossPayments(order.clientKey);
-      const payment = tossPayments.payment({ customerKey: ANONYMOUS });
-      await payment.requestPayment({
-        method: "CARD",
-        amount: { currency: "KRW", value: order.amount },
-        orderId: order.orderId,
-        orderName: order.orderName,
-        successUrl: order.successUrl,
-        failUrl: order.failUrl,
-      });
+      // 인증이 끝나면 나이스페이가 백엔드(returnUrl)로 이동시키므로 이 화면으로는 돌아오지 않는다.
+      // 결제창을 닫거나 오류가 나면 reject되어 아래에서 주문을 정리한다.
+      await openNicePayCheckout(order);
     } catch (cause) {
       clearPaymentReturnLocation();
       // SDK 결제창을 닫거나 열지 못한 경우에도 대기 주문을 정리합니다.
       if (orderId) {
         try {
-          await abortTossPaymentOrder(orderId);
+          await abortPaymentOrder(orderId);
         } catch {
           // Best effort cleanup; preserve the original checkout error.
         }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import styled from 'styled-components'
-import { getMyPayments, refundTossPaymentOrder, type PaymentHistoryItem, type PaymentRefundResponse } from '../../features/payments/toss'
+import { getMyPayments, refundPaymentOrder, type PaymentHistoryItem, type PaymentRefundResponse } from '../../features/payments/nicepay'
 import { getWalletHistory, type WalletHistoryItem } from '../../features/wallet/api'
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value))
@@ -85,7 +85,7 @@ export default function ChargeInfo() {
     setRefundPending(true)
     setRefundError('')
     try {
-      const result = await refundTossPaymentOrder(orderId)
+      const result = await refundPaymentOrder(orderId)
       setRefundResult(result)
       setPayment(current => current ? { ...current, status: 'REFUNDED', refundable: false, canceledAt: new Date().toISOString() } : current)
       setRefundState('success')

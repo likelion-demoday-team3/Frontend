@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import styled from 'styled-components'
 import { ApiError } from '../../features/api/client'
-import { abortTossPaymentOrder, confirmTossPayment } from '../../features/payments/toss'
+import { abortPaymentOrder } from '../../features/payments/nicepay'
 import { clearPaymentReturnLocation, getPaymentReturnLocation } from '../../features/payments/returnLocation'
 
 type CallbackAction = 'success' | 'fail'
@@ -24,16 +24,20 @@ function returnToOrigin(notice: PaymentNotice) {
   window.location.replace(href)
 }
 
+const toCount = (value: string | null) => {
+  const count = Number(value)
+  return value !== null && Number.isSafeInteger(count) && count >= 0 ? count : undefined
+}
+
+// 나이스페이 결제창 인증 결과는 백엔드(/payments/nicepay/return)가 받아 승인까지 끝낸 뒤 이 페이지로 보낸다.
+// success: ?grantedGem=&gemBalance=  /  fail: ?code=&message=
 export default function PaymentResult() {
   const callback = window.location.pathname.match(/^\/shop\/payment\/([^/]+)\/(success|fail)$/)
-  const pathOrderId = callback?.[1] ?? ''
+  const orderId = callback?.[1] ?? ''
   const action = callback?.[2] as CallbackAction | undefined
   const params = new URLSearchParams(window.location.search)
-  const orderId = params.get('orderId') || pathOrderId
-  const paymentKey = params.get('paymentKey') ?? ''
-  const amountText = params.get('amount') ?? ''
-  const amount = Number(amountText)
-  const code = params.get('code') ?? ''
+  const grantedGem = toCount(params.get('grantedGem'))
+  const gemBalance = toCount(params.get('gemBalance'))
   const failureMessage = params.get('message') ?? ''
   const started = useRef(false)
   const [message, setMessage] = useState('결제 결과를 확인하고 있어요. 잠시만 기다려주세요.')
@@ -47,33 +51,24 @@ export default function PaymentResult() {
     started.current = true
 
     if (action === 'success') {
-      if (!paymentKey || !Number.isSafeInteger(amount) || amount <= 0) {
-        returnToOrigin({ status: 'failed', message: '결제 승인 정보가 없어 보석을 충전하지 못했어요. 다시 시도해주세요.' })
-        return
-      }
-      confirmTossPayment({ orderId, paymentKey, amount }).then(result => {
-        returnToOrigin({ status: 'success', grantedGem: result.grantedGem, gemBalance: result.gemBalance })
-      }).catch(cause => {
-        if (cause instanceof ApiError && cause.status === 401) return
-        returnToOrigin({ status: 'failed', message: cause instanceof Error ? cause.message : '결제 승인에 실패했어요. 다시 시도해주세요.' })
-      })
+      returnToOrigin({ status: 'success', grantedGem, gemBalance })
       return
     }
 
-    abortTossPaymentOrder(orderId).then(() => {
-      const cancelled = code === 'PAY_PROCESS_CANCELED'
-      returnToOrigin({
-        status: cancelled ? 'cancelled' : 'failed',
-        message: cancelled ? '결제를 취소했습니다.' : failureMessage || '결제에 실패했어요. 다시 시도해주세요.',
-      })
-    }).catch(cause => {
-      if (cause instanceof ApiError && cause.status === 401) return
-      returnToOrigin({
-        status: code === 'PAY_PROCESS_CANCELED' ? 'cancelled' : 'failed',
-        message: failureMessage || (cause instanceof Error ? cause.message : '결제 중단을 처리하지 못했어요. 상점에서 다시 확인해주세요.'),
-      })
+    const failed = () => returnToOrigin({
+      status: 'failed',
+      message: failureMessage || '결제에 실패했어요. 다시 시도해주세요.',
     })
-  }, [action, amount, code, failureMessage, orderId, paymentKey])
+    if (orderId === 'unknown') {
+      failed()
+      return
+    }
+    // 백엔드가 대부분 실패 처리를 끝냈지만, 승인 전에 거절된 주문이 대기 상태로 남지 않게 한 번 더 정리한다.
+    abortPaymentOrder(orderId).then(failed).catch(cause => {
+      if (cause instanceof ApiError && cause.status === 401) return
+      failed()
+    })
+  }, [action, failureMessage, gemBalance, grantedGem, orderId])
 
   const returnLocation = getPaymentReturnLocation()
   return <ResultPage>
