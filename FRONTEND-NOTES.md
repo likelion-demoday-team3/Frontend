@@ -95,16 +95,16 @@ REST 시간 값은 UTC ISO 8601 문자열을 사용하고 화면에서 한국 �
 
 상점의 상품과 가격은 현재 화면에 표시하는 값입니다. 서버는 `productId`로 상품 가격과 지급할 보석을 자체 조회해야 하며 프론트가 보내는 금액을 결제 근거로 신뢰하면 안 됩니다.
 
-### 토스페이먼츠 결제 연동
+### 나이스페이 결제 연동
 
-프론트 결제 API 계약은 `src/features/payments/toss.ts`에 있습니다. 결제 준비·승인·중단·환불 API는 로그인 토큰을 사용하고, 결제 준비 API는 `{ productId }`를 보냅니다. 토스 Secret Key와 토스 승인 요청은 백엔드에서 처리하며, 결제창만 `@tosspayments/tosspayments-sdk`로 프론트에서 엽니다.
+프론트 결제 API 계약은 `src/features/payments/nicepay.ts`에 있습니다. 결제 준비·중단·환불 API는 로그인 토큰을 사용하고, 결제 준비 API는 `{ productId }`를 보냅니다. 나이스페이 Secret Key와 승인 요청은 백엔드에서 처리하며, 결제창만 나이스페이 JS SDK(`https://pay.nicepay.co.kr/v1/js/`, 필요할 때 동적으로 불러옴)의 `AUTHNICE.requestPay()`로 프론트에서 엽니다.
 
 1. 상점은 `GET /shop/products`에서 `{ productId, name, gemAmount, price, salePrice }`를 받아 상품을 표시합니다.
-2. 충전 요청은 `POST /payments/toss/ready`에 `{ productId }`를 보내며, 응답 `{ orderId, orderName, amount, gemAmount, clientKey, successUrl, failUrl }`의 값을 토스 SDK `requestPayment()`에 전달합니다. `amount`는 결제창 요청에만 사용합니다.
-3. 성공 callback은 `paymentKey`, `orderId`, `amount`를 읽고 `amount`를 숫자로 변환해 `POST /payments/toss/confirm`에 보냅니다. 성공 응답 `{ orderId, grantedGem, gemBalance }`를 상점 완료 안내에 표시합니다.
-4. 실패 또는 취소 callback은 `/fail` 경로에서 `code`, `message`, `orderId`를 읽고 `POST /payments/{orderId}/abort`를 호출합니다. 결제창이 페이지를 이동하지 않고 닫힌 경우에도 프론트에서 abort를 호출합니다. 별도의 `/cancel` callback 경로는 사용하지 않습니다.
+2. 충전 요청은 `POST /payments/nicepay/ready`에 `{ productId }`를 보내며, 응답 `{ orderId, goodsName, amount, gemAmount, clientId, returnUrl }`의 값을 `AUTHNICE.requestPay()`에 전달합니다. `amount`는 결제창 요청에만 사용합니다.
+3. 결제창 인증이 끝나면 나이스페이가 `returnUrl`(백엔드 `POST /payments/nicepay/return`)로 결과를 보내고, 백엔드가 승인과 보석 지급을 끝낸 뒤 `/shop/payment/{orderId}/success?grantedGem=&gemBalance=`로 보냅니다. 프론트는 승인 API를 따로 호출하지 않고 이 값을 상점 완료 안내에 표시합니다.
+4. 실패하면 백엔드가 `/shop/payment/{orderId}/fail?code=&message=`로 보냅니다. 프론트는 `message`를 표시하고 `POST /payments/{orderId}/abort`를 한 번 더 호출해 대기 주문을 정리합니다. 결제창을 닫거나 SDK 오류가 나면(`fnError`) 페이지 이동 없이 상점에서 abort를 호출합니다.
 
-결제 API 경로는 `GET /shop/products`, `POST /payments/toss/ready`, `POST /payments/toss/confirm`, `POST /payments/{orderId}/abort`, `POST /payments/{orderId}/refund`, `GET /payments/my`입니다. 결제 승인은 중복 호출돼도 보석을 한 번만 지급하도록 서버에서 처리합니다. 보석 잔액과 보석 거래 내역은 `GET /wallet/my`, `GET /wallet/my/history`를 계속 사용합니다.
+결제 API 경로는 `GET /shop/products`, `POST /payments/nicepay/ready`, `POST /payments/{orderId}/abort`, `POST /payments/{orderId}/refund`, `GET /payments/my`입니다. 결제 승인은 같은 결과가 여러 번 와도 보석을 한 번만 지급하도록 서버에서 처리합니다. 보석 잔액과 보석 거래 내역은 `GET /wallet/my`, `GET /wallet/my/history`를 계속 사용합니다.
 
 `GET /payments/my`는 `{ orderId, amount, productName, grantedGem, status, refundable, paidAt, canceledAt, createdAt }[]`를 반환합니다. `refundable`이 true인 결제에만 환불 버튼을 표시하며, 보석을 이미 사용했다면 환불 API가 409로 거절할 수 있으므로 `error.message`를 그대로 표시합니다. 날짜는 UTC 응답을 한국 시간으로 변환해 표시합니다.
 
@@ -131,8 +131,8 @@ REST 시간 값은 UTC ISO 8601 문자열을 사용하고 화면에서 한국 �
 - `src/features/members/api.ts`: 내 회원 정보
 - `src/features/sessions/api.ts`, `types.ts`: 세션 REST API와 DTO
 - `src/features/wallet/api.ts`: 보석 잔액·거래 내역
-- `src/features/payments/toss.ts`: 토스페이먼츠 결제 준비·승인·주문 API 계약
-- `src/pages/Store/PaymentResult.tsx`: 토스 결제 성공·실패 callback 화면
+- `src/features/payments/nicepay.ts`: 나이스페이 결제 준비·중단·환불 API 계약과 결제창 열기
+- `src/pages/Store/PaymentResult.tsx`: 나이스페이 결제 성공·실패 결과 화면 (백엔드가 승인 후 이동시킴)
 - `src/features/live/stomp.ts`: STOMP 실시간 연결과 메시지 계약
 - `vite.config.ts`: 로컬 백엔드 REST proxy
 - `fromBackend/`: 백엔드 API·WebSocket 명세 원본 (프로젝트 상위 폴더)
