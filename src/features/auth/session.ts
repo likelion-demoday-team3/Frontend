@@ -60,3 +60,18 @@ export function clearAccessToken() {
 export function getAccessToken() {
   return currentAccessToken
 }
+
+// 화면 표시용으로만 쓴다. 실제 권한 검사는 서버(/admin/**는 ADMIN만)가 한다
+export function getAccessTokenRole(): string | null {
+  const payload = currentAccessToken?.split('.')[1]
+  if (!payload) return null
+  try {
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=')
+    const claims = JSON.parse(window.atob(base64)) as { role?: unknown }
+    return typeof claims.role === 'string' ? claims.role : null
+  } catch {
+    return null
+  }
+}
+
+export const isAdminToken = () => getAccessTokenRole() === 'ADMIN'

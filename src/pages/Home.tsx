@@ -3,12 +3,13 @@ import styled from 'styled-components'
 import Calender, { getToday } from '../components/Home/Calender'
 import Countdown from '../components/Home/Countdown'
 import Scadule from '../components/Home/Scadule'
+import AdminSessionCreate from '../components/Home/AdminSessionCreate'
 import NavBar from '../components/common/NavBar'
 import BusinessInfo from '../components/common/BusinessInfo'
 import { getMyMember } from '../features/members/api'
 import { getMySessions, getSessions } from '../features/sessions/api'
 import type { MySession, Session } from '../features/sessions/types'
-import { clearAccessToken, getAccessToken } from '../features/auth/session'
+import { clearAccessToken, getAccessToken, isAdminToken } from '../features/auth/session'
 import { ApiError } from '../features/api/client'
 
 export default function Home() {
@@ -113,6 +114,9 @@ export default function Home() {
           onRetry={() => setReload(value => value + 1)}
           onDataChanged={(items, mine) => { setSessions(items); setMySessions(mine) }}
         />
+        {isLoggedIn && isAdminToken() && (
+          <AdminSessionCreate selectedDate={selectedDate} onCreated={() => setReload(value => value + 1)} />
+        )}
       </main>
 
       <BusinessInfo />
