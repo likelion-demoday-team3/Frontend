@@ -16,8 +16,19 @@ export function createPreviewResult(product: ResultDetails['product']): ResultDe
     product,
     firstChoosers: product === 'FIRST_CHOOSERS' ? people : [],
     myRank: product === 'MY_FIRST_CHOICE_RANK' ? { myFirstChoice: people[0], rankOfMe: 2, submitted: true } : null,
-    rankings: product === 'ALL_RANKINGS' || product === 'USER_RANKINGS'
-      ? [{ voter: people[0], submitted: true, choices: [{ rank: 1, target: people[1] }] }]
-      : [],
+    rankings: product === 'ALL_RANKINGS'
+      ? [
+          { voter: people[0], submitted: true, choices: [
+            { rank: 1, target: people[1] },
+            { rank: 2, target: people[0] },
+          ] },
+          { voter: people[1], submitted: true, choices: [
+            { rank: 1, target: people[0] },
+            { rank: 2, target: people[1] },
+          ] },
+        ]
+      : product === 'USER_RANKINGS'
+        ? [{ voter: people[0], submitted: true, choices: [{ rank: 1, target: people[1] }] }]
+        : [],
   }
 }

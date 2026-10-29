@@ -51,3 +51,6 @@ export const respondToContactRequest = (sessionId: number, requestId: number, ac
 
 export const getContactRequests = (page = 0, size = 50) =>
   apiRequest<Paged<ContactRequest>>(`/api/contact-history/requests?page=${page}&size=${size}`)
+
+export const closeResultsWindow = (sessionId: number) =>
+  apiRequest<null>(`/api/sessions/${sessionId}/results/close`, { method: 'POST' })

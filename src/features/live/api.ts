@@ -5,5 +5,20 @@ export type IceServerConfig = {
   credentialTtlSeconds: number
 }
 
+export type LiveSessionState = {
+  sessionId: number
+  phase: string
+  deadline: string | null
+  voteSubmitted: boolean
+  participants: Array<{
+    memberId: number
+    gender: 'MALE' | 'FEMALE'
+    alias: string
+  }>
+}
+
 export const getIceServers = (sessionId: number) =>
   apiRequest<IceServerConfig>(`/api/live/sessions/${sessionId}/ice-servers`)
+
+export const getLiveSessionState = (sessionId: number) =>
+  apiRequest<LiveSessionState>(`/api/sessions/${sessionId}/live/state`)

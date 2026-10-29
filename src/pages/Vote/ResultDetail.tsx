@@ -81,7 +81,7 @@ export default function ResultDetail() {
     if (preview) {
       setCatalog(previewResultProducts);
       setSummary({ sessionId: 1, coupleCount: 3 });
-      setGems(5);
+      setGems(100);
       setLoading(false);
       return;
     }
@@ -298,6 +298,12 @@ export default function ResultDetail() {
 }
 
 function ResultContents({ details }: { details: ResultDetails }) {
+  const [rankingIndex, setRankingIndex] = useState(0);
+  const rankingCount = details.rankings.length;
+  const selectedRanking = rankingCount
+    ? details.rankings[rankingIndex % rankingCount]
+    : null;
+
   return (
     <div className="unlocked-results">
       {details.firstChoosers.length > 0 && (
@@ -348,7 +354,55 @@ function ResultContents({ details }: { details: ResultDetails }) {
             )}
           </div>
         ))}
+      {details.product === "ALL_RANKINGS" && selectedRanking && (
+        <div className="all-ranking-view">
+          <div className="ranking-person-switch" aria-label="참가자 선택">
+            <button
+              type="button"
+              aria-label="이전 참가자"
+              disabled={rankingCount < 2}
+              onClick={() =>
+                setRankingIndex((index) => (index - 1 + rankingCount) % rankingCount)
+              }
+            >
+              ‹
+            </button>
+            <strong aria-live="polite">
+              <span className="ranking-voter-name">
+                {selectedRanking.voter.alias}
+              </span>
+              <span className="ranking-voter-suffix"> 님</span>
+            </strong>
+            <button
+              type="button"
+              aria-label="다음 참가자"
+              disabled={rankingCount < 2}
+              onClick={() => setRankingIndex((index) => (index + 1) % rankingCount)}
+            >
+              ›
+            </button>
+          </div>
+          {selectedRanking.submitted ? (
+            <div className="ranking-choice-list">
+              {[1, 2, 3].map((rank) => {
+                const choice = selectedRanking.choices.find(
+                  (item) => item.rank === rank,
+                );
+                return (
+                  <p className="ranking-choice-row" key={rank}>
+                    <strong>{rank}순위</strong>
+                    <span>{choice?.target.alias ?? "선택하지 않았어요"}</span>
+                  </p>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="ranking-not-submitted">투표를 제출하지 않았어요.</p>
+          )}
+        </div>
+      )}
       {details.product !== "USER_RANKINGS" &&
+        details.product !== "ALL_RANKINGS" &&
         details.rankings.map((ranking) => (
           <p key={ranking.voter.memberId}>
             <strong>{ranking.voter.alias}</strong>
@@ -359,7 +413,9 @@ function ResultContents({ details }: { details: ResultDetails }) {
         ))}
       {!details.firstChoosers.length &&
         !details.myRank &&
-        !details.rankings.length && <p>해당하는 결과가 없어요.</p>}
+        !details.rankings.length && (
+          <p className="empty-result">해당하는 결과가 없어요.</p>
+        )}
     </div>
   );
 }
@@ -472,6 +528,12 @@ const DetailPage = styled.div`
   }
   .people-card {
     padding: 1.6rem;
+  }
+  .empty-result {
+    margin: 1.2rem 0 0;
+    color: #899188;
+    font-size: 1.3rem;
+    line-height: 1.5;
   }
   .people-heading {
     display: flex;
@@ -604,6 +666,91 @@ const DetailPage = styled.div`
     font-size: 1.25rem;
     font-weight: 600;
     box-sizing: border-box;
+  }
+  .all-ranking-view {
+    margin-top: 0.5rem;
+    padding: 0 1.2rem 1.2rem;
+    border-radius: 1.5rem;
+    background: #fff;
+  }
+  .ranking-person-switch {
+    display: flex;
+    min-height: 4.4rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  .ranking-person-switch strong {
+    flex: 1;
+    color: var(--ink);
+    font: 600 1.25rem/1.3 var(--font-body);
+    text-align: center;
+  }
+  .ranking-voter-name {
+    color: #66852b;
+    font-weight: 750;
+  }
+  .ranking-voter-suffix {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .ranking-person-switch button {
+    display: grid;
+    width: 2.8rem;
+    height: 2.8rem;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #edf5d9;
+    color: #66852b;
+    font: 600 1.4rem/1 var(--font-body);
+    cursor: pointer;
+    transition: background 120ms ease, transform 120ms ease;
+  }
+  .ranking-person-switch button:not(:disabled):active {
+    transform: scale(0.92);
+    background: #dff19f;
+  }
+  .ranking-person-switch button:disabled {
+    background: #f4f6f1;
+    color: #a9b0a3;
+    cursor: default;
+  }
+  .ranking-choice-list {
+    display: grid;
+    gap: 0.8rem;
+  }
+  .ranking-choice-row {
+    display: flex;
+    height: 4.4rem;
+    min-height: 4.4rem;
+    align-items: center;
+    gap: 1rem;
+    margin: 0;
+    padding: 1rem 1.2rem;
+    box-sizing: border-box;
+    border-radius: 1rem;
+    background: #f7f9f4;
+    font-size: 1.25rem;
+  }
+  .ranking-choice-row strong {
+    min-width: 5rem;
+    color: #66852b;
+    font-size: inherit;
+    font-weight: 750;
+  }
+  .ranking-choice-row span {
+    font-weight: 600;
+  }
+  .ranking-not-submitted {
+    margin: 0;
+    padding: 1.2rem;
+    border-radius: 1.2rem;
+    background: #f7f9f4;
+    color: #818a7f;
+    font-size: 1.3rem;
   }
   .avatar {
     display: grid;

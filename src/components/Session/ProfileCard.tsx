@@ -29,7 +29,7 @@ export default function ProfileCard({
         </CloseButton>
         <University>{profile.university || "학교 정보 없음"}</University>
         <Nickname id="profile-card-title">
-          {profile.nickname || "상대방"}님의 프로필 카드입니다
+          {profile.nickname || "상대방"}
         </Nickname>
         {compatibility && (
           <MatchScore>관심사 매칭 {compatibility.score}점</MatchScore>

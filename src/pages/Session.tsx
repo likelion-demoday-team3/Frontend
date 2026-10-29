@@ -25,39 +25,25 @@ import {
 } from "../features/sessions/interactionApi";
 import { getOwnVote, type OwnVote } from "../features/sessions/resultsApi";
 import { getIceServers } from "../features/live/api";
+import { getLiveSessionState } from "../features/live/api";
+import { getMyMember } from "../features/members/api";
 
 type SessionProps = { sessionId: number };
 type Phase = "ready" | "connecting" | "lobby" | "assigned" | "idle" | "voting";
 type PeerState = { connection: RTCPeerConnection; assignment: LiveAssignment };
 
 type LobbyParticipant = {
+  memberId: number;
   nickname: string;
+  roundNumber?: number;
   x: string;
   y: string;
   delay: string;
 };
 
-const lobbyNicknamePool = [
-  "구름산책",
-  "느린토끼",
-  "초록새벽",
-  "말랑복숭아",
-  "고요한파도",
-  "달빛수집가",
-  "잠꾸러기곰",
-  "햇살한스푼",
-  "바닐라라떼",
-  "작은행성",
-  "포근한오후",
-  "반짝이는별",
-  "산책하는고양이",
-  "기분좋은바람",
-  "졸린수달",
-];
-
 const createLobbyParticipants = (
   row: "opposite" | "same",
-  nicknames: string[],
+  people: Array<{ memberId: number; nickname: string; roundNumber?: number }>,
 ): LobbyParticipant[] => {
   // Keep profiles in the upper/lower bands, with enough space around the mascot and speech bubble.
   const anchors: [number, number][] =
@@ -76,15 +62,13 @@ const createLobbyParticipants = (
           [29, 64],
           [72, 65],
         ];
-  const shuffled = [...anchors]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, Math.min(nicknames.length, anchors.length));
+  const positions = anchors.slice(0, Math.min(people.length, anchors.length));
 
-  return shuffled.map(([x, y], index) => ({
-    nickname: nicknames[index],
-    x: `${x + (Math.random() * 4 - 2)}%`,
-    y: `${y + (Math.random() * 4 - 2)}%`,
-    delay: `${-Math.random() * 4.8}s`,
+  return positions.map(([x, y], index) => ({
+    ...people[index],
+    x: `${x + (people[index].memberId % 3 - 1) * 1.5}%`,
+    y: `${y + (people[index].memberId % 3 - 1) * 1.5}%`,
+    delay: `${-(people[index].memberId % 5) * 0.7}s`,
   }));
 };
 
@@ -324,13 +308,10 @@ export default function Session({ sessionId }: SessionProps) {
   const [, setCallStatus] = useState("상대 배정을 기다리는 중");
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState("");
-  const [lobbyParticipants] = useState(() => {
-    const nicknames = [...lobbyNicknamePool].sort(() => Math.random() - 0.5);
-    return {
-      opposite: createLobbyParticipants("opposite", nicknames.slice(0, 4)),
-      same: createLobbyParticipants("same", nicknames.slice(4, 8)),
-    };
-  });
+  const [lobbyParticipants, setLobbyParticipants] = useState<{
+    opposite: LobbyParticipant[];
+    same: LobbyParticipant[];
+  }>({ opposite: [], same: [] });
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [mascotSpeaking, setMascotSpeaking] = useState(false);
   const [mascotMouthOpen, setMascotMouthOpen] = useState(false);
@@ -340,8 +321,12 @@ export default function Session({ sessionId }: SessionProps) {
   const liveRef = useRef<LiveConnection | null>(null);
   const iceServersRef = useRef<RTCIceServer[] | null>(null);
   const peerRef = useRef<PeerState | null>(null);
+  const pendingSignals = useRef<Extract<LiveMessage, { kind: "signal" }>[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const mutedRef = useRef(false);
+  const speakerEnabledRef = useRef(true);
+  const audioPlaybackBlockedRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const speechFrameRef = useRef<number | null>(null);
   const candidateQueue = useRef<RTCIceCandidateInit[]>([]);
@@ -380,7 +365,7 @@ export default function Session({ sessionId }: SessionProps) {
   }, []);
 
   useEffect(() => {
-    if (isMockLiveEnabled || !getAccessToken()) return;
+    if (isMockLiveEnabled || !getAccessToken() || !finalChoiceLobby) return;
     let active = true;
     getHeartStatus(sessionId)
       .then((status) => {
@@ -401,7 +386,7 @@ export default function Session({ sessionId }: SessionProps) {
     return () => {
       active = false;
     };
-  }, [sessionId]);
+  }, [finalChoiceLobby, sessionId]);
 
   useEffect(() => {
     if (phase !== "lobby" && phase !== "idle") return;
@@ -473,6 +458,78 @@ export default function Session({ sessionId }: SessionProps) {
   }, [sessionId, sessionPreviewMode]);
 
   useEffect(() => {
+    if (
+      isMockLiveEnabled ||
+      !liveRef.current ||
+      finalChoiceLobby ||
+      (phase !== "lobby" && phase !== "idle")
+    ) {
+      setLobbyParticipants({ opposite: [], same: [] });
+      return;
+    }
+
+    let active = true;
+    let pollTimer = 0;
+    const refreshParticipants = async (myGender: "MALE" | "FEMALE") => {
+      try {
+        const currentSession = await getSession(sessionId);
+        if (!active) return;
+        setSession(currentSession);
+        if (
+          currentSession.status !== "IN_PROGRESS" &&
+          currentSession.status !== "COMPLETED"
+        ) {
+          setLobbyParticipants({ opposite: [], same: [] });
+          return;
+        }
+        const state = await getLiveSessionState(sessionId);
+        if (!active) return;
+        const others = state.participants.filter(
+          (person) => person.memberId !== myLiveMemberId,
+        );
+        setLobbyParticipants({
+          opposite: createLobbyParticipants(
+            "opposite",
+            others
+              .filter((person) => person.gender !== myGender)
+              .map((person) => ({
+                memberId: person.memberId,
+                nickname: person.alias,
+              })),
+          ),
+          same: createLobbyParticipants(
+            "same",
+            others
+              .filter((person) => person.gender === myGender)
+              .map((person) => ({
+                memberId: person.memberId,
+                nickname: person.alias,
+              })),
+          ),
+        });
+      } catch {
+        // Keep the lobby free of fabricated profiles when the roster is unavailable.
+      }
+    };
+
+    getMyMember()
+      .then((member) => {
+        if (!active) return;
+        void refreshParticipants(member.gender);
+        pollTimer = window.setInterval(
+          () => void refreshParticipants(member.gender),
+          5000,
+        );
+      })
+      .catch(() => setLobbyParticipants({ opposite: [], same: [] }));
+
+    return () => {
+      active = false;
+      if (pollTimer) window.clearInterval(pollTimer);
+    };
+  }, [finalChoiceLobby, isMockLiveEnabled, myLiveMemberId, phase, sessionId]);
+
+  useEffect(() => {
     if (phase !== "voting" || isMockLiveEnabled || !getAccessToken()) return;
     let active = true;
     getOwnVote(sessionId)
@@ -497,12 +554,16 @@ export default function Session({ sessionId }: SessionProps) {
     let active = true;
     getIceServers(sessionId)
       .then((config) => {
-        if (active)
-          iceServersRef.current = config.iceServers.map((server) => ({
+        if (active) {
+          const configuredServers = config.iceServers.map((server) => ({
             urls: server.urls,
             ...(server.username ? { username: server.username } : {}),
             ...(server.credential ? { credential: server.credential } : {}),
           }));
+          iceServersRef.current = configuredServers.length
+            ? configuredServers
+            : [{ urls: "stun:stun.l.google.com:19302" }];
+        }
       })
       .catch(() => {
         // API 일시 장애 시 기존 공개 STUN 서버로 WebRTC를 유지합니다.
@@ -522,7 +583,11 @@ export default function Session({ sessionId }: SessionProps) {
   const handleSignal = useCallback(
     async (signal: Extract<LiveMessage, { kind: "signal" }>) => {
       const peer = peerRef.current;
-      if (!peer || signal.roomId !== peer.assignment.roomId) return;
+      if (!peer) {
+        pendingSignals.current = [...pendingSignals.current, signal].slice(-32);
+        return;
+      }
+      if (signal.roomId !== peer.assignment.roomId) return;
       const connection = peer.connection;
       try {
         if (signal.type === "ICE_CANDIDATE") {
@@ -760,12 +825,33 @@ export default function Session({ sessionId }: SessionProps) {
           return;
         }
         streamRef.current = stream;
+        stream.getAudioTracks().forEach((track) => {
+          track.enabled = !mutedRef.current;
+        });
+        if (!iceServersRef.current) {
+          try {
+            const config = await getIceServers(sessionId);
+            const configuredServers = config.iceServers.map((server) => ({
+              urls: server.urls,
+              ...(server.username ? { username: server.username } : {}),
+              ...(server.credential ? { credential: server.credential } : {}),
+            }));
+            iceServersRef.current = configuredServers.length
+              ? configuredServers
+              : [{ urls: "stun:stun.l.google.com:19302" }];
+          } catch {
+            // Use STUN fallback if the ICE configuration endpoint is unavailable.
+          }
+        }
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
         const connection = new RTCPeerConnection({
           iceServers: iceServersRef.current ?? [
             { urls: "stun:stun.l.google.com:19302" },
           ],
         });
-        peerRef.current = { connection, assignment: currentAssignment };
         stream
           .getTracks()
           .forEach((track) => connection.addTrack(track, stream));
@@ -805,6 +891,7 @@ export default function Session({ sessionId }: SessionProps) {
               setIsPartnerSpeaking(false),
             );
             audio.srcObject = event.streams[0];
+            audio.volume = speakerEnabledRef.current ? 1 : 0;
             const audioContext = new AudioContext();
             const analyser = audioContext.createAnalyser();
             analyser.fftSize = 256;
@@ -828,8 +915,14 @@ export default function Session({ sessionId }: SessionProps) {
             void audioContext.resume().catch(() => undefined);
             void audio
               .play()
-              .catch(() =>
-                setCallStatus("화면을 한 번 눌러 상대 음성을 재생해주세요."),
+              .then(
+                () => {
+                  audioPlaybackBlockedRef.current = false;
+                },
+                () => {
+                  audioPlaybackBlockedRef.current = true;
+                  setError("브라우저에서 음성 재생이 차단됐어요. 스피커폰 버튼을 눌러주세요.");
+                },
               );
           }
         };
@@ -845,11 +938,23 @@ export default function Session({ sessionId }: SessionProps) {
                   : "상대 배정을 기다리는 중",
           );
         };
+        peerRef.current = { connection, assignment: currentAssignment };
+        const earlySignals = pendingSignals.current.splice(0);
+        for (const signal of earlySignals) {
+          if (signal.roomId === currentAssignment.roomId)
+            void handleSignal(signal);
+        }
         setCallStatus("상대와 음성을 연결하고 있어요.");
       } catch (cause) {
-        setCallStatus(
-          cause instanceof Error ? cause.message : "마이크를 사용할 수 없어요.",
+        const name = cause instanceof DOMException ? cause.name : "";
+        setError(
+          name === "NotAllowedError" || name === "PermissionDeniedError"
+            ? "마이크 권한이 허용되지 않았어요. 브라우저에서 이 사이트의 마이크 권한을 허용해주세요."
+            : cause instanceof Error
+              ? cause.message
+              : "마이크와 음성 연결을 시작하지 못했어요.",
         );
+        setCallStatus("음성 연결을 시작하지 못했어요.");
       }
     }
     void startPeer();
@@ -868,7 +973,7 @@ export default function Session({ sessionId }: SessionProps) {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, [assignment, phase, sendSignal, sessionId]);
+  }, [assignment, handleSignal, phase, sendSignal, sessionId]);
 
   useEffect(
     () => () => {
@@ -1066,7 +1171,8 @@ export default function Session({ sessionId }: SessionProps) {
   }
 
   function toggleMute() {
-    const nextMuted = !muted;
+    const nextMuted = !mutedRef.current;
+    mutedRef.current = nextMuted;
     streamRef.current?.getAudioTracks().forEach((track) => {
       track.enabled = !nextMuted;
     });
@@ -1074,8 +1180,30 @@ export default function Session({ sessionId }: SessionProps) {
   }
 
   function toggleSpeaker() {
+    if (audioPlaybackBlockedRef.current && audioRef.current) {
+      speakerEnabledRef.current = true;
+      audioRef.current.volume = 1;
+      void audioRef.current.play().then(
+        () => {
+          audioPlaybackBlockedRef.current = false;
+          setSpeakerEnabled(true);
+          setError("");
+        },
+        () => setError("상대 음성을 재생할 수 없어요. 브라우저의 사이트 소리 설정을 확인해주세요."),
+      );
+      return;
+    }
     const nextEnabled = !speakerEnabled;
-    if (audioRef.current) audioRef.current.volume = nextEnabled ? 1 : 0;
+    speakerEnabledRef.current = nextEnabled;
+    if (audioRef.current) {
+      audioRef.current.volume = nextEnabled ? 1 : 0;
+      if (nextEnabled) {
+        void audioRef.current.play().then(
+          () => setError(""),
+          () => setError("상대 음성을 재생할 수 없어요. 브라우저의 사이트 소리 설정을 확인해주세요."),
+        );
+      }
+    }
     setSpeakerEnabled(nextEnabled);
   }
 
@@ -1200,14 +1328,10 @@ export default function Session({ sessionId }: SessionProps) {
   }, [assignment, conversationEndsAt, now, phase]);
 
   const lobbyVisible = phase === "lobby" || phase === "idle";
-
-  function selectHeartParticipant(nickname: string) {
-    const encounteredProfile = encounteredProfiles.find(
-      (profile) => profile.nickname === nickname,
-    );
-    if (encounteredProfile) setSelectedProfile(encounteredProfile);
-    else setHeartRestrictionOpen(true);
-  }
+  const heartParticipants = createLobbyParticipants(
+    "opposite",
+    encounteredProfiles,
+  );
 
   return (
     <SessionPage
@@ -1335,11 +1459,11 @@ export default function Session({ sessionId }: SessionProps) {
                       role="group"
                       aria-label="이성 참가자 프로필"
                     >
-                      {lobbyParticipants.opposite.map((participant, index) => (
+                      {heartParticipants.map((participant) => (
                         <button
                           className="profile-avatar choice-profile"
                           type="button"
-                          key={`opposite-${participant.nickname}-${index}`}
+                          key={`heart-${participant.memberId}`}
                           style={{
                             left: participant.x,
                             top: participant.y,
@@ -1347,7 +1471,11 @@ export default function Session({ sessionId }: SessionProps) {
                           }}
                           aria-label={`이성 참가자 ${participant.nickname}`}
                           onClick={() =>
-                            selectHeartParticipant(participant.nickname)
+                            setSelectedProfile({
+                              memberId: participant.memberId,
+                              nickname: participant.nickname,
+                              roundNumber: participant.roundNumber ?? 1,
+                            })
                           }
                         >
                           <span aria-hidden="true">
@@ -1356,32 +1484,11 @@ export default function Session({ sessionId }: SessionProps) {
                         </button>
                       ))}
                     </div>
-                    <div
-                      className="profile-group same-profiles"
-                      role="group"
-                      aria-label="동성 참가자 프로필"
-                    >
-                      {lobbyParticipants.same.map((participant, index) => (
-                        <button
-                          className="profile-avatar choice-profile"
-                          type="button"
-                          key={`same-${participant.nickname}-${index}`}
-                          style={{
-                            left: participant.x,
-                            top: participant.y,
-                            animationDelay: participant.delay,
-                          }}
-                          aria-label={`동성 참가자 ${participant.nickname}`}
-                          onClick={() =>
-                            selectHeartParticipant(participant.nickname)
-                          }
-                        >
-                          <span aria-hidden="true">
-                            {Array.from(participant.nickname)[0]}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                    {heartParticipants.length === 0 && (
+                      <p className="heart-candidates-empty">
+                        대화한 상대가 생기면 하트를 보낼 수 있어요.
+                      </p>
+                    )}
                   </>
                 ) : (
                   <div
@@ -1775,7 +1882,7 @@ export default function Session({ sessionId }: SessionProps) {
                     <div className="conversation-controls">
                       <button
                         type="button"
-                        className="conversation-control"
+                        className={`conversation-control${muted ? " is-muted" : " is-mic-on"}`}
                         onClick={toggleMute}
                         aria-pressed={muted}
                       >
@@ -1783,20 +1890,26 @@ export default function Session({ sessionId }: SessionProps) {
                           className="control-icon mute-icon"
                           aria-hidden="true"
                         >
-                          <img src="/muteIcon.svg" alt="" />
+                          <svg viewBox="0 0 40 40" fill="none">
+                            <rect x="15" y="4" width="10" height="21" rx="5" />
+                            <path d="M9 19a11 11 0 0 0 22 0M20 30v6m-7 0h14" />
+                          </svg>
                         </span>
-                        <span>{muted ? "음소거 해제" : "음소거"}</span>
+                        <span>마이크</span>
                       </button>
                       <button
                         type="button"
-                        className="conversation-control"
+                        className={`conversation-control${speakerEnabled ? " is-speaker-on" : " is-speaker-off"}`}
                         onClick={toggleSpeaker}
                         aria-pressed={speakerEnabled}
                       >
-                        <span className="control-icon" aria-hidden="true">
+                        <span
+                          className="control-icon"
+                          aria-hidden="true"
+                        >
                           <img src="/speakerphoneIcon.svg" alt="" />
                         </span>
-                        <span>스피커폰</span>
+                        <span>스피커</span>
                       </button>
                       <button
                         type="button"
@@ -1830,7 +1943,7 @@ export default function Session({ sessionId }: SessionProps) {
                         onClose={() => setProfileCardOpen(false)}
                       />
                     )}
-                    <audio ref={audioRef} autoPlay />
+                    <audio ref={audioRef} autoPlay playsInline />
                   </section>
                 )}
               </>
@@ -2155,8 +2268,19 @@ const SessionPage = styled.div`
     color: #050505;
     font: 400 1.5rem/1.2 var(--font-body);
     white-space: nowrap;
+    cursor: pointer;
+    transition: color 160ms ease, transform 160ms ease;
+  }
+  .conversation-control:active {
+    transform: scale(0.97);
+  }
+  .conversation-control:focus-visible {
+    outline: 0.25rem solid #607d2f;
+    outline-offset: 0.5rem;
+    border-radius: 1rem;
   }
   .control-icon {
+    position: relative;
     display: grid;
     width: 10.3rem;
     height: 10.3rem;
@@ -2164,12 +2288,31 @@ const SessionPage = styled.div`
     border-radius: 50%;
     background: #e0ebd9;
     color: #2b302c;
+    border: 0;
+    box-shadow: none;
+    transition: background 180ms ease, color 180ms ease;
   }
-  .control-icon img {
+  .control-icon img,
+  .control-icon svg {
     display: block;
     width: 4.4rem;
     height: 4.4rem;
     object-fit: contain;
+  }
+  .control-icon svg {
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.8;
+  }
+  .conversation-control.is-muted .control-icon,
+  .conversation-control.is-speaker-off .control-icon {
+    background: #d2d7d0;
+    color: #727a70;
+  }
+  .conversation-control.is-mic-on .control-icon,
+  .conversation-control.is-speaker-on .control-icon {
+    background: #dcff74;
   }
   .report-control .control-icon {
     background: #ff0909;

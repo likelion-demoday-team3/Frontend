@@ -19,6 +19,10 @@ export default function NotificationButton({
   sessionId,
   recipientId,
 }: NotificationButtonProps) {
+  const previewParams = new URLSearchParams(window.location.search);
+  const notificationPreview =
+    previewParams.get("preview") === "notifications" &&
+    (import.meta.env.DEV || previewParams.has("showTest"));
   const [open, setOpen] = useState(false);
   const [heartCount, setHeartCount] = useState(0);
   const [receivedContacts, setReceivedContacts] = useState<ContactShare[]>([]);
@@ -57,7 +61,7 @@ export default function NotificationButton({
               (item) => !sessionId || item.sessionId === sessionId,
             )
           : [];
-      const nextRequests =
+      const apiRequests =
         requestResult.status === "fulfilled"
           ? requestResult.value.items.filter(
               (item) =>
@@ -66,6 +70,20 @@ export default function NotificationButton({
                 recipientId != null && item.targetId === recipientId,
             )
           : [];
+      const testRequest: ContactRequest = {
+        id: -1,
+        sessionId: sessionId ?? 1,
+        requesterId: 2,
+        targetId: recipientId ?? 1,
+        contactType: "PHONE",
+        status: "PENDING",
+        chargedGem: 0,
+        createdAt: new Date().toISOString(),
+        respondedAt: null,
+      };
+      const nextRequests = notificationPreview
+        ? [...apiRequests, testRequest]
+        : apiRequests;
       if (announceArrival) {
         const arrivals: Array<"heart" | "contact"> = [];
         if (
@@ -93,10 +111,6 @@ export default function NotificationButton({
       setHeartCount(nextHeartCount);
       setReceivedContacts(nextContacts);
       setIncomingRequests(nextRequests);
-      const failedCount = [heartResult, contactResult, requestResult].filter(
-        (result) => result.status === "rejected",
-      ).length;
-      if (failedCount) setError("일부 알림을 불러오지 못했어요.");
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "알림을 불러오지 못했어요.",
@@ -104,7 +118,7 @@ export default function NotificationButton({
     } finally {
       setLoading(false);
     }
-  }, [recipientId, sessionId]);
+  }, [notificationPreview, recipientId, sessionId]);
 
   useEffect(() => {
     if (sessionId == null || recipientId == null) return;
@@ -114,6 +128,10 @@ export default function NotificationButton({
   }, [loadNotifications, recipientId, sessionId]);
 
   async function answerRequest(request: ContactRequest, accept: boolean) {
+    if (request.id < 0) {
+      setIncomingRequests((items) => items.filter((item) => item.id !== request.id));
+      return;
+    }
     setBusyRequestId(request.id);
     setError("");
     try {
@@ -143,11 +161,12 @@ export default function NotificationButton({
     </BellButton>
     <NoticeDialog ref={dialogRef} aria-labelledby={titleId} onCancel={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) setOpen(false) }}>
       <h2 id={titleId}>알림</h2>
+      <button className="close-button" type="button" aria-label="알림 닫기" onClick={() => setOpen(false)}>×</button>
       {loading ? <p>알림을 불러오는 중이에요…</p> : <>
         {error && <p role="alert">{error}</p>}
-        {sessionId != null && <section className="notification-section">
-          <h3>받은 하트 수</h3>
-          <p><span className="heart-icon" aria-hidden="true">♥</span> {heartCount}개</p>
+        {sessionId != null && <section className="notification-section notification-total">
+          <h3>받은 하트</h3>
+          <p><span className="heart-icon" aria-hidden="true">💗</span> {heartCount}개</p>
         </section>}
         {incomingRequests.length > 0 && <section className="notification-section">
           <h3>받은 연락처 요청</h3>
@@ -160,15 +179,14 @@ export default function NotificationButton({
             </div>
           </article>)}
         </section>}
-        {receivedContacts.length > 0 && <section className="notification-section">
+        <section className="notification-section notification-total">
           <h3>받은 연락처</h3>
+          <p><span className="contact-icon" aria-hidden="true">⭐</span> {receivedContacts.length}개</p>
           {receivedContacts.map(item => <p className="notification-item" key={item.id}>
             {item.senderAlias ?? "상대방"} · {item.contactType === "PHONE" ? "전화번호" : "인스타그램"}{item.contactValue ? ` ${item.contactValue}` : ""}
           </p>)}
-        </section>}
-        {!heartCount && !incomingRequests.length && !receivedContacts.length && <p>새 알림이 없어요.</p>}
+        </section>
       </>}
-      <button type="button" onClick={() => setOpen(false)}>확인</button>
     </NoticeDialog>
     {arrivalQueue[0] && !open && (
       <ArrivalPopover role="alertdialog" aria-labelledby={`${titleId}-arrival-title`}>
@@ -199,6 +217,7 @@ function formatNotificationTime(value: string) {
 }
 
 function requestConversationLabel(request: ContactRequest) {
+  if (request.id < 0) return "1번째 대화 · 구름산책";
   try {
     const stored = sessionStorage.getItem(`kiiwee.session-context:${request.sessionId}`);
     const context = stored ? JSON.parse(stored) as { partners?: Array<{ memberId: number; nickname: string; roundNumber: number }> } : null;
@@ -238,17 +257,22 @@ const NoticeDialog = styled.dialog`
   border-radius: 2rem;
   background: var(--background);
   color: var(--ink);
+  font-family: var(--font-body);
   box-shadow: 0 1.6rem 7rem #1113;
   &::backdrop { background: #222b2533; }
   &::after { position: absolute; top: -0.8rem; left: 2.6rem; width: 1.6rem; height: 1.6rem; background: var(--background); content: ""; transform: rotate(45deg); }
-  h2 { font: 600 1.8rem/1.4 var(--font-body); }
+  h2 { font: 600 1.8rem/1.4 var(--display-font); }
+  button.close-button { position: absolute; top: 1.2rem; right: 1.4rem; display: grid; width: 3.2rem; min-height: 3.2rem; place-items: center; margin: 0; padding: 0; border: 0; background: transparent; color: var(--ink); font: 400 2.8rem/1 var(--font-body); cursor: pointer; }
   p { margin-top: 1.2rem; color: var(--text-secondary); font-size: 1.4rem; line-height: 1.6; }
   button { display: grid; width: 100%; min-height: 4.2rem; place-items: center; margin-top: 1.6rem; border: 0.1rem solid var(--ink); border-radius: 1rem; background: var(--green); color: var(--ink); font: 500 1.4rem var(--font-body); }
   .notification-item { padding: 1.2rem; border: 0.1rem solid var(--border-card); border-radius: 1.2rem; }
   .notification-section { margin-top: 1.4rem; padding-top: 1.2rem; border-top: 0.1rem solid var(--border-card); }
   .notification-section h3 { margin: 0; font: 600 1.4rem/1.4 var(--font-body); }
   .notification-section > p { padding: 1.2rem; }
-  .heart-icon { color: #f14b79; }
+  .notification-section.notification-total { display: flex; align-items: center; gap: 1.2rem; }
+  .notification-section.notification-total > p { margin: 0; padding: 0; }
+  .heart-icon { color: #f14b79; font-family: var(--font-body); }
+  .contact-icon { color: #e7a900; font-family: var(--font-body); }
   .notification-actions { display: flex; gap: 0.8rem; }
   .notification-actions button { flex: 1; }
   .notification-actions .secondary { background: var(--white); }
@@ -265,10 +289,11 @@ const ArrivalPopover = styled.aside`
   border-radius: 2rem;
   background: var(--background);
   color: var(--ink);
+  font-family: var(--display-font);
   box-shadow: 0 1.6rem 7rem #1113;
   &::before { position: absolute; top: -0.8rem; left: 2.6rem; width: 1.6rem; height: 1.6rem; border-top: 0.1rem solid var(--border-card); border-left: 0.1rem solid var(--border-card); background: var(--background); content: ""; transform: rotate(45deg); }
   h2 { margin: 0 2.4rem 0 0; font: 700 2rem/1.4 var(--display-font); }
   p { margin: 0.8rem 0 1.6rem; color: var(--text-secondary); font-size: 1.3rem; line-height: 1.6; }
-  > button:last-child { display: grid; width: 100%; min-height: 4.4rem; place-items: center; border: 0; border-radius: 1rem; background: var(--green); color: var(--ink); font: 600 1.4rem var(--font-body); }
+  > button:last-child { display: grid; width: 100%; min-height: 4.4rem; place-items: center; border: 0; border-radius: 1rem; background: var(--green); color: var(--ink); font: 600 1.4rem var(--display-font); }
   .arrival-close { position: absolute; top: 0.8rem; right: 1rem; border: 0; background: transparent; color: var(--ink); font-size: 2.4rem; cursor: pointer; }
 `

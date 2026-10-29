@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import styled from "styled-components";
 import PageHeader from "../components/common/PageHeader";
 import { getMyWallet } from "../features/wallet/api";
+import { getMyMember } from "../features/members/api";
 import { getContactShares, type ContactShare } from "../features/records/api";
 import {
   getContactRequests,
+  closeResultsWindow,
   requestContact,
   sendContact,
   type ContactRequest,
@@ -24,6 +26,7 @@ export default function Contact() {
   const [requests, setRequests] = useState<ContactRequest[]>([]);
   const [myMemberId, setMyMemberId] = useState<number | null>(null);
   const [contactType, setContactType] = useState<ContactType>("PHONE");
+  const [availableContactTypes, setAvailableContactTypes] = useState<ContactType[]>([]);
   const [contactTarget, setContactTarget] = useState<{
     partner: Partner;
     action: "send" | "request";
@@ -37,15 +40,20 @@ export default function Contact() {
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
-    const [wallet, sent, received, requestHistory] = await Promise.all([
+    const [wallet, sent, received, requestHistory, member] = await Promise.all([
       getMyWallet(),
       getContactShares("SENT"),
       getContactShares("RECEIVED"),
       getContactRequests(),
+      getMyMember(),
     ]);
     setGems(wallet.gemBalance);
     setShares([...sent.items, ...received.items]);
     setRequests(requestHistory.items);
+    setAvailableContactTypes([
+      ...(member.phoneNumber ? ["PHONE" as const] : []),
+      ...(member.instagramId ? ["INSTAGRAM" as const] : []),
+    ]);
   }, []);
 
   useEffect(() => {
@@ -56,6 +64,7 @@ export default function Contact() {
       ]);
       setMyMemberId(1);
       setGems(5);
+      setAvailableContactTypes(["PHONE", "INSTAGRAM"]);
       setRequests([
         {
           id: 900,
@@ -167,6 +176,7 @@ export default function Contact() {
         }
         return true;
       }
+      await closeResultsWindow(sessionId);
       if (action === "send")
         await sendContact(sessionId, memberId, selectedType);
       else await requestContact(sessionId, memberId, selectedType);
@@ -182,6 +192,17 @@ export default function Contact() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  function openContactTarget(partner: Partner, action: "send" | "request") {
+    setError("");
+    setContactType(
+      action === "send" && !availableContactTypes.includes("PHONE") &&
+        availableContactTypes.includes("INSTAGRAM")
+        ? "INSTAGRAM"
+        : "PHONE",
+    );
+    setContactTarget({ partner, action });
   }
 
   return (
@@ -307,11 +328,7 @@ export default function Contact() {
                         }
                         onClick={() => {
                           if (sent) setCancelTarget({ partner, kind: "sent" });
-                          else {
-                            setError("");
-                            setContactType("PHONE");
-                            setContactTarget({ partner, action: "send" });
-                          }
+                          else openContactTarget(partner, "send");
                         }}
                       >
                         {sent ? "전송 완료" : "연락처 보내기"}
@@ -325,11 +342,7 @@ export default function Contact() {
                         onClick={() => {
                           if (outgoingRequest)
                             setCancelTarget({ partner, kind: "request" });
-                          else {
-                            setError("");
-                            setContactType("PHONE");
-                            setContactTarget({ partner, action: "request" });
-                          }
+                          else openContactTarget(partner, "request");
                         }}
                       >
                         {received
@@ -413,6 +426,7 @@ export default function Contact() {
             >
               <button
                 type="button"
+                disabled={contactTarget.action === "send" && !availableContactTypes.includes("PHONE")}
                 aria-pressed={contactType === "PHONE"}
                 className={contactType === "PHONE" ? "selected" : ""}
                 onClick={() => setContactType("PHONE")}
@@ -421,6 +435,7 @@ export default function Contact() {
               </button>
               <button
                 type="button"
+                disabled={contactTarget.action === "send" && !availableContactTypes.includes("INSTAGRAM")}
                 aria-pressed={contactType === "INSTAGRAM"}
                 className={contactType === "INSTAGRAM" ? "selected" : ""}
                 onClick={() => setContactType("INSTAGRAM")}
@@ -428,6 +443,11 @@ export default function Contact() {
                 인스타그램
               </button>
             </div>
+            {contactTarget.action === "send" && availableContactTypes.length === 0 && (
+              <p className="dialog-error" role="alert">
+                보낼 연락처가 등록되어 있지 않아요. <a href="/mypage/me">마이페이지에서 전화번호나 인스타그램을 등록해주세요.</a>
+              </p>
+            )}
             {error && (
               <p className="dialog-error" role="alert">
                 {error}
@@ -438,7 +458,8 @@ export default function Contact() {
               type="button"
               disabled={
                 busyId === contactTarget.partner.memberId ||
-                (contactTarget.action === "send" && gems < 1)
+                (contactTarget.action === "send" &&
+                  (gems < 1 || !availableContactTypes.includes(contactType)))
               }
               onClick={async () => {
                 const target = contactTarget;

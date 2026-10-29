@@ -1,4 +1,4 @@
-export type SessionStatus = 'SCHEDULED' | 'RECRUITING' | 'READY' | 'CANCELLED' | 'COMPLETED'
+export type SessionStatus = 'SCHEDULED' | 'RECRUITING' | 'READY' | 'IN_PROGRESS' | 'CANCELLED' | 'COMPLETED'
 export type MyStatus = 'APPLIED' | 'CANCELLED' | 'ATTENDED' | 'NO_SHOW' | 'LEFT'
 
 // GET /sessions and related endpoint payloads.

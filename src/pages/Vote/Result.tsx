@@ -7,6 +7,7 @@ import {
   getVoteSummary,
   type VoteSummary,
 } from "../../features/sessions/resultsApi";
+import { getMatchHistory, type MatchHistoryItem } from "../../features/records/api";
 
 export default function Result() {
   const params = new URLSearchParams(window.location.search);
@@ -17,6 +18,7 @@ export default function Result() {
   const partnerAlreadyAccepted = params.get("preview") === "mutual";
   const [gems, setGems] = useState(0);
   const [summary, setSummary] = useState<VoteSummary | null>(null);
+  const [personalMatch, setPersonalMatch] = useState<MatchHistoryItem | null>(null);
   const [loading, setLoading] = useState(!mockMode);
   const [loadError, setLoadError] = useState("");
   const [myDecision, setMyDecision] = useState<"accepted" | "declined" | null>(
@@ -36,20 +38,30 @@ export default function Result() {
       return;
     }
     let active = true;
-    Promise.all([getVoteSummary(sessionId), getMyWallet()])
-      .then(([result, wallet]) => {
+    Promise.allSettled([
+      getVoteSummary(sessionId),
+      getMyWallet(),
+      getMatchHistory(),
+    ])
+      .then(([summaryResult, walletResult, historyResult]) => {
         if (!active) return;
-        setSummary(result);
-        setGems(wallet.gemBalance);
-        setLoadError("");
-      })
-      .catch((cause) => {
-        if (active)
+        if (summaryResult.status === "fulfilled")
+          setSummary(summaryResult.value);
+        if (walletResult.status === "fulfilled")
+          setGems(walletResult.value.gemBalance);
+        if (historyResult.status === "fulfilled") {
+          setPersonalMatch(
+            historyResult.value.find((item) => item.sessionId === sessionId) ??
+              null,
+          );
+          setLoadError("");
+        } else {
           setLoadError(
-            cause instanceof Error
-              ? cause.message
+            historyResult.reason instanceof Error
+              ? historyResult.reason.message
               : "결과를 불러오지 못했어요.",
           );
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -159,12 +171,52 @@ export default function Result() {
             <h2>결과를 불러오지 못했어요</h2>
             <p>{loadError}</p>
           </section>
+        ) : personalMatch?.matched ? (
+          <>
+            <section className="match-intro">
+              <h2>
+                축하해요!
+                <br />
+                {personalMatch.partnerAlias ?? "상대방"}님과 매칭됐어요.
+              </h2>
+              <p>서로를 최종 선택했어요.</p>
+            </section>
+            <section className="summary-card personal-match-card">
+              <div className="avatar">
+                {Array.from(personalMatch.partnerAlias ?? "상")[0]}
+              </div>
+              <strong>{personalMatch.partnerAlias ?? "상대방"}</strong>
+              <p>서로의 선택이 이어졌어요. 연락처를 확인해보세요.</p>
+              <a className="contact-result-button" href={`/contact?sessionId=${sessionId}`}>
+                연락처 확인하기
+              </a>
+              <p className="couple-count">
+                이번 세션에서 {summary?.coupleCount ?? 0}커플이 매칭됐어요.
+              </p>
+            </section>
+          </>
+        ) : personalMatch ? (
+          <>
+            <section className="miss-intro">
+              <h2>
+                아쉽지만 이번에는
+                <br />
+                매칭이 이루어지지 않았어요.
+              </h2>
+            </section>
+            <section className="miss-card">
+              <GuideBubble
+                message="함께해주셔서 고마워요. 다음 만남도 기다릴게요!"
+                variant="conversation"
+              />
+              <img src="/kw1.svg" alt="키위 캐릭터" />
+              <p>이번 세션에서 {summary?.coupleCount ?? 0}커플이 매칭됐어요.</p>
+            </section>
+          </>
         ) : (
-          <section className="summary-card">
-            <h2>전체 매칭 결과</h2>
-            <strong>{summary?.coupleCount ?? 0}커플</strong>
-            <p>이 세션에서 서로를 1순위로 선택한 커플 수예요.</p>
-            <p>개인 매칭 여부와 상대 정보는 요약 응답에 포함되지 않습니다.</p>
+          <section className="pending-card" role="status">
+            <h2>개인 매칭 기록을 찾지 못했어요</h2>
+            <p>잠시 후 최종 매칭 결과 기록에서 확인해주세요.</p>
           </section>
         )}
       </main>
@@ -222,6 +274,47 @@ const ResultPage = styled.div`
     border-radius: 2.2rem;
     background: white;
     box-shadow: 0 0.8rem 2rem #26372508;
+  }
+  .personal-match-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 2.4rem;
+    text-align: center;
+  }
+  .personal-match-card .avatar {
+    display: grid;
+    width: 6.8rem;
+    height: 6.8rem;
+    place-items: center;
+    border: 0.3rem solid #e2edc9;
+    border-radius: 50%;
+    background: #f0f7e2;
+    color: #607d2f;
+    font: 400 2.6rem var(--display-font);
+  }
+  .personal-match-card > strong {
+    font-size: 1.8rem;
+  }
+  .personal-match-card > p,
+  .couple-count {
+    color: #747f73;
+    font-size: 1.3rem;
+    line-height: 1.6;
+  }
+  .contact-result-button {
+    display: flex;
+    width: 100%;
+    min-height: 4.8rem;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.6rem;
+    border-radius: 1.2rem;
+    background: var(--green);
+    color: var(--ink);
+    font-weight: 700;
+    text-decoration: none;
   }
   .pending-card {
     display: grid;
