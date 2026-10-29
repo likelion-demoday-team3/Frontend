@@ -5,7 +5,7 @@ import Store from '../../pages/Store/Store'
 import { getMyWallet } from '../../features/wallet/api'
 import { getAccessToken } from '../../features/auth/session'
 
-export default function PageHeader({ title, gems = 5, onGemsChange }: { title: string; gems?: number; onGemsChange?: (gems: number) => void }) {
+export default function PageHeader({ title, gems = 5, onGemsChange, sessionId, recipientId }: { title: string; gems?: number; onGemsChange?: (gems: number) => void; sessionId?: number; recipientId?: number | null }) {
   const [shopOpen, setShopOpen] = useState(() => new URLSearchParams(window.location.search).get('paymentReturn') === 'embedded')
   const [balance, setBalance] = useState<number | null>(null)
 
@@ -23,7 +23,7 @@ export default function PageHeader({ title, gems = 5, onGemsChange }: { title: s
 
   return <>
     <Header aria-label={title}>
-    <NotificationButton className="notifications" />
+    <NotificationButton className="notifications" sessionId={sessionId} recipientId={recipientId} />
     <h1>{title}</h1>
     <div className="gem-balance" aria-label={balance === null ? '보석 잔액을 불러올 수 없음' : `보석 ${balance}개`}>
       <span className="gem" aria-hidden="true">◆</span>

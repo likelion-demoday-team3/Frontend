@@ -3,10 +3,12 @@ import styled from "styled-components";
 import {
   applyToSession,
   cancelSession,
+  deleteAdminSession,
   getMySessions,
   getSessions,
 } from "../../features/sessions/api";
 import type { MySession, Session } from "../../features/sessions/types";
+import { isAdminToken } from "../../features/auth/session";
 
 type ScaduleProps = {
   selectedDate: Date;
@@ -147,6 +149,31 @@ export default function Scadule({
     }
   }
 
+  async function removeSession(session: Session) {
+    if (submitting || !isAdminToken()) return;
+    const confirmed = window.confirm(
+      `${koreaTime(session.startTime)} 세션을 삭제할까요? 이 작업은 되돌릴 수 없어요.`,
+    );
+    if (!confirmed) return;
+
+    setSubmitting(true);
+    try {
+      await deleteAdminSession(session.sessionId);
+      const updatedSessions = await getSessions();
+      onDataChanged(
+        updatedSessions,
+        mySessions.filter((item) => item.sessionId !== session.sessionId),
+      );
+      setNotice("세션을 삭제했어요.");
+    } catch (cause) {
+      setNotice(
+        cause instanceof Error ? cause.message : "세션을 삭제하지 못했어요.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   function startBooking(
     event: React.MouseEvent<HTMLButtonElement>,
     session: Session,
@@ -168,7 +195,7 @@ export default function Scadule({
       </div>
       <section
         className="session-list"
-        aria-label={`${dateLabel(selectedDate)} 스터디 목록`}
+        aria-label={`${dateLabel(selectedDate)} 세션 목록`}
       >
         {loading && (
           <p className="session-empty" role="status">
@@ -185,7 +212,9 @@ export default function Scadule({
         )}
         {!loading && !loadError && sessionsForDay.length === 0 && (
           <p className="session-empty">
-            {isLoggedIn ? '선택한 날짜에는 신청 가능한 세션이 없어요.' : '로그인하면 신청 가능한 세션을 확인할 수 있어요.'}
+            {isLoggedIn
+              ? "선택한 날짜에는 신청 가능한 세션이 없어요."
+              : "로그인하면 신청 가능한 세션을 확인할 수 있어요."}
           </p>
         )}
         {sessionsForDay.map((session, index) => {
@@ -235,27 +264,39 @@ export default function Scadule({
                     {weekdays[selectedDate.getDay()]}요일 {time}
                   </h2>
                   <p>
-                    {session.capacityPerGender}:{session.capacityPerGender}{" "}
-                    스터디 · {remaining}자리 남음
+                    {session.capacityPerGender}:{session.capacityPerGender} 세션
+                    · {remaining}자리 남음
                   </p>
                 </div>
-                <button
-                  className="apply-button"
-                  disabled={
-                    submitting ||
-                    (isLoggedIn && !applied && mySeatRemaining === 0) ||
-                    session.status !== "RECRUITING"
-                  }
-                  onClick={(event) => startBooking(event, session, applied)}
-                >
-                  {applied
-                    ? "신청 취소"
-                    : session.status === "READY"
-                      ? "모집마감"
-                      : isLoggedIn && mySeatRemaining === 0
-                        ? "내 성별 마감"
-                        : "신청하기"}
-                </button>
+                <div className="session-actions">
+                  {isLoggedIn && isAdminToken() && (
+                    <button
+                      className="delete-session-button"
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => void removeSession(session)}
+                    >
+                      삭제
+                    </button>
+                  )}
+                  <button
+                    className="apply-button"
+                    disabled={
+                      submitting ||
+                      (isLoggedIn && !applied && mySeatRemaining === 0) ||
+                      session.status !== "RECRUITING"
+                    }
+                    onClick={(event) => startBooking(event, session, applied)}
+                  >
+                    {applied
+                      ? "신청 취소"
+                      : session.status === "READY"
+                        ? "모집마감"
+                        : isLoggedIn && mySeatRemaining === 0
+                          ? "내 성별 마감"
+                          : "신청하기"}
+                  </button>
+                </div>
               </div>
               <div className="capacity-label">
                 <span>
@@ -311,7 +352,7 @@ export default function Scadule({
               </mark>
               <br />
               {pendingAction === "apply"
-                ? "스터디에 참여하시겠어요?"
+                ? "세션에 참여하시겠어요?"
                 : "신청을 취소할까요?"}
             </h2>
             <p className="dialog-description" id="booking-description">
@@ -323,7 +364,7 @@ export default function Scadule({
               {pendingAction === "apply" ? (
                 <>
                   <div>
-                    <span>스터디 참가비</span>
+                    <span>세션 참가비</span>
                     <strong>
                       <span className="gem">◆</span> {pending.entryFeeGem}개
                     </strong>
@@ -468,6 +509,28 @@ const ScheduleStyles = styled.div`
     font-size: 1.1rem;
     color: #8b9390;
     margin-top: 0.3rem;
+  }
+  .session-actions {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 1rem;
+  }
+  .delete-session-button {
+    flex-shrink: 0;
+    border: 0;
+    background: #d94343;
+    color: #fff;
+    padding: 0.9rem 1.1rem;
+    border-radius: 1.4rem;
+    font-family: var(--font-body);
+    font-size: 1.2rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .delete-session-button:disabled {
+    opacity: 0.65;
+    cursor: wait;
   }
   .apply-button {
     flex-shrink: 0;

@@ -61,7 +61,7 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
   return (
     <CountdownCard
       className={nextApplication ? "has-application" : "empty-countdown"}
-      aria-label="스터디 카운트다운"
+      aria-label="카운트다운"
     >
       <img
         className="countdown-mascot"
@@ -76,7 +76,7 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
           </p>
           <p className="countdown-confirmation">
             {capacity ? `${capacity}:${capacity} 로테이션` : "로테이션"}{" "}
-            스터디로 확정되었습니다!
+            세션으로 확정되었습니다!
           </p>
           <p
             className="countdown-time"
@@ -104,15 +104,19 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
             type="button"
             disabled={!canEnter}
             onClick={() => {
-              window.history.pushState(null, '', `/session/${nextApplication.sessionId}`)
-              window.dispatchEvent(new PopStateEvent('popstate'))
+              window.history.pushState(
+                null,
+                "",
+                `/session/${nextApplication.sessionId}`,
+              );
+              window.dispatchEvent(new PopStateEvent("popstate"));
             }}
           >
             입장하기
           </button>
         </>
       ) : (
-        <p className="countdown-empty-message">신청한 스터디가 없어요.</p>
+        <p className="countdown-empty-message">신청한 세션이 없어요.</p>
       )}
     </CountdownCard>
   );

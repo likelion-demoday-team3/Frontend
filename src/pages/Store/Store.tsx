@@ -333,13 +333,27 @@ export default function Store({
       )}
 
       {loginPromptOpen && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setLoginPromptOpen(false)}>
-          <section className="login-prompt-dialog" role="dialog" aria-modal="true" aria-labelledby="login-prompt-title" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => setLoginPromptOpen(false)}
+        >
+          <section
+            className="login-prompt-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="login-prompt-title"
+            onClick={(event) => event.stopPropagation()}
+          >
             <h2 id="login-prompt-title">로그인이 필요한 서비스예요</h2>
             <p>로그인하거나 회원가입하고 스터디를 신청해보세요.</p>
             <div className="login-prompt-actions">
-              <a className="signup-link" href="/signup">회원가입</a>
-              <a className="login-link" href="/login">로그인</a>
+              <a className="signup-link" href="/signup">
+                회원가입
+              </a>
+              <a className="login-link" href="/login">
+                로그인
+              </a>
             </div>
           </section>
         </div>
@@ -372,7 +386,7 @@ export default function Store({
               {formatWon(selectedPackage.salePrice ?? selectedPackage.price)}
             </strong>
             <p className="demo-note">
-              토스페이먼츠 결제창에서 결제를 완료하면 보석이 충전돼요.
+              결제창에서 결제를 완료하면 보석이 충전돼요.
             </p>
             {paymentError && (
               <p className="payment-error" role="alert">

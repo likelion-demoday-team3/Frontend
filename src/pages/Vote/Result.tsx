@@ -3,33 +3,60 @@ import styled from "styled-components";
 import PageHeader from "../../components/common/PageHeader";
 import GuideBubble from "../../components/Session/GuideBubble";
 import { getMyWallet } from "../../features/wallet/api";
-import { getVoteSummary, type VoteSummary } from "../../features/sessions/resultsApi";
+import {
+  getVoteSummary,
+  type VoteSummary,
+} from "../../features/sessions/resultsApi";
 
 export default function Result() {
   const params = new URLSearchParams(window.location.search);
-  const sessionId = Number(params.get('sessionId'));
-  const mockMode = params.has('preview') && (import.meta.env.DEV || params.has('showTest'));
+  const sessionId = Number(params.get("sessionId"));
+  const mockMode =
+    params.has("preview") && (import.meta.env.DEV || params.has("showTest"));
   const matched = params.get("preview") !== "failed";
   const partnerAlreadyAccepted = params.get("preview") === "mutual";
   const [gems, setGems] = useState(0);
   const [summary, setSummary] = useState<VoteSummary | null>(null);
   const [loading, setLoading] = useState(!mockMode);
-  const [loadError, setLoadError] = useState('');
+  const [loadError, setLoadError] = useState("");
   const [myDecision, setMyDecision] = useState<"accepted" | "declined" | null>(
     null,
   );
   const partnerAccepted = partnerAlreadyAccepted;
 
   useEffect(() => {
-    if (mockMode) { setGems(5); setLoading(false); return }
-    if (!sessionId) { setLoadError('결과를 불러올 세션 정보가 없어요.'); setLoading(false); return }
+    if (mockMode) {
+      setGems(5);
+      setLoading(false);
+      return;
+    }
+    if (!sessionId) {
+      setLoadError("결과를 불러올 세션 정보가 없어요.");
+      setLoading(false);
+      return;
+    }
     let active = true;
-    Promise.all([getVoteSummary(sessionId), getMyWallet()]).then(([result, wallet]) => {
-      if (!active) return;
-      setSummary(result); setGems(wallet.gemBalance); setLoadError('');
-    }).catch(cause => { if (active) setLoadError(cause instanceof Error ? cause.message : '결과를 불러오지 못했어요.') })
-      .finally(() => { if (active) setLoading(false) });
-    return () => { active = false };
+    Promise.all([getVoteSummary(sessionId), getMyWallet()])
+      .then(([result, wallet]) => {
+        if (!active) return;
+        setSummary(result);
+        setGems(wallet.gemBalance);
+        setLoadError("");
+      })
+      .catch((cause) => {
+        if (active)
+          setLoadError(
+            cause instanceof Error
+              ? cause.message
+              : "결과를 불러오지 못했어요.",
+          );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [sessionId, mockMode]);
 
   return (
@@ -37,94 +64,115 @@ export default function Result() {
       <PageHeader title="투표 결과" gems={gems} onGemsChange={setGems} />
 
       <main>
-        {mockMode ? matched ? (
-          <>
-            <section className="match-intro">
-              <h2>
-                축하합니다!
-                <br />
-                매칭이 성사되었습니다.
-              </h2>
-              <p>연락처를 교환하실건가요?</p>
-            </section>
+        {mockMode ? (
+          matched ? (
+            <>
+              <section className="match-intro">
+                <h2>
+                  축하합니다!
+                  <br />
+                  매칭이 성사되었습니다.
+                </h2>
+                <p>연락처를 교환하실건가요?</p>
+              </section>
 
-            <section className="exchange-card" aria-label="연락처 교환 의사">
-              <div className="profile mine">
-                <div className="avatar">나</div>
-                <strong>내 닉네임</strong>
-                <span>나</span>
-              </div>
-              <div
-                className="exchange-flow"
-                aria-label={
-                  myDecision === "accepted" && partnerAccepted
-                    ? "서로 수락했어요"
-                    : "연락처 교환 응답 대기 중"
-                }
-              >
-                <span
-                  className={`flow-line${myDecision === "accepted" ? " accepted" : ""}`}
-                />
-                <span
-                  className={`flow-line reverse${partnerAccepted ? " accepted" : ""}`}
-                />
-                <span className="flow-heart" aria-hidden="true">
-                  ♥
-                </span>
-              </div>
-              <div className="profile partner">
-                <div className="avatar">구</div>
-                <strong>구름산책</strong>
-                <span>상대방</span>
-              </div>
-              <div className="decision-actions">
-                <button
-                  type="button"
-                  className={myDecision === "accepted" ? "selected" : ""}
-                  onClick={() => setMyDecision("accepted")}
-                >
-                  수락
-                </button>
-                <button
-                  type="button"
-                  className={
-                    myDecision === "declined"
-                      ? "selected secondary"
-                      : "secondary"
+              <section className="exchange-card" aria-label="연락처 교환 의사">
+                <div className="profile mine">
+                  <div className="avatar">나</div>
+                  <strong>내 닉네임</strong>
+                  <span>나</span>
+                </div>
+                <div
+                  className="exchange-flow"
+                  aria-label={
+                    myDecision === "accepted" && partnerAccepted
+                      ? "서로 수락했어요"
+                      : "연락처 교환 응답 대기 중"
                   }
-                  onClick={() => setMyDecision("declined")}
                 >
-                  거절
-                </button>
-              </div>
-              <p className="partner-note" role="status">
-                {partnerAccepted
-                  ? "상대방도 연락처 교환을 수락했어요."
-                  : "응답 대기 중..."}
-              </p>
-            </section>
-          </>
+                  <span
+                    className={`flow-line${myDecision === "accepted" ? " accepted" : ""}`}
+                  />
+                  <span
+                    className={`flow-line reverse${partnerAccepted ? " accepted" : ""}`}
+                  />
+                  <span className="flow-heart" aria-hidden="true">
+                    ♥
+                  </span>
+                </div>
+                <div className="profile partner">
+                  <div className="avatar">구</div>
+                  <strong>구름산책</strong>
+                  <span>상대방</span>
+                </div>
+                <div className="decision-actions">
+                  <button
+                    type="button"
+                    className={myDecision === "accepted" ? "selected" : ""}
+                    onClick={() => setMyDecision("accepted")}
+                  >
+                    수락
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      myDecision === "declined"
+                        ? "selected secondary"
+                        : "secondary"
+                    }
+                    onClick={() => setMyDecision("declined")}
+                  >
+                    거절
+                  </button>
+                </div>
+                <p className="partner-note" role="status">
+                  {partnerAccepted
+                    ? "상대방이 연락처 교환을 수락했어요."
+                    : "응답 대기 중..."}
+                </p>
+              </section>
+            </>
+          ) : (
+            <>
+              <section className="miss-intro">
+                <h2>
+                  아쉽지만 이번에는
+                  <br />
+                  매칭이 이루어지지 않았어요.
+                </h2>
+              </section>
+              <section className="miss-card">
+                <GuideBubble
+                  message="아직 끝나지 않았어요! 마지막까지 함께해주세요!"
+                  variant="conversation"
+                />
+                <img src="/kw1.svg" alt="키위 캐릭터" />
+              </section>
+            </>
+          )
+        ) : loading ? (
+          <section className="pending-card" role="status">
+            <h2>결과를 불러오는 중이에요</h2>
+          </section>
+        ) : loadError ? (
+          <section className="pending-card" role="alert">
+            <h2>결과를 불러오지 못했어요</h2>
+            <p>{loadError}</p>
+          </section>
         ) : (
-          <>
-            <section className="miss-intro">
-              <h2>
-                아쉽지만 이번에는
-                <br />
-                매칭이 이루어지지 않았어요.
-              </h2>
-            </section>
-            <section className="miss-card">
-              <GuideBubble
-                message="아직 끝나지 않았어요! 마지막까지 함께해주세요!"
-                variant="conversation"
-              />
-              <img src="/kw1.svg" alt="키위 캐릭터" />
-            </section>
-          </>
-        ) : loading ? <section className="pending-card" role="status"><h2>결과를 불러오는 중이에요</h2></section> : loadError ? <section className="pending-card" role="alert"><h2>결과를 불러오지 못했어요</h2><p>{loadError}</p></section> : <section className="summary-card"><h2>전체 매칭 결과</h2><strong>{summary?.coupleCount ?? 0}커플</strong><p>이 세션에서 서로를 1순위로 선택한 커플 수예요.</p><p>개인 매칭 여부와 상대 정보는 요약 응답에 포함되지 않습니다.</p></section>}
+          <section className="summary-card">
+            <h2>전체 매칭 결과</h2>
+            <strong>{summary?.coupleCount ?? 0}커플</strong>
+            <p>이 세션에서 서로를 1순위로 선택한 커플 수예요.</p>
+            <p>개인 매칭 여부와 상대 정보는 요약 응답에 포함되지 않습니다.</p>
+          </section>
+        )}
       </main>
 
-      <a className="more-button" href={`/result-detail?sessionId=${sessionId}${mockMode ? '&preview=sample&showTest=1' : ''}`}>
+      <a
+        className="more-button"
+        href={`/result-detail?sessionId=${sessionId}${mockMode ? "&preview=sample&showTest=1" : ""}`}
+      >
         투표 결과 상세 보기
       </a>
     </ResultPage>
@@ -175,9 +223,24 @@ const ResultPage = styled.div`
     background: white;
     box-shadow: 0 0.8rem 2rem #26372508;
   }
-  .pending-card { display: grid; flex: 1; align-content: center; justify-items: center; gap: 1.2rem; padding: 2rem; text-align: center; }
-  .pending-card h2 { font: 400 2rem/1.4 var(--display-font); }
-  .pending-card p { max-width: 28rem; color: #7d877b; font-size: 1.3rem; line-height: 1.7; }
+  .pending-card {
+    display: grid;
+    flex: 1;
+    align-content: center;
+    justify-items: center;
+    gap: 1.2rem;
+    padding: 2rem;
+    text-align: center;
+  }
+  .pending-card h2 {
+    font: 400 2rem/1.4 var(--display-font);
+  }
+  .pending-card p {
+    max-width: 28rem;
+    color: #7d877b;
+    font-size: 1.3rem;
+    line-height: 1.7;
+  }
   .profile {
     display: flex;
     width: 39%;

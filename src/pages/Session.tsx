@@ -19,7 +19,10 @@ import type {
   LiveMessage,
 } from "../features/live/stomp";
 import { getMyWallet } from "../features/wallet/api";
-import { getHeartStatus, sendHeart as sendHeartRequest } from "../features/sessions/interactionApi";
+import {
+  getHeartStatus,
+  sendHeart as sendHeartRequest,
+} from "../features/sessions/interactionApi";
 import { getOwnVote, type OwnVote } from "../features/sessions/resultsApi";
 import { getIceServers } from "../features/live/api";
 
@@ -208,7 +211,9 @@ function createVotePreviewSession(sessionId: number): SessionDetail {
 
 export default function Session({ sessionId }: SessionProps) {
   const previewParams = new URLSearchParams(window.location.search);
-  const isMockLiveEnabled = previewParams.has("preview") && (import.meta.env.DEV || previewParams.has("showTest"));
+  const isMockLiveEnabled =
+    previewParams.has("preview") &&
+    (import.meta.env.DEV || previewParams.has("showTest"));
   const heartPreviewMode =
     isMockLiveEnabled &&
     new URLSearchParams(window.location.search).get("preview") === "hearts";
@@ -285,10 +290,13 @@ export default function Session({ sessionId }: SessionProps) {
       : [];
   });
   useEffect(() => {
-    sessionStorage.setItem(`kiiwee.session-context:${sessionId}`, JSON.stringify({
-      partners: encounteredProfiles,
-      myMemberId: myLiveMemberId ?? assignment?.memberId ?? null,
-    }));
+    sessionStorage.setItem(
+      `kiiwee.session-context:${sessionId}`,
+      JSON.stringify({
+        partners: encounteredProfiles,
+        myMemberId: myLiveMemberId ?? assignment?.memberId ?? null,
+      }),
+    );
   }, [sessionId, encounteredProfiles, myLiveMemberId, assignment?.memberId]);
   const [selectedProfile, setSelectedProfile] = useState<{
     nickname: string;
@@ -298,7 +306,9 @@ export default function Session({ sessionId }: SessionProps) {
   const [heartsRemaining, setHeartsRemaining] = useState(1);
   const [gemsRemaining, setGemsRemaining] = useState(isMockLiveEnabled ? 5 : 0);
   const [shopOpen, setShopOpen] = useState(
-    () => new URLSearchParams(window.location.search).get("paymentReturn") === "embedded",
+    () =>
+      new URLSearchParams(window.location.search).get("paymentReturn") ===
+      "embedded",
   );
   const [heartPurchaseQuantity, setHeartPurchaseQuantity] = useState(1);
   const [heartsSent, setHeartsSent] = useState<Record<number, number>>({});
@@ -372,14 +382,25 @@ export default function Session({ sessionId }: SessionProps) {
   useEffect(() => {
     if (isMockLiveEnabled || !getAccessToken()) return;
     let active = true;
-    getHeartStatus(sessionId).then((status) => {
-      if (!active) return;
-      setHeartsRemaining(status.freeHeartRemaining ? 1 : 0);
-      setHeartsSent(Object.fromEntries(status.sentTo.map((memberId) => [memberId, 1])));
-    }).catch((cause) => {
-      if (active) setError(cause instanceof Error ? cause.message : "하트 상태를 불러오지 못했어요.");
-    });
-    return () => { active = false };
+    getHeartStatus(sessionId)
+      .then((status) => {
+        if (!active) return;
+        setHeartsRemaining(status.freeHeartRemaining ? 1 : 0);
+        setHeartsSent(
+          Object.fromEntries(status.sentTo.map((memberId) => [memberId, 1])),
+        );
+      })
+      .catch((cause) => {
+        if (active)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "하트 상태를 불러오지 못했어요.",
+          );
+      });
+    return () => {
+      active = false;
+    };
   }, [sessionId]);
 
   useEffect(() => {
@@ -420,7 +441,7 @@ export default function Session({ sessionId }: SessionProps) {
     let active = true;
     if (!getAccessToken()) {
       setLoading(false);
-      setLoadError("로그인 후 신청한 스터디 세션에 입장할 수 있어요.");
+      setLoadError("로그인 후 신청한 세션에 입장할 수 있어요.");
       return () => {
         active = false;
       };
@@ -454,24 +475,41 @@ export default function Session({ sessionId }: SessionProps) {
   useEffect(() => {
     if (phase !== "voting" || isMockLiveEnabled || !getAccessToken()) return;
     let active = true;
-    getOwnVote(sessionId).then((vote) => { if (active) setOwnVote(vote) })
-      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "제출한 투표를 불러오지 못했어요."); });
-    return () => { active = false };
+    getOwnVote(sessionId)
+      .then((vote) => {
+        if (active) setOwnVote(vote);
+      })
+      .catch((cause) => {
+        if (active)
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "제출한 투표를 불러오지 못했어요.",
+          );
+      });
+    return () => {
+      active = false;
+    };
   }, [phase, sessionId]);
 
   useEffect(() => {
     if (isMockLiveEnabled || !getAccessToken()) return;
     let active = true;
-    getIceServers(sessionId).then((config) => {
-      if (active) iceServersRef.current = config.iceServers.map(server => ({
-        urls: server.urls,
-        ...(server.username ? { username: server.username } : {}),
-        ...(server.credential ? { credential: server.credential } : {}),
-      }));
-    }).catch(() => {
-      // API 일시 장애 시 기존 공개 STUN 서버로 WebRTC를 유지합니다.
-    });
-    return () => { active = false };
+    getIceServers(sessionId)
+      .then((config) => {
+        if (active)
+          iceServersRef.current = config.iceServers.map((server) => ({
+            urls: server.urls,
+            ...(server.username ? { username: server.username } : {}),
+            ...(server.credential ? { credential: server.credential } : {}),
+          }));
+      })
+      .catch(() => {
+        // API 일시 장애 시 기존 공개 STUN 서버로 WebRTC를 유지합니다.
+      });
+    return () => {
+      active = false;
+    };
   }, [sessionId]);
 
   const sendSignal = useCallback(
@@ -666,7 +704,11 @@ export default function Session({ sessionId }: SessionProps) {
         setConnectionStatus("최종 투표 진행 중");
       } else if (message.kind === "results-ready") {
         liveRef.current?.disconnect();
-        window.history.pushState(null, "", `/result?sessionId=${message.sessionId}`);
+        window.history.pushState(
+          null,
+          "",
+          `/result?sessionId=${message.sessionId}`,
+        );
         window.dispatchEvent(new PopStateEvent("popstate"));
       }
     },
@@ -702,7 +744,9 @@ export default function Session({ sessionId }: SessionProps) {
         }
         streamRef.current = stream;
         const connection = new RTCPeerConnection({
-          iceServers: iceServersRef.current ?? [{ urls: "stun:stun.l.google.com:19302" }],
+          iceServers: iceServersRef.current ?? [
+            { urls: "stun:stun.l.google.com:19302" },
+          ],
         });
         peerRef.current = { connection, assignment: currentAssignment };
         stream
@@ -1095,7 +1139,9 @@ export default function Session({ sessionId }: SessionProps) {
       setHeartsSent((sent) => ({ ...sent, [profile.memberId]: 1 }));
       setSelectedProfile(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "하트를 보내지 못했어요.");
+      setError(
+        cause instanceof Error ? cause.message : "하트를 보내지 못했어요.",
+      );
     }
   }
 
@@ -1114,7 +1160,9 @@ export default function Session({ sessionId }: SessionProps) {
         setHeartChargeOpen(false);
         setSelectedProfile(null);
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "하트를 보내지 못했어요.");
+        setError(
+          cause instanceof Error ? cause.message : "하트를 보내지 못했어요.",
+        );
       }
       return;
     }
@@ -1162,7 +1210,11 @@ export default function Session({ sessionId }: SessionProps) {
       >
         {lobbyVisible || phase === "assigned" || phase === "voting" ? (
           <>
-            <NotificationButton className="lobby-bell" />
+            <NotificationButton
+              className="lobby-bell"
+              sessionId={sessionId}
+              recipientId={myLiveMemberId ?? assignment?.memberId}
+            />
             <h1>
               {lobbyVisible
                 ? "로비"
@@ -1170,7 +1222,7 @@ export default function Session({ sessionId }: SessionProps) {
                   ? "최종투표"
                   : assignment
                     ? `${assignment.roundNumber}번째 대화`
-                    : "스터디"}
+                    : "소개팅"}
             </h1>
             <div className="gem-balance" aria-label={`보석 ${gemsRemaining}개`}>
               <span className="gem" aria-hidden="true">
@@ -1239,7 +1291,7 @@ export default function Session({ sessionId }: SessionProps) {
           session.myStatus !== "ATTENDED" ? (
           <section className="state-card">
             <h1>신청한 세션이 아니에요</h1>
-            <p>스터디 신청을 완료한 계정으로 입장해주세요.</p>
+            <p>신청을 완료한 계정으로 입장해주세요.</p>
             <button className="primary" type="button" onClick={leaveSession}>
               홈으로 돌아가기
             </button>
@@ -1258,7 +1310,7 @@ export default function Session({ sessionId }: SessionProps) {
         ) : (
           <>
             {lobbyVisible ? (
-              <section className="lobby-screen" aria-label="스터디 로비">
+              <section className="lobby-screen" aria-label="로비">
                 {finalChoiceLobby ? (
                   <>
                     <div
@@ -1277,7 +1329,9 @@ export default function Session({ sessionId }: SessionProps) {
                             animationDelay: participant.delay,
                           }}
                           aria-label={`이성 참가자 ${participant.nickname}`}
-                          onClick={() => selectHeartParticipant(participant.nickname)}
+                          onClick={() =>
+                            selectHeartParticipant(participant.nickname)
+                          }
                         >
                           <span aria-hidden="true">
                             {Array.from(participant.nickname)[0]}
@@ -1301,7 +1355,9 @@ export default function Session({ sessionId }: SessionProps) {
                             animationDelay: participant.delay,
                           }}
                           aria-label={`동성 참가자 ${participant.nickname}`}
-                          onClick={() => selectHeartParticipant(participant.nickname)}
+                          onClick={() =>
+                            selectHeartParticipant(participant.nickname)
+                          }
                         >
                           <span aria-hidden="true">
                             {Array.from(participant.nickname)[0]}
@@ -1444,7 +1500,9 @@ export default function Session({ sessionId }: SessionProps) {
                       <button
                         className="heart-send-button"
                         type="button"
-                        disabled={(heartsSent[selectedProfile.memberId] ?? 0) > 0}
+                        disabled={
+                          (heartsSent[selectedProfile.memberId] ?? 0) > 0
+                        }
                         onClick={() => sendHeart(selectedProfile)}
                       >
                         {(heartsSent[selectedProfile.memberId] ?? 0) > 0
@@ -1495,68 +1553,77 @@ export default function Session({ sessionId }: SessionProps) {
                           : `${selectedProfile?.nickname ?? "상대방"}에게 하트를 보내면 보석 1개가 사용돼요.`}
                       </p>
                       <div className="heart-charge-summary">
-                        {!isMockLiveEnabled ? <div className="heart-charge-summary-row"><span>하트 전송 비용</span><strong><i className="gem-mark" aria-hidden="true">◆</i>1개</strong></div> : <>
-                        <div className="heart-charge-quantity-row">
-                          <span>구매할 하트</span>
-                          <div className="heart-quantity-control">
+                        {!isMockLiveEnabled ? (
+                          <div className="heart-charge-summary-row">
+                            <span>하트 전송 비용</span>
                             <strong>
-                              <i aria-hidden="true">♥</i>
-                              {heartPurchaseQuantity}개
+                              <i className="gem-mark" aria-hidden="true">
+                                ◆
+                              </i>
+                              1개
                             </strong>
-                            <div
-                              className="heart-quantity-arrows"
-                              aria-label="구매할 하트 수량 조절"
-                            >
-                              <button
-                                type="button"
-                                aria-label="하트 수량 늘리기"
-                                disabled={
-                                  heartPurchaseQuantity >= gemsRemaining
-                                }
-                                onClick={() =>
-                                  setHeartPurchaseQuantity((quantity) =>
-                                    Math.min(gemsRemaining, quantity + 1),
-                                  )
-                                }
-                              >
-                                ▲
-                              </button>
-                              <button
-                                type="button"
-                                aria-label="하트 수량 줄이기"
-                                disabled={heartPurchaseQuantity <= 1}
-                                onClick={() =>
-                                  setHeartPurchaseQuantity((quantity) =>
-                                    Math.max(1, quantity - 1),
-                                  )
-                                }
-                              >
-                                ▼
-                              </button>
-                            </div>
                           </div>
-                        </div>
-                        <div className="heart-charge-summary-row">
-                          <span>충전 후 잔여 하트</span>
-                          <strong>
-                            <i aria-hidden="true">♥</i>
-                            {heartsRemaining + heartPurchaseQuantity}개
-                          </strong>
-                        </div>
-                        <div className="heart-charge-summary-row heart-charge-cost-row">
-                          <span>구매 시 차감</span>
-                          <strong>
-                            <i className="gem-mark" aria-hidden="true">
-                              ◆
-                            </i>
-                            {heartPurchaseQuantity}개
-                          </strong>
-                        </div>
-                        </>}
+                        ) : (
+                          <>
+                            <div className="heart-charge-quantity-row">
+                              <span>구매할 하트</span>
+                              <div className="heart-quantity-control">
+                                <strong>
+                                  <i aria-hidden="true">♥</i>
+                                  {heartPurchaseQuantity}개
+                                </strong>
+                                <div
+                                  className="heart-quantity-arrows"
+                                  aria-label="구매할 하트 수량 조절"
+                                >
+                                  <button
+                                    type="button"
+                                    aria-label="하트 수량 늘리기"
+                                    disabled={
+                                      heartPurchaseQuantity >= gemsRemaining
+                                    }
+                                    onClick={() =>
+                                      setHeartPurchaseQuantity((quantity) =>
+                                        Math.min(gemsRemaining, quantity + 1),
+                                      )
+                                    }
+                                  >
+                                    ▲
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label="하트 수량 줄이기"
+                                    disabled={heartPurchaseQuantity <= 1}
+                                    onClick={() =>
+                                      setHeartPurchaseQuantity((quantity) =>
+                                        Math.max(1, quantity - 1),
+                                      )
+                                    }
+                                  >
+                                    ▼
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="heart-charge-summary-row">
+                              <span>충전 후 잔여 하트</span>
+                              <strong>
+                                <i aria-hidden="true">♥</i>
+                                {heartsRemaining + heartPurchaseQuantity}개
+                              </strong>
+                            </div>
+                            <div className="heart-charge-summary-row heart-charge-cost-row">
+                              <span>구매 시 차감</span>
+                              <strong>
+                                <i className="gem-mark" aria-hidden="true">
+                                  ◆
+                                </i>
+                                {heartPurchaseQuantity}개
+                              </strong>
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <p className="heart-gem-balance">
-                        보유 보석 <strong>{gemsRemaining}개</strong>
-                      </p>
                       <button
                         className="heart-send-button"
                         type="button"
@@ -1564,7 +1631,9 @@ export default function Session({ sessionId }: SessionProps) {
                         onClick={buyHeart}
                       >
                         {gemsRemaining > 0
-                          ? isMockLiveEnabled ? `하트 ${heartPurchaseQuantity}개 충전하기` : "보석 1개 사용하고 보내기"
+                          ? isMockLiveEnabled
+                            ? `하트 ${heartPurchaseQuantity}개 충전하기`
+                            : "보석 1개 사용하고 보내기"
                           : "보석이 부족해요"}
                       </button>
                     </section>
@@ -1591,7 +1660,9 @@ export default function Session({ sessionId }: SessionProps) {
                       >
                         ×
                       </button>
-                      <h2 id="heart-restriction-title">대화해본 사람만 선택할 수 있어요</h2>
+                      <h2 id="heart-restriction-title">
+                        하트를 보낼 수 없어요
+                      </h2>
                       <button
                         className="heart-send-button"
                         type="button"
@@ -1608,7 +1679,7 @@ export default function Session({ sessionId }: SessionProps) {
                 {phase !== "assigned" && (
                   <section className="session-intro">
                     <span className="eyebrow">KIIWEE LIVE SESSION</span>
-                    <h1>스터디 세션</h1>
+                    <h1>소개팅 세션</h1>
                     <p>{formatDate(session.startTime)}</p>
                   </section>
                 )}
@@ -1620,7 +1691,7 @@ export default function Session({ sessionId }: SessionProps) {
                       {phase === "connecting"
                         ? "로비에 입장하고 있어요"
                         : joinWindowOpen
-                          ? "스터디에 입장할 수 있어요"
+                          ? "소개팅에 입장할 수 있어요"
                           : now < opensAt
                             ? "입장 시간을 기다리고 있어요"
                             : "입장 시간이 지났어요"}
@@ -1654,7 +1725,7 @@ export default function Session({ sessionId }: SessionProps) {
                 {phase === "assigned" && assignment && (
                   <section
                     className="conversation-screen"
-                    aria-label="스터디 대화"
+                    aria-label="일대일 대화"
                   >
                     <div
                       className="conversation-timer"
@@ -2291,15 +2362,6 @@ const SessionPage = styled.div`
   .heart-quantity-arrows button:disabled {
     color: #adb5a5;
     cursor: default;
-  }
-  .heart-gem-balance {
-    align-self: flex-end;
-    margin-top: 0.8rem;
-    color: #899188;
-    font: 400 1.2rem/1.4 var(--font-body);
-  }
-  .heart-gem-balance strong {
-    color: #2b302c;
   }
   .heart-send-button,
   .heart-buy-button {

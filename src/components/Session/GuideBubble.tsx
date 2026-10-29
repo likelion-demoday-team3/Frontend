@@ -1,7 +1,7 @@
 import styled from "styled-components";
 
 export const lobbyGuideMessages = [
-  "이 스터디는 로테이션 방식으로 진행돼요.",
+  "이 소개팅은 로테이션 방식으로 진행돼요.",
   "얼굴 공개 없이 오직 목소리로만 서로를 알아가요.",
   "한 사람 당 10분의 대화 시간이 주어져요.",
   "10분이 지나면 자동으로 종료되고 로비로 돌아와요.",

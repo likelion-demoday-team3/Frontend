@@ -40,6 +40,10 @@ export function openSessionRecruiting(sessionId: number): Promise<null> {
   return apiRequest<null>(`/admin/sessions/${sessionId}/open`, { method: 'POST' })
 }
 
+export function deleteAdminSession(sessionId: number): Promise<null> {
+  return apiRequest<null>(`/admin/sessions/${sessionId}`, { method: 'DELETE' })
+}
+
 export function submitSessionVotes(sessionId: number, rankedMemberIds: number[]): Promise<unknown> {
   if (rankedMemberIds.length < 1 || rankedMemberIds.length > 3 || new Set(rankedMemberIds).size !== rankedMemberIds.length) {
     return Promise.reject(new Error('투표는 중복 없이 1명 이상, 최대 3명까지 선택해주세요.'))
