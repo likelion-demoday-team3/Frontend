@@ -76,7 +76,7 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
           </p>
           <p className="countdown-confirmation">
             {capacity ? `${capacity}:${capacity} 로테이션` : "로테이션"}{" "}
-            세션으로 확정되었습니다!
+            소개팅이 확정되었습니다!
           </p>
           <p
             className="countdown-time"
