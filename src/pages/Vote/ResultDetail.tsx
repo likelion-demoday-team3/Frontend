@@ -365,13 +365,12 @@ function ResultContents({ details }: { details: ResultDetails }) {
                 setRankingIndex((index) => (index - 1 + rankingCount) % rankingCount)
               }
             >
-              ‹
+              ◂
             </button>
             <strong aria-live="polite">
               <span className="ranking-voter-name">
                 {selectedRanking.voter.alias}
               </span>
-              <span className="ranking-voter-suffix"> 님</span>
             </strong>
             <button
               type="button"
@@ -379,7 +378,7 @@ function ResultContents({ details }: { details: ResultDetails }) {
               disabled={rankingCount < 2}
               onClick={() => setRankingIndex((index) => (index + 1) % rankingCount)}
             >
-              ›
+              ▸
             </button>
           </div>
           {selectedRanking.submitted ? (
@@ -669,7 +668,7 @@ const DetailPage = styled.div`
   }
   .all-ranking-view {
     margin-top: 0.5rem;
-    padding: 0 1.2rem 1.2rem;
+    padding: 0;
     border-radius: 1.5rem;
     background: #fff;
   }
@@ -688,11 +687,7 @@ const DetailPage = styled.div`
     text-align: center;
   }
   .ranking-voter-name {
-    color: #66852b;
-    font-weight: 750;
-  }
-  .ranking-voter-suffix {
-    color: var(--ink);
+    color: #283027;
     font-weight: 600;
   }
   .ranking-person-switch button {
@@ -703,19 +698,22 @@ const DetailPage = styled.div`
     padding: 0;
     border: 0;
     border-radius: 50%;
-    background: #edf5d9;
-    color: #66852b;
-    font: 600 1.4rem/1 var(--font-body);
+    background: transparent;
+    color: #000;
+    font: 600 1.45rem/1 var(--font-body);
     cursor: pointer;
     transition: background 120ms ease, transform 120ms ease;
   }
   .ranking-person-switch button:not(:disabled):active {
     transform: scale(0.92);
-    background: #dff19f;
+    background: #d8dcd6;
+  }
+  .ranking-person-switch button:not(:disabled):hover:not(:active) {
+    background: #eceeeb;
   }
   .ranking-person-switch button:disabled {
-    background: #f4f6f1;
-    color: #a9b0a3;
+    background: transparent;
+    color: #000;
     cursor: default;
   }
   .ranking-choice-list {

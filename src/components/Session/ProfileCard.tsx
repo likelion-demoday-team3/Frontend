@@ -12,6 +12,14 @@ export default function ProfileCard({
   compatibility,
   onClose,
 }: ProfileCardProps) {
+  const hasProfileAnswers = Boolean(
+    profile.idealType ||
+      profile.datingStyle ||
+      profile.contactStyle ||
+      profile.loveStyle ||
+      profile.interests.length,
+  );
+
   return (
     <>
       <Backdrop
@@ -31,9 +39,11 @@ export default function ProfileCard({
         <Nickname id="profile-card-title">
           {profile.nickname || "상대방"}
         </Nickname>
-        {compatibility && (
+        {!hasProfileAnswers ? (
+          <MatchScore>프로필 카드가 없어 점수가 나오지 않아요.</MatchScore>
+        ) : compatibility ? (
           <MatchScore>관심사 매칭 {compatibility.score}점</MatchScore>
-        )}
+        ) : null}
         <Details>
           {profile.idealType && (
             <p>

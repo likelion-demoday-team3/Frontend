@@ -3,8 +3,17 @@ import styled from 'styled-components'
 const previews = [
   { label: '스터디 로비', query: 'lobby' },
   { label: '1:1 대화', query: 'one-to-one' },
+  { label: '빈 프로필 궁합 안내', query: 'one-to-one-empty-profile' },
+  { label: '알림·연락처 테스트', query: 'notifications' },
   { label: '하트 선택', query: 'hearts' },
   { label: '최종 투표', query: 'vote' },
+] as const
+
+const notificationPreviews = [
+  { label: '하트 도착 팝업', notice: 'heart' },
+  { label: '연락처 요청 팝업', notice: 'contact' },
+  { label: '연락처 수락 팝업', notice: 'accepted' },
+  { label: '연락처 도착 팝업', notice: 'share' },
 ] as const
 
 /** 로컬 화면 검토용 바로가기. 서버 API를 호출하거나 DB에 세션을 만들지 않습니다. */
@@ -16,6 +25,7 @@ export default function ScreenPreviewPanel() {
     <strong>화면 미리보기</strong>
     <small>로컬 샘플 · DB 미사용</small>
     {previews.map(({ label, query }) => <a key={query} href={`/session/1?preview=${query}&showTest=1`}>{label}</a>)}
+    {notificationPreviews.map(({ label, notice }) => <a key={notice} href={`/session/1?preview=notifications&showTest=1&notice=${notice}`}>{label}</a>)}
     <a href="/result?preview=mutual&showTest=1">매칭 결과</a>
     <a href="/result?preview=failed&showTest=1">매칭 실패</a>
     <a href="/result-detail?preview=sample&showTest=1">결과 상세</a>

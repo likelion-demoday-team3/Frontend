@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 import Report from "../components/Session/Report";
 import ProfileCard from "../components/Session/ProfileCard";
@@ -6,7 +6,7 @@ import GuideBubble, {
   finalChoiceGuideMessages,
   lobbyGuideMessages,
 } from "../components/Session/GuideBubble";
-import NotificationButton from "../components/common/NotificationButton";
+import SessionNoti from "../components/Session/SessionNoti";
 import Store from "./Store/Store";
 import Vote from "./Vote/Vote";
 import { getAccessToken } from "../features/auth/session";
@@ -42,35 +42,46 @@ type LobbyParticipant = {
 };
 
 const createLobbyParticipants = (
-  row: "opposite" | "same",
   people: Array<{ memberId: number; nickname: string; roundNumber?: number }>,
 ): LobbyParticipant[] => {
-  // Keep profiles in the upper/lower bands, with enough space around the mascot and speech bubble.
-  const anchors: [number, number][] =
-    row === "opposite"
-      ? [
-          [14, 16],
-          [50, 14],
-          [86, 17],
-          [29, 23],
-          [72, 22],
-        ]
-      : [
-          [16, 72],
-          [50, 76],
-          [84, 73],
-          [29, 64],
-          [72, 65],
-        ];
-  const positions = anchors.slice(0, Math.min(people.length, anchors.length));
-
-  return positions.map(([x, y], index) => ({
-    ...people[index],
-    x: `${x + (people[index].memberId % 3 - 1) * 1.5}%`,
-    y: `${y + (people[index].memberId % 3 - 1) * 1.5}%`,
-    delay: `${-(people[index].memberId % 5) * 0.7}s`,
-  }));
+  const placed: LobbyParticipant[] = [];
+  for (const person of people) {
+    let x = 50;
+    let y = 15;
+    let attempts = 0;
+    let overlaps = true;
+    while (attempts < 160 && overlaps) {
+      x = 9 + Math.random() * 82;
+      y = 10 + Math.random() * 78;
+      const overlapsMascotOrBubble = x > 31 && x < 69 && y > 28 && y < 70;
+      const tooClose = placed.some((other) => {
+        const otherX = Number.parseFloat(other.x);
+        const otherY = Number.parseFloat(other.y);
+        return Math.hypot((x - otherX) * 0.62, y - otherY) < 11;
+      });
+      overlaps = overlapsMascotOrBubble || tooClose;
+      attempts += 1;
+    }
+    placed.push({
+      ...person,
+      x: `${x}%`,
+      y: `${y}%`,
+      delay: `${-(Math.random() * 3.5).toFixed(2)}s`,
+    });
+  }
+  return placed;
 };
+
+const hasSameRoster = (
+  current: LobbyParticipant[],
+  next: Array<{ memberId: number; nickname: string }>,
+) =>
+  current.length === next.length &&
+  current.every(
+    (person, index) =>
+      person.memberId === next[index]?.memberId &&
+      person.nickname === next[index]?.nickname,
+  );
 
 function LobbyBackground() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -149,6 +160,7 @@ const createSessionNickname = () =>
 function createMockAssignment(
   sessionId: number,
   roundNumber: number,
+  emptyProfile = false,
 ): LiveAssignment {
   const alias = createSessionNickname();
   return {
@@ -162,13 +174,13 @@ function createMockAssignment(
     partnerAlias: alias,
     partnerProfileCard: {
       memberId: roundNumber + 1,
-      university: "연세대학교",
+      university: emptyProfile ? null : "연세대학교",
       nickname: alias,
-      idealType: "대화가 잘 통하는 사람",
-      datingStyle: "전시회나 맛집 탐방",
-      contactStyle: "하루에 몇 번 연락하는 편",
-      loveStyle: "천천히 알아가는 편",
-      interests: ["전시", "러닝", "보드게임"],
+      idealType: emptyProfile ? null : "대화가 잘 통하는 사람",
+      datingStyle: emptyProfile ? null : "전시회나 맛집 탐방",
+      contactStyle: emptyProfile ? null : "하루에 몇 번 연락하는 편",
+      loveStyle: emptyProfile ? null : "천천히 알아가는 편",
+      interests: emptyProfile ? [] : ["전시", "러닝", "보드게임"],
     },
     compatibility: { score: 82, reason: "관심사가 비슷해요." },
   };
@@ -207,6 +219,10 @@ export default function Session({ sessionId }: SessionProps) {
   const oneToOnePreviewMode =
     isMockLiveEnabled &&
     new URLSearchParams(window.location.search).get("preview") === "one-to-one";
+  const emptyProfilePreviewMode =
+    isMockLiveEnabled && previewParams.get("preview") === "one-to-one-empty-profile";
+  const notificationPreviewMode =
+    isMockLiveEnabled && previewParams.get("preview") === "notifications";
   const votePreviewMode =
     isMockLiveEnabled &&
     new URLSearchParams(window.location.search).get("preview") === "vote";
@@ -214,6 +230,8 @@ export default function Session({ sessionId }: SessionProps) {
     lobbyPreviewMode ||
     heartPreviewMode ||
     oneToOnePreviewMode ||
+    emptyProfilePreviewMode ||
+    notificationPreviewMode ||
     votePreviewMode;
   const [session, setSession] = useState<SessionDetail | null>(() =>
     sessionPreviewMode ? createVotePreviewSession(sessionId) : null,
@@ -227,15 +245,17 @@ export default function Session({ sessionId }: SessionProps) {
         ? "idle"
         : oneToOnePreviewMode
           ? "assigned"
-          : lobbyPreviewMode
+        : lobbyPreviewMode || notificationPreviewMode
             ? "lobby"
             : "ready",
   );
   const [assignment, setAssignment] = useState<LiveAssignment | null>(
-    oneToOnePreviewMode ? createMockAssignment(sessionId, 1) : null,
+    oneToOnePreviewMode || emptyProfilePreviewMode
+      ? createMockAssignment(sessionId, 1, emptyProfilePreviewMode)
+      : null,
   );
   const [myLiveMemberId, setMyLiveMemberId] = useState<number | null>(
-    oneToOnePreviewMode || votePreviewMode || heartPreviewMode ? 1 : null,
+    oneToOnePreviewMode || emptyProfilePreviewMode || notificationPreviewMode || votePreviewMode || heartPreviewMode ? 1 : null,
   );
   const [currentRound, setCurrentRound] = useState(1);
   const [conversationEndsAt, setConversationEndsAt] = useState<number | null>(
@@ -487,25 +507,39 @@ export default function Session({ sessionId }: SessionProps) {
         const others = state.participants.filter(
           (person) => person.memberId !== myLiveMemberId,
         );
-        setLobbyParticipants({
-          opposite: createLobbyParticipants(
-            "opposite",
-            others
-              .filter((person) => person.gender !== myGender)
-              .map((person) => ({
-                memberId: person.memberId,
-                nickname: person.alias,
-              })),
-          ),
-          same: createLobbyParticipants(
-            "same",
-            others
-              .filter((person) => person.gender === myGender)
-              .map((person) => ({
-                memberId: person.memberId,
-                nickname: person.alias,
-              })),
-          ),
+        const opposite = others
+          .filter((person) => person.gender !== myGender)
+          .map((person) => ({
+            memberId: person.memberId,
+            nickname: person.alias,
+          }));
+        const same = others
+          .filter((person) => person.gender === myGender)
+          .map((person) => ({
+            memberId: person.memberId,
+            nickname: person.alias,
+          }));
+        const self = state.participants.find(
+          (person) => person.memberId === myLiveMemberId,
+        );
+        if (myLiveMemberId != null) {
+          same.unshift({
+            memberId: myLiveMemberId,
+            nickname: self?.alias || currentSession.myAlias || "나",
+          });
+        }
+        setLobbyParticipants((current) => {
+          if (
+            hasSameRoster(current.opposite, opposite) &&
+            hasSameRoster(current.same, same)
+          ) {
+            return current;
+          }
+          const placed = createLobbyParticipants([...opposite, ...same]);
+          return {
+            opposite: placed.slice(0, opposite.length),
+            same: placed.slice(opposite.length),
+          };
         });
       } catch {
         // Keep the lobby free of fabricated profiles when the roster is unavailable.
@@ -1328,10 +1362,19 @@ export default function Session({ sessionId }: SessionProps) {
   }, [assignment, conversationEndsAt, now, phase]);
 
   const lobbyVisible = phase === "lobby" || phase === "idle";
-  const heartParticipants = createLobbyParticipants(
-    "opposite",
-    encounteredProfiles,
-  );
+  const heartParticipants = useMemo(() => {
+    const candidates = encounteredProfiles.filter(
+      (profile) => profile.memberId !== myLiveMemberId,
+    );
+    if (myLiveMemberId != null) {
+      candidates.push({
+        memberId: myLiveMemberId,
+        nickname: session?.myAlias || "나",
+        roundNumber: 0,
+      });
+    }
+    return createLobbyParticipants(candidates);
+  }, [encounteredProfiles, myLiveMemberId, session?.myAlias]);
 
   return (
     <SessionPage
@@ -1351,7 +1394,7 @@ export default function Session({ sessionId }: SessionProps) {
       >
         {lobbyVisible || phase === "assigned" || phase === "voting" ? (
           <>
-            <NotificationButton
+            <SessionNoti
               className="lobby-bell"
               sessionId={sessionId}
               recipientId={myLiveMemberId ?? assignment?.memberId}
@@ -1370,14 +1413,16 @@ export default function Session({ sessionId }: SessionProps) {
                 ◆
               </span>
               <span>{gemsRemaining}개</span>
-              <button
-                className="store-link"
-                type="button"
-                onClick={() => setShopOpen(true)}
-                aria-label="보석 상점 열기"
-              >
-                +
-              </button>
+              {phase !== "assigned" && (
+                <button
+                  className="store-link"
+                  type="button"
+                  onClick={() => setShopOpen(true)}
+                  aria-label="보석 상점 열기"
+                >
+                  +
+                </button>
+              )}
             </div>
           </>
         ) : (
@@ -1461,15 +1506,16 @@ export default function Session({ sessionId }: SessionProps) {
                     >
                       {heartParticipants.map((participant) => (
                         <button
-                          className="profile-avatar choice-profile"
+                          className={`profile-avatar choice-profile${participant.memberId === myLiveMemberId ? " own-profile" : ""}`}
                           type="button"
+                          disabled={participant.memberId === myLiveMemberId}
                           key={`heart-${participant.memberId}`}
                           style={{
                             left: participant.x,
                             top: participant.y,
                             animationDelay: participant.delay,
                           }}
-                          aria-label={`이성 참가자 ${participant.nickname}`}
+                          aria-label={participant.memberId === myLiveMemberId ? "내 프로필" : `이성 참가자 ${participant.nickname}`}
                           onClick={() =>
                             setSelectedProfile({
                               memberId: participant.memberId,
@@ -1484,7 +1530,7 @@ export default function Session({ sessionId }: SessionProps) {
                         </button>
                       ))}
                     </div>
-                    {heartParticipants.length === 0 && (
+                    {encounteredProfiles.length === 0 && (
                       <p className="heart-candidates-empty">
                         대화한 상대가 생기면 하트를 보낼 수 있어요.
                       </p>
@@ -1498,7 +1544,7 @@ export default function Session({ sessionId }: SessionProps) {
                   >
                     {lobbyParticipants.opposite.map((participant, index) => (
                       <div
-                        className="profile-avatar"
+                        className={`profile-avatar${participant.memberId === myLiveMemberId ? " own-profile" : ""}`}
                         role="img"
                         key={`opposite-${participant.nickname}-${index}`}
                         style={{
@@ -1546,7 +1592,7 @@ export default function Session({ sessionId }: SessionProps) {
                           top: participant.y,
                           animationDelay: participant.delay,
                         }}
-                        aria-label={`동성 참가자 ${participant.nickname}`}
+                        aria-label={participant.memberId === myLiveMemberId ? `내 프로필 ${participant.nickname}` : `동성 참가자 ${participant.nickname}`}
                       >
                         <span aria-hidden="true">
                           {Array.from(participant.nickname)[0]}
@@ -2310,6 +2356,10 @@ const SessionPage = styled.div`
     background: #d2d7d0;
     color: #727a70;
   }
+  .conversation-control.is-speaker-off .control-icon img {
+    filter: grayscale(1);
+    opacity: 0.55;
+  }
   .conversation-control.is-mic-on .control-icon,
   .conversation-control.is-speaker-on .control-icon {
     background: #dcff74;
@@ -2575,6 +2625,28 @@ const SessionPage = styled.div`
   }
   .opposite-profiles .profile-avatar:nth-child(2n) {
     background: #b9d987;
+  }
+  .opposite-profiles .profile-avatar.own-profile {
+    background: #eaf2d5;
+    cursor: default;
+  }
+  .choice-profile.own-profile {
+    cursor: default;
+  }
+  .choice-profile.own-profile:disabled {
+    opacity: 1;
+  }
+  .profile-avatar.own-profile::after {
+    position: absolute;
+    right: 50%;
+    bottom: -0.65rem;
+    padding: 0.15rem 0.55rem;
+    border-radius: 99rem;
+    background: #011020;
+    color: #fff;
+    content: "나";
+    font: 600 0.95rem/1.3 var(--font-body);
+    transform: translateX(50%);
   }
   .lobby-mascot {
     position: absolute;
