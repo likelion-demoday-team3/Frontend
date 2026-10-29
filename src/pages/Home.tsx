@@ -6,11 +6,11 @@ import Scadule from "../components/Home/Scadule";
 import AdminSessionCreate from "../components/Home/AdminSessionCreate";
 import NavBar from "../components/common/NavBar";
 import BusinessInfo from "../components/common/BusinessInfo";
+import SessionNoti from "../components/Session/SessionNoti";
 import { getMyMember } from "../features/members/api";
 import { getMySessions, getSessions } from "../features/sessions/api";
 import type { MySession, Session } from "../features/sessions/types";
 import {
-  clearAccessToken,
   getAccessToken,
   isAdminToken,
 } from "../features/auth/session";
@@ -26,9 +26,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [reload, setReload] = useState(0);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const loginDialog = useRef<HTMLDialogElement>(null);
-  const notificationsDialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -91,45 +89,11 @@ export default function Home() {
     return () => element?.close();
   }, [loginPrompt]);
 
-  useEffect(() => {
-    if (!notificationsOpen) return;
-    const element = notificationsDialog.current;
-    element?.showModal();
-    return () => element?.close();
-  }, [notificationsOpen]);
-
-  function logout() {
-    clearAccessToken();
-    setIsLoggedIn(false);
-    setMySessions([]);
-    setMyGender(null);
-    setNotificationsOpen(false);
-  }
-
   return (
     <HomeShell>
       <header className="home-header">
         <img src="/logo.svg" width="90" height="40" alt="Kiiwee" />
-        <button
-          className="notification-button"
-          type="button"
-          aria-label="알림 열기"
-          onClick={() => setNotificationsOpen(true)}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="24"
-            height="24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-          </svg>
-        </button>
+        <SessionNoti className="notification-button" unavailable />
       </header>
 
       <Countdown sessions={sessions} mySessions={mySessions} />
@@ -203,42 +167,6 @@ export default function Home() {
         </div>
       </dialog>
 
-      <dialog
-        ref={notificationsDialog}
-        className="notification-dialog"
-        aria-labelledby="notification-title"
-        onCancel={() => setNotificationsOpen(false)}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) setNotificationsOpen(false);
-        }}
-      >
-        <div className="notification-dialog-body">
-          <h2 id="notification-title">알림</h2>
-          <p>
-            {!isLoggedIn
-              ? "로그인하면 알림을 확인할 수 있어요."
-              : "알림 API 명세가 없어 아직 알림을 불러올 수 없어요."}
-          </p>
-          {isLoggedIn ? (
-            <button
-              type="button"
-              className="notification-action secondary"
-              onClick={logout}
-            >
-              로그아웃
-            </button>
-          ) : (
-            <div className="notification-links">
-              <a href="/signup" onClick={() => setNotificationsOpen(false)}>
-                회원가입
-              </a>
-              <a href="/login" onClick={() => setNotificationsOpen(false)}>
-                로그인
-              </a>
-            </div>
-          )}
-        </div>
-      </dialog>
     </HomeShell>
   );
 }
@@ -347,60 +275,6 @@ const HomeShell = styled.div`
   }
   .auth-prompt .dialog-actions {
     margin-top: 2rem;
-  }
-
-  .notification-dialog {
-    position: fixed;
-    top: 7.2rem;
-    right: max(calc((100vw - 43rem) / 2 + 2.4rem), 1.6rem);
-    left: auto;
-    bottom: auto;
-    margin: 0;
-    width: min(34rem, calc(100vw - 3.2rem));
-    padding: 0;
-    border: 0;
-    border-radius: 2rem;
-    background: var(--background);
-    color: var(--ink);
-    box-shadow: 0 1.6rem 7rem #1113;
-  }
-  .notification-dialog::backdrop {
-    background: #222b2533;
-  }
-  .notification-dialog-body {
-    padding: 2rem;
-  }
-  .notification-dialog h2 {
-    font: 600 1.8rem/1.4 var(--font-body);
-  }
-  .notification-dialog p {
-    margin-top: 1.2rem;
-    color: var(--text-secondary);
-    font-size: 1.4rem;
-    line-height: 1.6;
-  }
-  .notification-links {
-    display: flex;
-    gap: 0.8rem;
-    margin-top: 1.6rem;
-  }
-  .notification-links a,
-  .notification-action {
-    display: grid;
-    flex: 1;
-    min-height: 4.2rem;
-    place-items: center;
-    border: 0.1rem solid var(--ink);
-    border-radius: 1rem;
-    background: var(--green);
-    color: var(--ink);
-    font: 500 1.4rem var(--font-body);
-    text-decoration: none;
-  }
-  .notification-action {
-    width: 100%;
-    margin-top: 1.6rem;
-    background: var(--white);
   }
 
   @media (max-width: 37.4rem) {

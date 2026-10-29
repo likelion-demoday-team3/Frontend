@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import styled, { css } from "styled-components";
 import NavBar from "../../components/common/NavBar";
+import SessionNoti from "../../components/Session/SessionNoti";
 import { getAccessToken } from "../../features/auth/session";
 import { getMyWallet } from "../../features/wallet/api";
 import {
@@ -67,7 +68,6 @@ export default function Store({
   const [selectedPackage, setSelectedPackage] = useState<ShopProduct | null>(
     null,
   );
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [paymentPending, setPaymentPending] = useState(false);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [paymentError, setPaymentError] = useState("");
@@ -208,26 +208,7 @@ export default function Store({
       {!embedded && (
         <header className="home-header">
           <img src="/logo.svg" width="90" height="40" alt="Kiiwee" />
-          <button
-            className="notification-button"
-            type="button"
-            aria-label="알림 열기"
-            onClick={() => setNotificationsOpen(true)}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="24"
-              height="24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-            </svg>
-          </button>
+          <SessionNoti className="notification-button" unavailable />
         </header>
       )}
 
@@ -471,34 +452,6 @@ export default function Store({
         </div>
       )}
 
-      {!embedded && notificationsOpen && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={() => setNotificationsOpen(false)}
-        >
-          <section
-            className="purchase-dialog history-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="notification-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              className="close"
-              type="button"
-              aria-label="닫기"
-              onClick={() => setNotificationsOpen(false)}
-            >
-              ×
-            </button>
-            <h2 id="notification-title">알림</h2>
-            <p className="empty-history">
-              알림 API 명세가 없어 아직 알림을 불러올 수 없어요.
-            </p>
-          </section>
-        </div>
-      )}
     </StorePage>
   );
 }

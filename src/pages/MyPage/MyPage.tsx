@@ -72,7 +72,7 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
     <Shell>
       <header className="home-header">
         <img src="/logo.svg" width="90" height="40" alt="Kiiwee" />
-        <NotificationButton className="notification-button" />
+        <NotificationButton className="notification-button" unavailable />
       </header>
       <main>
         <section className="identity">

@@ -12,12 +12,14 @@ type SessionNotiProps = {
   className?: string;
   sessionId?: number;
   recipientId?: number | null;
+  unavailable?: boolean;
 };
 
 export default function SessionNoti({
   className = "",
   sessionId,
   recipientId,
+  unavailable = false,
 }: SessionNotiProps) {
   const previewParams = new URLSearchParams(window.location.search);
   const notificationPreview =
@@ -221,7 +223,7 @@ export default function SessionNoti({
   function openNotifications() {
     setArrivalQueue((current) => current.slice(1));
     setOpen(true);
-    void loadNotifications();
+    if (!unavailable) void loadNotifications();
   }
 
   return <>
@@ -237,13 +239,13 @@ export default function SessionNoti({
         type="button"
         aria-label="알림 새로고침"
         title="알림 새로고침"
-        disabled={loading}
+        disabled={loading || unavailable}
         onClick={() => void loadNotifications()}
       >
         ↻
       </button>
       <button className="close-button" type="button" aria-label="알림 닫기" onClick={() => setOpen(false)}>×</button>
-      {loading ? <p>알림을 불러오는 중이에요…</p> : <>
+      {unavailable ? <p>알림을 불러올 수 없습니다.</p> : loading ? <p>알림을 불러오는 중이에요…</p> : <>
         {error && <p role="alert">{error}</p>}
         <section className="notification-group">
           <h3>하트</h3>
@@ -340,8 +342,8 @@ const BellButton = styled.button`
 const NoticeDialog = styled.dialog`
   position: fixed;
   top: 7.2rem;
-  left: max(calc((100vw - 43rem) / 2 + 1.6rem), 1.6rem);
-  right: auto;
+  right: max(calc((100vw - 43rem) / 2 + 1.6rem), 1.6rem);
+  left: auto;
   bottom: auto;
   margin: 0;
   width: min(34rem, calc(100vw - 3.2rem));
@@ -355,7 +357,7 @@ const NoticeDialog = styled.dialog`
   font-family: var(--font-body);
   box-shadow: 0 1.6rem 7rem #1113;
   &::backdrop { background: #222b2533; }
-  &::after { position: absolute; top: -0.8rem; left: 2.6rem; width: 1.6rem; height: 1.6rem; background: var(--background); content: ""; transform: rotate(45deg); }
+  &::after { position: absolute; top: -0.8rem; right: 2.6rem; width: 1.6rem; height: 1.6rem; background: var(--background); content: ""; transform: rotate(45deg); }
   h2 { margin: 0; padding: 0 3.6rem 1.2rem 0; border-bottom: 0.2rem solid #9aa49b; font: 600 1.8rem/1.4 var(--display-font); }
   button.close-button { position: absolute; top: 1.2rem; right: 1.4rem; display: grid; width: 3.2rem; min-height: 3.2rem; place-items: center; margin: 0; padding: 0; border: 0; background: transparent; color: var(--ink); font: 400 2.8rem/1 var(--font-body); cursor: pointer; }
   button.refresh-button { position: absolute; top: 1.4rem; right: 5.2rem; display: grid; width: 3.2rem; height: 3.2rem; min-height: 3.2rem; place-items: center; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #66705f; font: 400 2rem/1 var(--font-body); cursor: pointer; }
@@ -390,7 +392,8 @@ const ArrivalPopover = styled.aside`
   position: fixed;
   z-index: 20;
   top: 7rem;
-  left: max(calc((100vw - 43rem) / 2 + 1.6rem), 1.6rem);
+  right: max(calc((100vw - 43rem) / 2 + 1.6rem), 1.6rem);
+  left: auto;
   width: min(34rem, calc(100vw - 3.2rem));
   padding: 1.8rem 2rem;
   border: 0;
