@@ -425,7 +425,7 @@ export default function Session({ sessionId }: SessionProps) {
     const announcementTimer = window.setInterval(() => {
       setAnnouncementIndex((index) => (index + 1) % lobbyGuideMessages.length);
       speak();
-    }, 5000);
+    }, 3000);
 
     return () => {
       window.clearInterval(announcementTimer);
@@ -702,6 +702,23 @@ export default function Session({ sessionId }: SessionProps) {
         setFinalChoiceCountdown(null);
         setPhase("voting");
         setConnectionStatus("최종 투표 진행 중");
+      } else if (message.kind === "hearts-started") {
+        peerRef.current?.connection.close();
+        peerRef.current = null;
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        setConversationEndsAt(null);
+        setIsPartnerSpeaking(false);
+        setAssignment(null);
+        setIsStarting(false);
+        startRequested.current = false;
+        setFinalChoiceLobby(true);
+        setFinalChoiceStartsAt(
+          message.heartsEndsAt ? Date.parse(message.heartsEndsAt) : Date.now(),
+        );
+        setFinalChoiceCountdown(null);
+        setPhase("idle");
+        setConnectionStatus("하트 선택 진행 중");
       } else if (message.kind === "results-ready") {
         liveRef.current?.disconnect();
         window.history.pushState(
