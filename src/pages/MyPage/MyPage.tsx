@@ -100,11 +100,6 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
                 : "본인인증 필요"}
           </span>
         </section>
-        {!verified && !loading && (
-          <a className="verify-banner" href={`/mypage/identity${suffix}`}>
-            본인인증을 완료해주세요 <span>›</span>
-          </a>
-        )}
         <section className="menu-card" aria-label="마이페이지 메뉴">
           <a href={`/mypage/me${suffix}`}>
             내 정보 <span>›</span>
@@ -257,7 +252,7 @@ const Shell = styled.div`
     display: flex;
     align-items: center;
     flex-direction: column;
-    padding: 1.4rem 0 2.6rem;
+    padding: 1.4rem 0;
   }
   .avatar {
     position: relative;
