@@ -44,6 +44,8 @@ function readPaymentNotice(): PaymentNotice | null {
 
 type StoreProps = {
   embedded?: boolean;
+  inline?: boolean;
+  purchasesDisabled?: boolean;
   open?: boolean;
   initialGems?: number;
   onGemsChange?: (gems: number) => void;
@@ -52,6 +54,8 @@ type StoreProps = {
 
 export default function Store({
   embedded = false,
+  inline = false,
+  purchasesDisabled = false,
   open = true,
   initialGems = 0,
   onClose,
@@ -132,7 +136,7 @@ export default function Store({
   }, [open]);
 
   async function confirmPurchase() {
-    if (!selectedPackage || paymentPending) return;
+    if (!selectedPackage || paymentPending || purchasesDisabled) return;
     if (!isLoggedIn) {
       setPaymentError("결제는 로그인 후 이용할 수 있어요.");
       return;
@@ -195,8 +199,9 @@ export default function Store({
 
   return (
     <StorePage
-      className={embedded ? "embedded" : undefined}
+      className={`${embedded ? "embedded" : ""}${inline ? " inline" : ""}`.trim() || undefined}
       $embedded={embedded}
+      $inline={inline}
       $open={open}
       aria-hidden={embedded && !open}
     >
@@ -251,7 +256,7 @@ export default function Store({
         <div className="section-heading">
           <h2>
             <span>보석 충전</span>
-            {embedded && (
+            {embedded && !inline && (
               <button
                 type="button"
                 className="section-close"
@@ -262,7 +267,21 @@ export default function Store({
               </button>
             )}
           </h2>
-          <p>원하는 보석 상품을 선택하고 결제를 진행해요.</p>
+          <p>
+            {inline ? (
+              <>
+                세션 중에는 보석을 충전할 수 없어요. 필요한 상황에 대비해 미리
+                충전해 주세요.
+                <br />
+                단, 최종 투표가 끝나면 우측 상단의 노란색 + 버튼을 눌러 다시
+                충전할 수 있어요.
+              </>
+            ) : purchasesDisabled ? (
+              "세션이 끝난 뒤 보석을 충전할 수 있어요."
+            ) : (
+              "원하는 보석 상품을 선택하고 결제를 진행해요."
+            )}
+          </p>
         </div>
         <div className="package-list">
           {productsLoading ? (
@@ -305,19 +324,21 @@ export default function Store({
                     <strong>{formatWon(item.salePrice ?? item.price)}</strong>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPaymentError("");
-                    if (!isLoggedIn) {
-                      setLoginPromptOpen(true);
-                      return;
-                    }
-                    setSelectedPackage(item);
-                  }}
-                >
-                  충전하기
-                </button>
+                {!purchasesDisabled && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentError("");
+                      if (!isLoggedIn) {
+                        setLoginPromptOpen(true);
+                        return;
+                      }
+                      setSelectedPackage(item);
+                    }}
+                  >
+                    충전하기
+                  </button>
+                )}
               </article>
             ))
           )}
@@ -482,7 +503,11 @@ export default function Store({
   );
 }
 
-const StorePage = styled.div<{ $embedded: boolean; $open: boolean }>`
+const StorePage = styled.div<{
+  $embedded: boolean;
+  $inline: boolean;
+  $open: boolean;
+}>`
   width: 100%;
   max-width: 43rem;
   min-height: 100dvh;
@@ -492,34 +517,51 @@ const StorePage = styled.div<{ $embedded: boolean; $open: boolean }>`
   color: var(--ink);
   box-shadow: 0 0 6rem #26372508;
 
-  ${({ $embedded, $open }) =>
+  ${({ $embedded, $inline, $open }) =>
     $embedded &&
-    css`
-      position: fixed;
-      z-index: 20;
-      top: calc(10.5rem + env(safe-area-inset-top));
-      right: 0;
-      bottom: 0;
-      left: 0;
-      height: calc(100dvh - 10.5rem - env(safe-area-inset-top));
-      min-height: 0;
-      overflow-x: hidden;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      padding: 0 3rem calc(2.4rem + env(safe-area-inset-bottom));
-      border-radius: 1.8rem 1.8rem 0 0;
-      box-shadow: 0 -0.5rem 1.5rem #17221712;
-      transform: translateY(${$open ? "0" : "100%"});
-      visibility: ${$open ? "visible" : "hidden"};
-      pointer-events: ${$open ? "auto" : "none"};
-      transition:
-        transform 360ms cubic-bezier(0.2, 0.75, 0.25, 1),
-        visibility 0s linear ${$open ? "0s" : "360ms"};
-      scrollbar-width: none;
-      &::-webkit-scrollbar {
-        display: none;
-      }
-    `}
+    ($inline
+      ? css`
+          position: relative;
+          z-index: auto;
+          width: 100%;
+          max-width: 43rem;
+          min-height: 0;
+          height: auto;
+          margin: 0 auto;
+          overflow: visible;
+          padding: 0;
+          border-radius: 0;
+          box-shadow: none;
+          transform: none;
+          visibility: visible;
+          pointer-events: auto;
+        `
+      : css`
+          position: fixed;
+          z-index: 20;
+          top: calc(10.5rem + env(safe-area-inset-top));
+          right: 0;
+          bottom: 0;
+          left: 0;
+          height: calc(100dvh - 10.5rem - env(safe-area-inset-top));
+          min-height: 0;
+          overflow-x: hidden;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          padding: 0 3rem calc(2.4rem + env(safe-area-inset-bottom));
+          border-radius: 1.8rem 1.8rem 0 0;
+          box-shadow: 0 -0.5rem 1.5rem #17221712;
+          transform: translateY(${$open ? "0" : "100%"});
+          visibility: ${$open ? "visible" : "hidden"};
+          pointer-events: ${$open ? "auto" : "none"};
+          transition:
+            transform 360ms cubic-bezier(0.2, 0.75, 0.25, 1),
+            visibility 0s linear ${$open ? "0s" : "360ms"};
+          scrollbar-width: none;
+          &::-webkit-scrollbar {
+            display: none;
+          }
+        `)}
 
   .home-header {
     display: flex;
@@ -606,6 +648,9 @@ const StorePage = styled.div<{ $embedded: boolean; $open: boolean }>`
   .packages-section {
     padding-top: 3rem;
     scroll-margin-top: 2rem;
+  }
+  &.inline .packages-section {
+    padding-top: 0;
   }
   .section-heading {
     margin-bottom: 1.4rem;
