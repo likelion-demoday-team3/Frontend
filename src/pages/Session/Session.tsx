@@ -44,60 +44,112 @@ export default function Session({ sessionId }: SessionProps) {
   const isMockLiveEnabled =
     previewParams.has("preview") &&
     (import.meta.env.DEV || previewParams.has("showTest"));
-  const heartPreviewMode =
+  const previewKind = previewParams.get("preview");
+  const waitingPreviewMode =
     isMockLiveEnabled &&
-    new URLSearchParams(window.location.search).get("preview") === "hearts";
+    ["waiting-upcoming", "waiting-open", "waiting-closed"].includes(
+      previewKind ?? "",
+    );
+  const idlePreviewMode = isMockLiveEnabled && previewKind === "idle";
+  const heartChargePreviewMode =
+    isMockLiveEnabled && previewKind === "heart-charge";
+  const heartRestrictionPreviewMode =
+    isMockLiveEnabled && previewKind === "heart-restriction";
+  const heartLobbyPreviewMode =
+    isMockLiveEnabled &&
+    ["hearts", "heart-charge", "heart-restriction"].includes(
+      previewKind ?? "",
+    );
+  const callPreviewMode =
+    isMockLiveEnabled &&
+    [
+      "one-to-one",
+      "one-to-one-empty-profile",
+      "one-to-one-profile",
+      "one-to-one-report",
+      "call-5m",
+      "call-1m",
+      "call-urgent",
+    ].includes(previewKind ?? "");
   const lobbyPreviewMode =
     isMockLiveEnabled &&
-    new URLSearchParams(window.location.search).get("preview") === "lobby";
-  const oneToOnePreviewMode =
-    isMockLiveEnabled &&
-    new URLSearchParams(window.location.search).get("preview") === "one-to-one";
+    previewKind === "lobby";
   const emptyProfilePreviewMode =
-    isMockLiveEnabled && previewParams.get("preview") === "one-to-one-empty-profile";
+    isMockLiveEnabled && previewKind === "one-to-one-empty-profile";
   const notificationPreviewMode =
-    isMockLiveEnabled && previewParams.get("preview") === "notifications";
+    isMockLiveEnabled && (previewKind === "notifications" || previewKind === "notifications-empty");
   const votePreviewMode =
     isMockLiveEnabled &&
-    new URLSearchParams(window.location.search).get("preview") === "vote";
+    previewKind === "vote";
   const sessionPreviewMode =
     lobbyPreviewMode ||
-    heartPreviewMode ||
-    oneToOnePreviewMode ||
+    heartLobbyPreviewMode ||
+    callPreviewMode ||
     emptyProfilePreviewMode ||
     notificationPreviewMode ||
-    votePreviewMode;
+    votePreviewMode ||
+    idlePreviewMode ||
+    waitingPreviewMode;
   const [session, setSession] = useState<SessionDetail | null>(() =>
-    sessionPreviewMode ? createVotePreviewSession(sessionId) : null,
+    sessionPreviewMode
+      ? {
+          ...createVotePreviewSession(sessionId),
+          startTime: new Date(
+            Date.now() +
+              (previewKind === "waiting-upcoming"
+                ? 15 * 60_000
+                : previewKind === "waiting-open"
+                  ? 2 * 60_000
+                  : previewKind === "waiting-closed"
+                    ? -2 * 60_000
+                    : 0),
+          ).toISOString(),
+        }
+      : null,
   );
   const [loading, setLoading] = useState(!sessionPreviewMode);
   const [loadError, setLoadError] = useState("");
   const [phase, setPhase] = useState<Phase>(
     votePreviewMode
       ? "voting"
-      : heartPreviewMode
+      : heartLobbyPreviewMode
         ? "idle"
-        : oneToOnePreviewMode
+        : idlePreviewMode
+          ? "idle"
+          : callPreviewMode
           ? "assigned"
         : lobbyPreviewMode || notificationPreviewMode
             ? "lobby"
             : "ready",
   );
   const [assignment, setAssignment] = useState<LiveAssignment | null>(
-    oneToOnePreviewMode || emptyProfilePreviewMode
-      ? createMockAssignment(sessionId, 1, emptyProfilePreviewMode)
+    callPreviewMode
+      ? createMockAssignment(
+          sessionId,
+          1,
+          emptyProfilePreviewMode,
+        )
       : null,
   );
   const [myLiveMemberId, setMyLiveMemberId] = useState<number | null>(
-    oneToOnePreviewMode || emptyProfilePreviewMode || notificationPreviewMode || votePreviewMode || heartPreviewMode ? 1 : null,
+    lobbyPreviewMode || idlePreviewMode || callPreviewMode || notificationPreviewMode || votePreviewMode || heartLobbyPreviewMode ? 1 : null,
   );
   const [currentRound, setCurrentRound] = useState(1);
   const [conversationEndsAt, setConversationEndsAt] = useState<number | null>(
-    null,
+    callPreviewMode
+      ? Date.now() +
+        (previewKind === "call-5m"
+          ? 5 * 60_000
+          : previewKind === "call-1m"
+            ? 60_000
+            : previewKind === "call-urgent"
+              ? 10_000
+              : 9 * 60_000)
+      : null,
   );
-  const [finalChoiceLobby, setFinalChoiceLobby] = useState(heartPreviewMode);
+  const [finalChoiceLobby, setFinalChoiceLobby] = useState(heartLobbyPreviewMode);
   const [finalChoiceStartsAt, setFinalChoiceStartsAt] = useState<number | null>(
-    heartPreviewMode ? Date.now() + 3 * 60 * 1000 : null,
+    heartLobbyPreviewMode ? Date.now() + 3 * 60 * 1000 : null,
   );
   const [finalChoiceCountdown, setFinalChoiceCountdown] = useState<
     number | null
@@ -107,7 +159,7 @@ export default function Session({ sessionId }: SessionProps) {
   const [encounteredProfiles, setEncounteredProfiles] = useState<
     Array<{ nickname: string; roundNumber: number; memberId: number }>
   >(() => {
-    if (votePreviewMode) {
+    if (votePreviewMode || lobbyPreviewMode || idlePreviewMode) {
       return [
         { nickname: "구름산책", roundNumber: 1, memberId: 2 },
         { nickname: "달빛수집가", roundNumber: 2, memberId: 3 },
@@ -117,7 +169,7 @@ export default function Session({ sessionId }: SessionProps) {
         { nickname: "햇살한스푼", roundNumber: 6, memberId: 7 },
       ];
     }
-    return heartPreviewMode
+    return heartLobbyPreviewMode
       ? [
           { nickname: "구름산책", roundNumber: 1, memberId: 2 },
           { nickname: "달빛수집가", roundNumber: 2, memberId: 3 },
@@ -150,14 +202,27 @@ export default function Session({ sessionId }: SessionProps) {
   );
   const [heartPurchaseQuantity, setHeartPurchaseQuantity] = useState(1);
   const [heartsSent, setHeartsSent] = useState<Record<number, number>>({});
-  const [heartChargeOpen, setHeartChargeOpen] = useState(false);
-  const [heartRestrictionOpen, setHeartRestrictionOpen] = useState(false);
+  const [heartChargeOpen, setHeartChargeOpen] = useState(heartChargePreviewMode);
+  const [heartRestrictionOpen, setHeartRestrictionOpen] = useState(heartRestrictionPreviewMode);
   const [isPartnerSpeaking, setIsPartnerSpeaking] = useState(false);
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
-  const [profileCardOpen, setProfileCardOpen] = useState(false);
-  const [reportPopupOpen, setReportPopupOpen] = useState(false);
+  const [profileCardOpen, setProfileCardOpen] = useState(
+    previewKind === "one-to-one-profile",
+  );
+  const [reportPopupOpen, setReportPopupOpen] = useState(
+    previewKind === "one-to-one-report",
+  );
   const [isStarting, setIsStarting] = useState(false);
   const [now, setNow] = useState(Date.now);
+  const [roundStartNotice, setRoundStartNotice] = useState("");
+  const [countdownNotice, setCountdownNotice] = useState<5 | 1 | null>(() =>
+    previewKind === "call-5m" ? 5 : previewKind === "call-1m" ? 1 : null,
+  );
+  useEffect(() => {
+    if (previewKind !== "call-5m" && previewKind !== "call-1m") return;
+    const timeout = window.setTimeout(() => setCountdownNotice(null), 3000);
+    return () => window.clearTimeout(timeout);
+  }, []);
   const [connectionStatus, setConnectionStatus] = useState("입장 전");
   const [, setCallStatus] = useState("상대 배정을 기다리는 중");
   const [muted, setMuted] = useState(false);
@@ -165,7 +230,17 @@ export default function Session({ sessionId }: SessionProps) {
   const [lobbyParticipants, setLobbyParticipants] = useState<{
     opposite: LobbyParticipant[];
     same: LobbyParticipant[];
-  }>({ opposite: [], same: [] });
+  }>(() => {
+    if (!lobbyPreviewMode && !idlePreviewMode) return { opposite: [], same: [] };
+    const roster = createLobbyParticipants([
+      { memberId: 2, nickname: "구름산책" },
+      { memberId: 3, nickname: "달빛수집가" },
+      { memberId: 1, nickname: "나" },
+      { memberId: 4, nickname: "포근한오후" },
+      { memberId: 5, nickname: "초록새벽" },
+    ]);
+    return { opposite: roster.slice(0, 2), same: roster.slice(2) };
+  });
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [mascotSpeaking, setMascotSpeaking] = useState(false);
   const [mascotMouthOpen, setMascotMouthOpen] = useState(false);
@@ -191,6 +266,10 @@ export default function Session({ sessionId }: SessionProps) {
   const autoStartTimeoutRef = useRef<number | null>(null);
   const autoStartIntervalRef = useRef<number | null>(null);
   const finalChoiceTimerRef = useRef<number | null>(null);
+  const roundNoticeTimeoutRef = useRef<number | null>(null);
+  const countdownNoticeTimeoutRef = useRef<number | null>(null);
+  const previousConversationRemainingRef = useRef<number | null>(null);
+  const shownConversationCountdownsRef = useRef<Set<number>>(new Set());
   const startConversationRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
@@ -312,8 +391,8 @@ export default function Session({ sessionId }: SessionProps) {
   }, [sessionId, sessionPreviewMode]);
 
   useEffect(() => {
+    if (isMockLiveEnabled) return;
     if (
-      isMockLiveEnabled ||
       !liveRef.current ||
       finalChoiceLobby ||
       (phase !== "lobby" && phase !== "idle")
@@ -506,7 +585,16 @@ export default function Session({ sessionId }: SessionProps) {
 
   const handleMessage = useCallback(
     (message: LiveMessage) => {
-      if (message.kind === "joined") {
+      if (
+        message.kind === "heart-received" ||
+        message.kind === "contact-requested" ||
+        message.kind === "contact-request-answered" ||
+        message.kind === "contact-received"
+      ) {
+        window.dispatchEvent(
+          new CustomEvent("kiiwee:live-notification", { detail: message }),
+        );
+      } else if (message.kind === "joined") {
         setMyLiveMemberId(message.memberId);
         if (
           message.status === "ASSIGNED" &&
@@ -1108,6 +1196,63 @@ export default function Session({ sessionId }: SessionProps) {
   const conversationSeconds = Math.floor(
     (conversationRemaining % 60000) / 1000,
   );
+
+  useEffect(() => {
+    if (phase !== "assigned" || !assignment) return;
+    setRoundStartNotice(`${assignment.roundNumber}번째 대화가 시작되었습니다.`);
+    if (!callPreviewMode) setCountdownNotice(null);
+    previousConversationRemainingRef.current = null;
+    shownConversationCountdownsRef.current = new Set();
+    if (roundNoticeTimeoutRef.current !== null) {
+      window.clearTimeout(roundNoticeTimeoutRef.current);
+    }
+    roundNoticeTimeoutRef.current = window.setTimeout(() => {
+      setRoundStartNotice("");
+      roundNoticeTimeoutRef.current = null;
+    }, 3000);
+    return () => {
+      if (roundNoticeTimeoutRef.current !== null) {
+        window.clearTimeout(roundNoticeTimeoutRef.current);
+        roundNoticeTimeoutRef.current = null;
+      }
+    };
+  }, [assignment?.roundId, assignment?.roundNumber, phase]);
+
+  useEffect(() => {
+    if (callPreviewMode) return;
+    if (phase !== "assigned" || !assignment) {
+      previousConversationRemainingRef.current = null;
+      if (countdownNoticeTimeoutRef.current !== null) {
+        window.clearTimeout(countdownNoticeTimeoutRef.current);
+        countdownNoticeTimeoutRef.current = null;
+      }
+      setCountdownNotice(null);
+      return;
+    }
+    const previousRemaining = previousConversationRemainingRef.current;
+    previousConversationRemainingRef.current = conversationRemaining;
+    if (previousRemaining === null) return;
+
+    const crossedThreshold = [5, 1].find((minutes) => {
+      const threshold = minutes * 60 * 1000;
+      return (
+        previousRemaining > threshold &&
+        conversationRemaining <= threshold &&
+        !shownConversationCountdownsRef.current.has(minutes)
+      );
+    });
+    if (crossedThreshold === undefined) return;
+
+    shownConversationCountdownsRef.current.add(crossedThreshold);
+    setCountdownNotice(crossedThreshold as 5 | 1);
+    if (countdownNoticeTimeoutRef.current !== null) {
+      window.clearTimeout(countdownNoticeTimeoutRef.current);
+    }
+    countdownNoticeTimeoutRef.current = window.setTimeout(() => {
+      setCountdownNotice(null);
+      countdownNoticeTimeoutRef.current = null;
+    }, 3000);
+  }, [assignment, conversationRemaining, phase]);
   const finalChoiceRemaining = finalChoiceStartsAt
     ? Math.max(0, finalChoiceStartsAt - now)
     : 0;
@@ -1382,6 +1527,7 @@ export default function Session({ sessionId }: SessionProps) {
                                   ? "두 번째 대화 시작하기"
                                   : `${currentRound}번째 대화 시작하기`
                     }
+                    showParticipantNotice={isStarting && !assignment}
                     onStart={startConversation}
                   />
                 )}
@@ -1410,6 +1556,9 @@ export default function Session({ sessionId }: SessionProps) {
                     assignment={assignment}
                     conversationMinutes={conversationMinutes}
                     conversationSeconds={conversationSeconds}
+                    isUrgent={conversationRemaining <= 10_000}
+                    roundStartNotice={roundStartNotice}
+                    countdownNotice={countdownNotice}
                     isPartnerSpeaking={isPartnerSpeaking}
                     muted={muted}
                     speakerEnabled={speakerEnabled}

@@ -1,0 +1,17 @@
+{
+  "name": "Kiiwee",
+  "short_name": "Kiiwee",
+  "start_url": "/home",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FCFFFB",
+  "theme_color": "#FCFFFB",
+  "icons": [
+    {
+      "src": "/iconImg.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

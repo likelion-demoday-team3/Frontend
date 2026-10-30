@@ -72,7 +72,21 @@ export default function ResultDetail() {
   const [catalog, setCatalog] = useState<ResultProductInfo[]>([]);
   const [summary, setSummary] = useState<VoteSummary | null>(null);
   const [details, setDetails] = useState<ResultDetails[]>([]);
+  const [userRankingDetails, setUserRankingDetails] = useState<
+    Record<string, ResultDetails>
+  >({});
   const [targetIds, setTargetIds] = useState<Record<string, string>>({});
+  const [myMemberId] = useState<number | null>(() => {
+    if (!sessionId) return null;
+    try {
+      const context = JSON.parse(
+        sessionStorage.getItem(`kiiwee.session-context:${sessionId}`) ?? "{}",
+      );
+      return typeof context.myMemberId === "number" ? context.myMemberId : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<ResultProduct | null>(null);
   const [error, setError] = useState("");
@@ -82,6 +96,12 @@ export default function ResultDetail() {
       setCatalog(previewResultProducts);
       setSummary({ sessionId: 1, coupleCount: 3 });
       setGems(100);
+      setTargetIds({ "USER_RANKINGS:0": "2", "USER_RANKINGS:1": "3" });
+      setUserRankingDetails({
+        "USER_RANKINGS:0": createPreviewResult("USER_RANKINGS", 2),
+        "USER_RANKINGS:1": createPreviewResult("USER_RANKINGS", 3),
+      });
+      setDetails([createPreviewResult("ALL_RANKINGS")]);
       setLoading(false);
       return;
     }
@@ -119,12 +139,26 @@ export default function ResultDetail() {
     };
   }, [sessionId, preview]);
 
-  async function unlock(product: ResultProduct, targetRequired: boolean) {
+  async function unlock(
+    product: ResultProduct,
+    targetRequired: boolean,
+    targetSlotKey?: string,
+  ) {
+    const targetId = targetRequired && targetSlotKey
+      ? Number(targetIds[targetSlotKey])
+      : undefined;
     if (preview) {
-      setDetails((items) => [
-        ...items.filter((item) => item.product !== product),
-        createPreviewResult(product),
-      ]);
+      if (targetRequired && targetSlotKey) {
+        setUserRankingDetails((items) => ({
+          ...items,
+          [targetSlotKey]: createPreviewResult(product, targetId),
+        }));
+      } else {
+        setDetails((items) => [
+          ...items.filter((item) => item.product !== product),
+          createPreviewResult(product),
+        ]);
+      }
       setGems((value) =>
         Math.max(
           0,
@@ -135,7 +169,6 @@ export default function ResultDetail() {
       );
       return;
     }
-    const targetId = targetRequired ? Number(targetIds[product]) : undefined;
     if (!sessionId || (targetRequired && (!targetId || targetId <= 0))) {
       setError("닉네임을 선택해주세요.");
       return;
@@ -144,19 +177,33 @@ export default function ResultDetail() {
     setError("");
     try {
       const result = await purchaseResult(sessionId, product, targetId);
-      setDetails((items) => [
-        ...items.filter((item) => item.product !== product),
-        result.data,
-      ]);
+      if (targetRequired && targetSlotKey) {
+        setUserRankingDetails((items) => ({
+          ...items,
+          [targetSlotKey]: result.data,
+        }));
+      } else {
+        setDetails((items) => [
+          ...items.filter((item) => item.product !== product),
+          result.data,
+        ]);
+      }
       const [wallet, unlocked] = await Promise.all([
         getMyWallet(),
         getResultDetails(sessionId, product, targetId),
       ]);
       setGems(wallet.gemBalance);
-      setDetails((items) => [
-        ...items.filter((item) => item.product !== product),
-        unlocked,
-      ]);
+      if (targetRequired && targetSlotKey) {
+        setUserRankingDetails((items) => ({
+          ...items,
+          [targetSlotKey]: unlocked,
+        }));
+      } else {
+        setDetails((items) => [
+          ...items.filter((item) => item.product !== product),
+          unlocked,
+        ]);
+      }
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "결과를 열람하지 못했어요.",
@@ -172,6 +219,15 @@ export default function ResultDetail() {
     window.history.pushState(null, "", `/contact?sessionId=${sessionId}`);
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
+
+  const displayCatalog = catalog.flatMap<{
+    item: ResultProductInfo;
+    targetSlot: number | null;
+  }>((item) =>
+    item.targetRequired
+      ? [0, 1].map((targetSlot) => ({ item, targetSlot }))
+      : [{ item, targetSlot: null }],
+  );
 
   return (
     <DetailPage>
@@ -210,15 +266,23 @@ export default function ResultDetail() {
                 {error}
               </p>
             )}
-            {catalog.map((item, index) => {
-              const unlocked = details.find(
-                (detail) => detail.product === item.product,
-              );
+            {displayCatalog.map(({ item, targetSlot }, index) => {
+              const targetSlotKey =
+                targetSlot === null
+                  ? null
+                  : `${item.product}:${targetSlot}`;
+              const unlocked = targetSlotKey
+                ? userRankingDetails[targetSlotKey]
+                : details.find((detail) => detail.product === item.product);
+              const participantSelector = item.targetRequired;
               return (
-                <section className="people-card" key={item.product}>
+                <section
+                  className="people-card"
+                  key={targetSlotKey ?? item.product}
+                >
                   <div
                     className={
-                      item.targetRequired
+                      participantSelector
                         ? "people-heading nickname-heading"
                         : "people-heading"
                     }
@@ -226,41 +290,56 @@ export default function ResultDetail() {
                     <span className="section-number">
                       {String(index + 2).padStart(2, "0")}
                     </span>
-                    {!item.targetRequired && (
+                    {!participantSelector && (
                       <h2>{productLabels[item.product]}</h2>
                     )}
-                    {item.targetRequired && (
+                    {participantSelector && (
                       <select
                         className="target-select"
-                        aria-label="닉네임 선택하기"
-                        value={targetIds[item.product] ?? ""}
+                        aria-label={
+                          "닉네임 선택하기"
+                        }
+                        value={
+                          targetSlotKey
+                            ? targetIds[targetSlotKey] ?? ""
+                            : ""
+                        }
                         onChange={(event) => {
                           const value = event.target.value;
+                          if (!targetSlotKey) return;
                           setTargetIds((values) => ({
                             ...values,
-                            [item.product]: value,
+                            [targetSlotKey]: value,
                           }));
-                          setDetails((items) =>
-                            items.filter(
-                              (detail) => detail.product !== item.product,
-                            ),
-                          );
+                          setUserRankingDetails((items) => {
+                            const next = { ...items };
+                            delete next[targetSlotKey];
+                            return next;
+                          });
                         }}
                       >
                         <option value="">선택해주세요.</option>
                         {partners.map((person) => (
-                          <option key={person.memberId} value={person.memberId}>
+                          <option
+                            key={person.memberId}
+                            value={person.memberId}
+                          >
                             {person.nickname}
                           </option>
                         ))}
                       </select>
                     )}
-                    {item.targetRequired && (
-                      <h2 className="selection-suffix">님의 선택 보기</h2>
+                    {participantSelector && (
+                      <h2 className="selection-suffix">
+                        님이 선택한 순위 보기
+                      </h2>
                     )}
                   </div>
                   {unlocked ? (
-                    <ResultContents details={unlocked} />
+                    <ResultContents
+                      details={unlocked}
+                      myMemberId={myMemberId}
+                    />
                   ) : (
                     <div className="locked-content">
                       <button
@@ -268,10 +347,15 @@ export default function ResultDetail() {
                         disabled={
                           gems < item.priceGem ||
                           busy !== null ||
-                          (item.targetRequired && !targetIds[item.product])
+                          (item.targetRequired &&
+                            (!targetSlotKey || !targetIds[targetSlotKey]))
                         }
                         onClick={() =>
-                          void unlock(item.product, item.targetRequired)
+                          void unlock(
+                            item.product,
+                            item.targetRequired,
+                            targetSlotKey ?? undefined,
+                          )
                         }
                       >
                         {busy === item.product
@@ -297,7 +381,13 @@ export default function ResultDetail() {
   );
 }
 
-function ResultContents({ details }: { details: ResultDetails }) {
+function ResultContents({
+  details,
+  myMemberId,
+}: {
+  details: ResultDetails;
+  myMemberId: number | null;
+}) {
   const [rankingIndex, setRankingIndex] = useState(0);
   const rankingCount = details.rankings.length;
   const selectedRanking = rankingCount
@@ -315,22 +405,16 @@ function ResultContents({ details }: { details: ResultDetails }) {
       )}
       {details.myRank && (
         <p className="my-rank-message">
-          <span className="inline-choice-chip">
-            {details.myRank.myFirstChoice.alias}
-          </span>
-          <span>님이 나를</span>
-          {details.myRank.rankOfMe ? (
+          {details.myRank.myFirstChoice.alias} 님이 나를{" "}
+          {details.myRank.rankOfMe != null && details.myRank.rankOfMe > 0 ? (
             <>
-              <span className="inline-choice-chip">
+              <strong className="rank-highlight">
                 {details.myRank.rankOfMe}순위
-              </span>
-              <span>로 선택했습니다.</span>
+              </strong>
+              로 선택했습니다.
             </>
           ) : (
-            <>
-              <span>선택하지</span>
-              <span className="inline-choice-chip">않았습니다.</span>
-            </>
+            <strong className="rank-highlight">선택하지 않았습니다.</strong>
           )}
         </p>
       )}
@@ -370,6 +454,7 @@ function ResultContents({ details }: { details: ResultDetails }) {
             <strong aria-live="polite">
               <span className="ranking-voter-name">
                 {selectedRanking.voter.alias}
+                {selectedRanking.voter.memberId === myMemberId && " (나)"}
               </span>
             </strong>
             <button
@@ -629,29 +714,15 @@ const DetailPage = styled.div`
     font-weight: 600;
   }
   .my-rank-message {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
     margin: 1.4rem 0 0;
     color: #283027;
     font-size: 1.25rem;
     font-weight: 600;
-    line-height: 1.4;
+    line-height: 1.5;
   }
-  .inline-choice-chip {
-    display: inline-flex;
-    width: fit-content;
-    height: 4.4rem;
-    min-height: 4.4rem;
-    align-items: center;
-    padding: 1rem 1.2rem;
-    border-radius: 1rem;
-    background: #f7f9f4;
-    box-sizing: border-box;
-    font-size: 1.25rem;
-    font-weight: 600;
-    white-space: nowrap;
+  .my-rank-message .rank-highlight {
+    color: #66852b;
+    font-weight: 750;
   }
   .people-card li {
     display: flex;

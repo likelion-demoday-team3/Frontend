@@ -7,7 +7,10 @@ export const previewResultProducts: ResultProductInfo[] = [
   { product: 'ALL_RANKINGS', priceGem: 5, targetRequired: false },
 ]
 
-export function createPreviewResult(product: ResultDetails['product']): ResultDetails {
+export function createPreviewResult(
+  product: ResultDetails['product'],
+  targetMemberId?: number,
+): ResultDetails {
   const people = [
     { memberId: 2, alias: '구름산책' },
     { memberId: 3, alias: '달빛수집가' },
@@ -28,7 +31,14 @@ export function createPreviewResult(product: ResultDetails['product']): ResultDe
           ] },
         ]
       : product === 'USER_RANKINGS'
-        ? [{ voter: people[0], submitted: true, choices: [{ rank: 1, target: people[1] }] }]
+        ? [{
+            voter: people.find((person) => person.memberId === targetMemberId) ?? people[0],
+            submitted: true,
+            choices: [{
+              rank: 1,
+              target: people.find((person) => person.memberId !== targetMemberId) ?? people[1],
+            }],
+          }]
         : [],
   }
 }

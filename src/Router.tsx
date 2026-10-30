@@ -97,9 +97,9 @@ export default function Router({
     return <Signup onAuthenticated={onAuthenticated} />;
   if (route.page === "login")
     return <Login onAuthenticated={onAuthenticated} />;
-  if (route.page === "result") return <Result />;
-  if (route.page === "result-detail") return <ResultDetail />;
-  if (route.page === "contact") return <Contact />;
+  if (route.page === "result") return <Result key={window.location.search} />;
+  if (route.page === "result-detail") return <ResultDetail key={window.location.search} />;
+  if (route.page === "contact") return <Contact key={window.location.search} />;
   if (route.page === "store") return <Store />;
   if (route.page === "charge-history") return <ChargeHistory />;
   if (route.page === "charge-info") return <ChargeInfo />;
@@ -112,6 +112,12 @@ export default function Router({
   if (route.page === "mypage-password") return <ChangePW />;
   if (route.page === "mypage-identity") return <ItsMe />;
   if (route.page === "mypage-record-list") return <RecordList section={route.section} />;
-  if (route.page === "session") return <Session sessionId={route.sessionId} />;
+  if (route.page === "session")
+    return (
+      <Session
+        key={`${route.sessionId}:${window.location.search}`}
+        sessionId={route.sessionId}
+      />
+    );
   return <Home />;
 }

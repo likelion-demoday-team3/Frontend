@@ -17,26 +17,80 @@ export type LobbyParticipant = {
 export const createLobbyParticipants = (
   people: Array<{ memberId: number; nickname: string; roundNumber?: number }>,
 ): LobbyParticipant[] => {
+  if (people.length === 0) return [];
+
+  const rootFontSize =
+    typeof document === "undefined"
+      ? 16
+      : Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const viewportWidth = typeof window === "undefined" ? 688 : window.innerWidth;
+  const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
+  const lobbyWidth = Math.min(viewportWidth, 43 * rootFontSize);
+  const lobbyHeight = Math.max(320, viewportHeight - 11 * rootFontSize);
+  const profileSize = 6 * rootFontSize;
+  const radiusX = ((profileSize / 2 + 5) / lobbyWidth) * 100;
+  const radiusY = ((profileSize / 2 + 10) / lobbyHeight) * 100;
+  const bubbleWidth = Math.min(32 * rootFontSize, lobbyWidth - 2 * rootFontSize);
+  const bubble = {
+    left: 50 - (bubbleWidth / 2 / lobbyWidth) * 100 - radiusX,
+    right: 50 + (bubbleWidth / 2 / lobbyWidth) * 100 + radiusX,
+    top: 30 - radiusY,
+    bottom: 30 + (6 * rootFontSize / lobbyHeight) * 100 + radiusY,
+  };
+  const mascotSize = Math.max(
+    11 * rootFontSize,
+    Math.min(0.52 * viewportWidth, 0.22 * viewportHeight, 23 * rootFontSize),
+  );
+  const mascot = {
+    left: 50 - ((mascotSize / 2 + profileSize / 2 + 8) / lobbyWidth) * 100,
+    right: 50 + ((mascotSize / 2 + profileSize / 2 + 8) / lobbyWidth) * 100,
+    top: 51 - ((mascotSize / 2 + profileSize / 2 + 10) / lobbyHeight) * 100,
+    bottom: 51 + ((mascotSize / 2 + profileSize / 2 + 10) / lobbyHeight) * 100,
+  };
+  const buttonTop =
+    100 - ((6.8 * rootFontSize + profileSize / 2 + 8) / lobbyHeight) * 100;
+  const minX = Math.max(3, radiusX);
+  const maxX = 100 - minX;
+  const minY = Math.max(3, radiusY);
+  const maxY = Math.min(100 - radiusY, buttonTop);
+  const isInside = (
+    point: { x: number; y: number },
+    rect: { left: number; right: number; top: number; bottom: number },
+  ) =>
+    point.x >= rect.left &&
+    point.x <= rect.right &&
+    point.y >= rect.top &&
+    point.y <= rect.bottom;
+
   const placed: LobbyParticipant[] = [];
-  for (const person of people) {
-    let x = 50;
-    let y = 15;
-    let attempts = 0;
-    let overlaps = true;
-    while (attempts < 160 && overlaps) {
-      x = 9 + Math.random() * 82;
-      y = 10 + Math.random() * 78;
-      const overlapsBubble = x > 6 && x < 94 && y > 27 && y < 56;
-      const overlapsMascot = x > 24 && x < 76 && y > 32 && y < 72;
-      const overlapsStartButton = y > 88;
-      const tooClose = placed.some((other) => {
-        const otherX = Number.parseFloat(other.x);
-        const otherY = Number.parseFloat(other.y);
-        return Math.hypot((x - otherX) * 0.62, y - otherY) < 11;
-      });
-      overlaps = overlapsBubble || overlapsMascot || overlapsStartButton || tooClose;
-      attempts += 1;
+  for (const person of [...people].sort(() => Math.random() - 0.5)) {
+    const candidates: Array<{ x: number; y: number; spacing: number }> = [];
+    for (let attempt = 0; attempt < 1800; attempt += 1) {
+      const point = {
+        x: minX + Math.random() * (maxX - minX),
+        y: minY + Math.random() * (maxY - minY),
+      };
+      if (isInside(point, bubble) || isInside(point, mascot)) continue;
+
+      const spacing = placed.length
+        ? Math.min(
+            ...placed.map((other) => {
+              const dx =
+                ((point.x - Number.parseFloat(other.x)) / 100) * lobbyWidth;
+              const dy =
+                ((point.y - Number.parseFloat(other.y)) / 100) * lobbyHeight;
+              return Math.hypot(dx, dy);
+            }),
+          )
+        : Number.POSITIVE_INFINITY;
+      if (spacing >= profileSize + rootFontSize * 0.6) {
+        candidates.push({ ...point, spacing });
+      }
     }
+    if (candidates.length === 0) continue;
+    candidates.sort((a, b) => b.spacing - a.spacing);
+    const preferred = candidates.slice(0, Math.min(24, candidates.length));
+    const { x, y } = preferred[Math.floor(Math.random() * preferred.length)];
     placed.push({
       ...person,
       x: `${x}%`,

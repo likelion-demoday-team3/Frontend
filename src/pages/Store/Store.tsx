@@ -863,7 +863,9 @@ const StorePage = styled.div<{
     margin-top: 2rem;
   }
   @media (max-width: 37.4rem) {
-    padding-right: 3rem;
-    padding-left: 3rem;
+    &:not(.inline) {
+      padding-right: 3rem;
+      padding-left: 3rem;
+    }
   }
 `;

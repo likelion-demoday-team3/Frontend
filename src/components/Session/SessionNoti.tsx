@@ -12,6 +12,18 @@ import {
   getContactShares,
   type ContactShare,
 } from "../../features/records/api";
+import type { LiveMessage } from "../../features/live/stomp";
+
+type LiveNotificationMessage = Extract<
+  LiveMessage,
+  {
+    kind:
+      | "heart-received"
+      | "contact-requested"
+      | "contact-request-answered"
+      | "contact-received";
+  }
+>;
 
 type SessionNotiProps = {
   className?: string;
@@ -28,8 +40,11 @@ export default function SessionNoti({
 }: SessionNotiProps) {
   const previewParams = new URLSearchParams(window.location.search);
   const notificationPreview =
-    previewParams.get("preview") === "notifications" &&
+    (previewParams.get("preview") === "notifications" ||
+      previewParams.get("preview") === "notifications-empty") &&
     (import.meta.env.DEV || previewParams.has("showTest"));
+  const emptyNotificationPreview =
+    notificationPreview && previewParams.get("preview") === "notifications-empty";
   const previewNotice = notificationPreview
     ? previewParams.get("notice")
     : null;
@@ -67,6 +82,26 @@ export default function SessionNoti({
   const previousOutgoingRequestStatuses = useRef<
     Map<number, ContactRequest["status"]>
   >(new Map());
+  const loadedContextKey = useRef<string | null>(null);
+
+  const alignOverlayToBell = useCallback(() => {
+    const bellBounds = bellRef.current?.getBoundingClientRect();
+    if (!bellBounds) return;
+    const viewportWidth = document.documentElement.clientWidth;
+    const side =
+      bellBounds.left + bellBounds.width / 2 < viewportWidth / 2
+        ? "left"
+        : "right";
+    setDialogSide(side);
+    setDialogPosition({
+      top: `${bellBounds.bottom + 8}px`,
+      left: side === "left" ? `${Math.max(16, bellBounds.left)}px` : "auto",
+      right:
+        side === "right"
+          ? `${Math.max(16, viewportWidth - bellBounds.right)}px`
+          : "auto",
+    });
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -114,10 +149,14 @@ export default function SessionNoti({
           "작은행성",
         ];
         const nextHeartCount = notificationPreview
-          ? previewHeartSenders.length
+          ? emptyNotificationPreview
+            ? 0
+            : previewHeartSenders.length
           : apiHeartCount;
         const nextHeartSenders = notificationPreview
-          ? previewHeartSenders
+          ? emptyNotificationPreview
+            ? []
+            : previewHeartSenders
           : apiHeartSenders.length > 0
             ? apiHeartSenders
             : Array.from(
@@ -170,7 +209,9 @@ export default function SessionNoti({
           }),
         );
         const nextContacts = notificationPreview
-          ? previewContacts
+          ? emptyNotificationPreview
+            ? []
+            : previewContacts
           : apiContacts;
         const requestHistory =
           requestResult.status === "fulfilled"
@@ -244,7 +285,9 @@ export default function SessionNoti({
           }),
         );
         const nextRequests = notificationPreview
-          ? [...apiRequests, ...previewRequests]
+          ? emptyNotificationPreview
+            ? []
+            : [...apiRequests, ...previewRequests]
           : apiRequests;
         if (announceArrival) {
           const arrivals: Array<
@@ -293,8 +336,10 @@ export default function SessionNoti({
             );
             if (respondedOutgoingRequest) arrivals.push("contact-accepted");
           }
-          if (arrivals.length && !open)
+          if (arrivals.length && !open) {
+            alignOverlayToBell();
             setArrivalQueue((current) => [...current, ...arrivals]);
+          }
         }
         if (heartResult.status === "fulfilled") {
           previousHeartCount.current = nextHeartCount;
@@ -330,26 +375,64 @@ export default function SessionNoti({
         setLoading(false);
       }
     },
-    [notificationPreview, open, recipientId, sessionId],
+    [alignOverlayToBell, notificationPreview, open, recipientId, sessionId],
   );
 
   useEffect(() => {
     if (sessionId == null || recipientId == null) return;
-    void loadNotifications();
-    const refreshIfVisible = () => {
-      if (document.visibilityState === "visible") {
-        void loadNotifications(true);
+    const contextKey = `${sessionId}:${recipientId}`;
+    if (loadedContextKey.current !== contextKey) {
+      loadedContextKey.current = contextKey;
+      void loadNotifications();
+    } else if (open) {
+      void loadNotifications();
+    }
+  }, [loadNotifications, open, recipientId, sessionId]);
+
+  useEffect(() => {
+    const handleLiveNotification = (event: Event) => {
+      const message = (event as CustomEvent<LiveNotificationMessage>).detail;
+      if (!message || message.sessionId !== sessionId) return;
+
+      let arrival: (typeof arrivalQueue)[number];
+      if (message.kind === "heart-received") {
+        arrival = "heart";
+        previousHeartCount.current = message.receivedCount;
+        previousHeartSenderIds.current ??= new Set();
+        previousHeartSenderIds.current.add(message.senderId);
+      } else if (message.kind === "contact-requested") {
+        arrival = "contact";
+        previousRequestIds.current?.add(message.id);
+      } else if (message.kind === "contact-request-answered") {
+        arrival = "contact-accepted";
+        previousRequestIds.current?.add(message.id);
+        previousOutgoingRequestStatuses.current.set(
+          message.id,
+          message.status === "REJECTED" ? "DECLINED" : message.status,
+        );
+      } else {
+        arrival = "contact-share";
+        previousContactShareIds.current?.add(message.shareId);
       }
+
+      if (!open) {
+        alignOverlayToBell();
+        setArrivalQueue((current) => [...current, arrival]);
+      }
+      void loadNotifications();
     };
-    const interval = window.setInterval(refreshIfVisible, 5_000);
-    window.addEventListener("focus", refreshIfVisible);
-    document.addEventListener("visibilitychange", refreshIfVisible);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshIfVisible);
-      document.removeEventListener("visibilitychange", refreshIfVisible);
-    };
-  }, [loadNotifications, recipientId, sessionId]);
+
+    window.addEventListener("kiiwee:live-notification", handleLiveNotification);
+    return () =>
+      window.removeEventListener(
+        "kiiwee:live-notification",
+        handleLiveNotification,
+      );
+  }, [alignOverlayToBell, loadNotifications, open, sessionId]);
+
+  useEffect(() => {
+    if (arrivalQueue.length > 0 && !open) alignOverlayToBell();
+  }, [alignOverlayToBell, arrivalQueue.length, open]);
 
   async function answerRequest(request: ContactRequest, accept: boolean) {
     if (request.id < 0) {
@@ -378,23 +461,7 @@ export default function SessionNoti({
   }
 
   function openNotifications() {
-    const bellBounds = bellRef.current?.getBoundingClientRect();
-    if (bellBounds) {
-      const viewportWidth = document.documentElement.clientWidth;
-      const side =
-        bellBounds.left + bellBounds.width / 2 < viewportWidth / 2
-          ? "left"
-          : "right";
-      setDialogSide(side);
-      setDialogPosition({
-        top: `${bellBounds.bottom + 8}px`,
-        left: side === "left" ? `${Math.max(16, bellBounds.left)}px` : "auto",
-        right:
-          side === "right"
-            ? `${Math.max(16, viewportWidth - bellBounds.right)}px`
-            : "auto",
-      });
-    }
+    alignOverlayToBell();
     setArrivalQueue((current) => current.slice(1));
     setOpen(true);
     if (!unavailable) void loadNotifications();
@@ -654,6 +721,8 @@ export default function SessionNoti({
       </NoticeDialog>
       {arrivalQueue[0] && !open && (
         <ArrivalPopover
+          style={dialogPosition}
+          data-side={dialogSide}
           role="alertdialog"
           aria-labelledby={`${titleId}-arrival-title`}
         >
@@ -994,9 +1063,6 @@ const NoticeDialog = styled.dialog`
 const ArrivalPopover = styled.aside`
   position: fixed;
   z-index: 10000;
-  top: 7rem;
-  right: max(calc((100vw - 43rem) / 2 + 1.6rem), 1.6rem);
-  left: auto;
   width: min(34rem, calc(100vw - 3.2rem));
   padding: 1.8rem 2rem;
   border: 0;

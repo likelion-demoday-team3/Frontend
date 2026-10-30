@@ -31,6 +31,10 @@ export type LiveMessage =
   | { kind: 'voting-started'; votingEndsAt: string }
   | { kind: 'hearts-started'; heartsEndsAt: string }
   | { kind: 'results-ready'; sessionId: number; coupleCount: number }
+  | { kind: 'heart-received'; sessionId: number; senderId: number; senderAlias: string; receivedCount: number }
+  | { kind: 'contact-requested'; id: number; sessionId: number; requesterId: number; targetId: number; contactType: 'PHONE' | 'INSTAGRAM'; status: 'PENDING' | 'ACCEPTED' | 'REJECTED'; chargedGem: number; createdAt: string; respondedAt: string | null }
+  | { kind: 'contact-request-answered'; id: number; sessionId: number; requesterId: number; targetId: number; contactType: 'PHONE' | 'INSTAGRAM'; status: 'PENDING' | 'ACCEPTED' | 'REJECTED'; chargedGem: number; createdAt: string; respondedAt: string | null }
+  | { kind: 'contact-received'; sessionId: number; shareId: number }
 
 export type LiveConnection = {
   disconnect: () => void
@@ -42,7 +46,9 @@ export function connectLiveSession(
   onMessage: (message: LiveMessage) => void,
   onStatus: (status: 'CONNECTING' | 'CONNECTED' | 'CLOSED') => void,
   onError: (message: string) => void,
+  options: { joinSession?: boolean } = {},
 ): LiveConnection | null {
+  const joinSession = options.joinSession ?? true
   const token = getAccessToken()
   if (!token) {
     onError('로그인 후 세션에 입장할 수 있어요.')
@@ -95,14 +101,22 @@ export function connectLiveSession(
       if (command === 'CONNECTED' && !connected) {
         connected = true
         onStatus('CONNECTED')
-        subscribe('/user/queue/live/joined')
-        subscribe('/user/queue/live/round-assigned')
-        subscribe('/user/queue/live/round-idle')
-        subscribe('/user/queue/live/signal')
-        subscribe('/user/queue/live/voting-started')
-        subscribe('/user/queue/live/hearts-started')
-        subscribe('/user/queue/live/results-ready')
-        sendFrame('SEND', { destination: '/app/live/join', 'content-type': 'application/json' }, JSON.stringify({ sessionId }))
+        if (joinSession) {
+          subscribe('/user/queue/live/joined')
+          subscribe('/user/queue/live/round-assigned')
+          subscribe('/user/queue/live/round-idle')
+          subscribe('/user/queue/live/signal')
+          subscribe('/user/queue/live/voting-started')
+          subscribe('/user/queue/live/hearts-started')
+          subscribe('/user/queue/live/results-ready')
+        }
+        subscribe('/user/queue/live/heart-received')
+        subscribe('/user/queue/live/contact-requested')
+        subscribe('/user/queue/live/contact-request-answered')
+        subscribe('/user/queue/live/contact-received')
+        if (joinSession) {
+          sendFrame('SEND', { destination: '/app/live/join', 'content-type': 'application/json' }, JSON.stringify({ sessionId }))
+        }
       } else if (command === 'MESSAGE') {
         try {
           const payload = JSON.parse(body)
@@ -114,6 +128,10 @@ export function connectLiveSession(
           else if (destination?.endsWith('/voting-started')) onMessage({ kind: 'voting-started', ...payload })
           else if (destination?.endsWith('/hearts-started')) onMessage({ kind: 'hearts-started', ...payload })
           else if (destination?.endsWith('/results-ready')) onMessage({ kind: 'results-ready', ...payload })
+          else if (destination?.endsWith('/heart-received')) onMessage({ kind: 'heart-received', ...payload })
+          else if (destination?.endsWith('/contact-requested')) onMessage({ kind: 'contact-requested', ...payload })
+          else if (destination?.endsWith('/contact-request-answered')) onMessage({ kind: 'contact-request-answered', ...payload })
+          else if (destination?.endsWith('/contact-received')) onMessage({ kind: 'contact-received', ...payload })
         } catch {
           onError('실시간 메시지를 읽지 못했어요. 연결을 다시 시도해주세요.')
         }

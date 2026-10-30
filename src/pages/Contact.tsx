@@ -3,6 +3,7 @@ import styled from "styled-components";
 import PageHeader from "../components/common/PageHeader";
 import { getMyWallet } from "../features/wallet/api";
 import { getMyMember } from "../features/members/api";
+import { connectLiveSession } from "../features/live/stomp";
 import { getContactShares, type ContactShare } from "../features/records/api";
 import {
   getContactRequests,
@@ -32,10 +33,6 @@ export default function Contact() {
     action: "send" | "request";
   } | null>(null);
   const [instagramFallbackTarget, setInstagramFallbackTarget] = useState<Partner | null>(null);
-  const [cancelTarget, setCancelTarget] = useState<{
-    partner: Partner;
-    kind: "sent" | "request";
-  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -128,6 +125,39 @@ export default function Contact() {
     window.addEventListener("kiiwee:contact-updated", reload);
     return () => window.removeEventListener("kiiwee:contact-updated", reload);
   }, [refresh]);
+
+  useEffect(() => {
+    if (!sessionId || preview) return;
+    const live = connectLiveSession(
+      sessionId,
+      (message) => {
+        if (
+          message.kind !== "heart-received" &&
+          message.kind !== "contact-requested" &&
+          message.kind !== "contact-request-answered" &&
+          message.kind !== "contact-received"
+        ) {
+          return;
+        }
+        window.dispatchEvent(
+          new CustomEvent("kiiwee:live-notification", { detail: message }),
+        );
+        if (message.kind !== "heart-received") {
+          void refresh().catch((cause) =>
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : "연락처 정보를 불러오지 못했어요.",
+            ),
+          );
+        }
+      },
+      () => {},
+      () => {},
+      { joinSession: false },
+    );
+    return () => live?.disconnect();
+  }, [preview, refresh, sessionId]);
 
   async function runAction(
     memberId: number,
@@ -252,7 +282,7 @@ export default function Contact() {
                   .finally(() => setLoading(false));
               }}
             >
-              요청 새로고침
+              새로고침
             </button>
           )}
         </section>
@@ -334,34 +364,37 @@ export default function Contact() {
                     <div className="actions">
                       <button
                         type="button"
+                        className={sent ? "receive sent" : ""}
                         disabled={
                           !myMemberId ||
                           busyId === partner.memberId ||
-                          (!sent && gems < 1)
+                          sent ||
+                          gems < 1
                         }
                         onClick={() => {
-                          if (sent) setCancelTarget({ partner, kind: "sent" });
-                          else openContactTarget(partner, "send");
+                          if (!sent) openContactTarget(partner, "send");
                         }}
                       >
                         {sent ? "전송 완료" : "연락처 보내기"}
                       </button>
                       <button
                         type="button"
-                        className="receive"
+                        className={`receive${outgoingRequest ? " pending" : ""}`}
                         disabled={
-                          !myMemberId || received || busyId === partner.memberId
+                          !myMemberId ||
+                          received ||
+                          outgoingRequest ||
+                          busyId === partner.memberId
                         }
                         onClick={() => {
-                          if (outgoingRequest)
-                            setCancelTarget({ partner, kind: "request" });
-                          else openContactTarget(partner, "request");
+                          if (!outgoingRequest && !received)
+                            openContactTarget(partner, "request");
                         }}
                       >
                         {received
                           ? "받음"
                           : outgoingRequest
-                            ? "요청 중"
+                            ? "응답 대기 중"
                             : "연락처 요청하기"}
                       </button>
                     </div>
@@ -539,44 +572,6 @@ export default function Contact() {
         </div>
       )}
 
-      {cancelTarget && (
-        <div
-          className="send-modal-backdrop"
-          role="presentation"
-          onClick={() => setCancelTarget(null)}
-        >
-          <section
-            className="send-contact-dialog cancel-contact-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cancel-contact-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              className="send-modal-close"
-              type="button"
-              aria-label="닫기"
-              onClick={() => setCancelTarget(null)}
-            >
-              ×
-            </button>
-            <h2 id="cancel-contact-title">취소하시겠습니까?</h2>
-            <p>
-              {cancelTarget.kind === "sent"
-                ? "이미 전송된 연락처는 상대방에게 전달되어 회수할 수 없어요."
-                : "연락처 요청 취소 기능은 아직 연결되지 않았어요."}
-            </p>
-            <button
-              className="send-contact-confirm"
-              type="button"
-              onClick={() => setCancelTarget(null)}
-            >
-              확인
-            </button>
-          </section>
-        </div>
-      )}
-
       <a className="finish-button" href="/home">
         종료하기
       </a>
@@ -741,6 +736,15 @@ const ContactPage = styled.div`
   .actions button.receive {
     border: 1px solid #e2e8dc;
     background: white;
+  }
+  .actions button.sent {
+    background: #f0f2ed;
+    color: #a1a89c;
+  }
+  .actions button.pending:disabled {
+    border: 1px solid #e2e8dc;
+    background: #fff;
+    color: #a1a89c;
   }
   .actions button:disabled {
     border-color: #e5e8e2;

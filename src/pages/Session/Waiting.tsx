@@ -36,7 +36,15 @@ export default function Waiting({
       </section>
 
       <section className="lobby-card">
-        <img src="/kw1.svg" alt="" aria-hidden="true" />
+        <img
+          src={
+            phase !== "connecting" && !joinWindowOpen && now >= opensAt
+              ? "/kw-late.svg"
+              : "/kw1.svg"
+          }
+          alt=""
+          aria-hidden="true"
+        />
         <h2>
           {phase === "connecting"
             ? "로비에 입장하고 있어요"

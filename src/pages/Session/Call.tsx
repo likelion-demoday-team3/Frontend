@@ -8,6 +8,9 @@ type CallProps = {
   assignment: LiveAssignment;
   conversationMinutes: number;
   conversationSeconds: number;
+  isUrgent: boolean;
+  roundStartNotice: string;
+  countdownNotice: 5 | 1 | null;
   isPartnerSpeaking: boolean;
   muted: boolean;
   speakerEnabled: boolean;
@@ -29,6 +32,9 @@ export default function Call({
   assignment,
   conversationMinutes,
   conversationSeconds,
+  isUrgent,
+  roundStartNotice,
+  countdownNotice,
   isPartnerSpeaking,
   muted,
   speakerEnabled,
@@ -46,11 +52,16 @@ export default function Call({
   return (
     <section className="conversation-screen" aria-label="일대일 대화">
       <div className="conversation-timer" role="timer" aria-live="off">
-        <strong>
+        <strong className={isUrgent ? "is-urgent" : undefined}>
           {pad(conversationMinutes)}:{pad(conversationSeconds)}
         </strong>
         <p>{assignment.partnerProfileCard.nickname || "상대방"}</p>
       </div>
+      {countdownNotice !== null && (
+        <p className="conversation-countdown-alert" role="status">
+          {countdownNotice}분 남았습니다
+        </p>
+      )}
       <div className="conversation-stage">
         <div className="conversation-character-group">
           <GuideBubble
@@ -67,6 +78,11 @@ export default function Call({
           </button>
         </div>
       </div>
+      {roundStartNotice && (
+        <div className="round-start-notice" role="status">
+          {roundStartNotice}
+        </div>
+      )}
       <div className="conversation-controls">
         <button
           type="button"

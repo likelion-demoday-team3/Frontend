@@ -173,15 +173,23 @@ export default function Calender({
                   const active = dateKey(date) === dateKey(selectedDate);
                   const todaySelected = dateKey(date) === dateKey(today);
                   const hasSessions = scheduledDates.has(dateKey(date));
+                  const selectable = !past;
                   return (
                     <button
                       key={dateKey(date)}
                       type="button"
-                      disabled={outside || past}
-                      className={`calendar-day ${outside ? "outside" : ""} ${active ? "selected" : ""} ${hasSessions ? "has-sessions" : ""}`}
+                      disabled={!selectable}
+                      className={`calendar-day ${outside ? "outside" : ""} ${past ? "past" : ""} ${active ? "selected" : ""} ${hasSessions ? "has-sessions" : ""}`}
                       aria-pressed={active}
                       aria-label={`${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}요일${hasSessions ? ", 세션 일정 있음" : ""}${todaySelected ? ", 오늘" : ""}`}
-                      onClick={() => onSelectDate(date)}
+                      onClick={() => {
+                        if (outside) {
+                          setMonth(
+                            new Date(date.getFullYear(), date.getMonth(), 1),
+                          );
+                        }
+                        onSelectDate(date);
+                      }}
                     >
                       {date.getDate()}
                     </button>
@@ -329,14 +337,18 @@ const CalendarStyles = styled.div`
     background: var(--green);
   }
   .calendar-day.outside {
-    color: var(--text-disabled);
     opacity: 1;
+  }
+  .calendar-day.past {
+    color: var(--text-disabled);
   }
   .calendar-day:not(:disabled):hover:not(.has-sessions) {
     background: transparent;
   }
-  .calendar-day.selected:not(.has-sessions) {
+  .calendar-day.selected {
     box-shadow: inset 0 0 0 0.15rem var(--ink);
+  }
+  .calendar-day.selected:not(.past) {
     color: var(--ink);
   }
 

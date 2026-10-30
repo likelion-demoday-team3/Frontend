@@ -244,12 +244,42 @@ const SessionPage = styled.div`
     margin-top: 0.4rem;
     font-size: 2rem;
   }
+  .conversation-countdown-alert {
+    position: absolute;
+    z-index: 3;
+    top: 19%;
+    left: 50%;
+    margin: 0;
+    color: #e32636;
+    font: 700 1.7rem/1.3 var(--font-body);
+    text-align: center;
+    white-space: nowrap;
+    transform: translateX(-50%);
+    animation: countdown-blink 1s ease-in-out 3;
+  }
+  @keyframes countdown-blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.15;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .conversation-countdown-alert {
+      animation: none;
+    }
+  }
   .conversation-timer strong {
     display: block;
     margin-top: 0.4rem;
     font-size: clamp(3.8rem, 8dvh, 5.2rem);
     font-weight: 400;
     line-height: 1;
+  }
+  .conversation-timer strong.is-urgent {
+    color: #e32636;
   }
   .conversation-stage {
     position: absolute;
@@ -262,6 +292,24 @@ const SessionPage = styled.div`
     min-height: 0;
     align-items: center;
     justify-content: center;
+  }
+  .round-start-notice {
+    position: absolute;
+    z-index: 5;
+    top: 51%;
+    left: 50%;
+    width: max-content;
+    max-width: calc(100% - 3.2rem);
+    padding: 1.6rem 2.4rem;
+    border: 0.1rem solid #e2e9d9;
+    border-radius: 2.4rem;
+    background: var(--background);
+    box-shadow: 0 1.2rem 4rem #0003;
+    color: var(--ink);
+    font: 600 1.8rem/1.35 var(--display-font);
+    text-align: center;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
   }
   .conversation-character-group {
     display: flex;
@@ -375,7 +423,8 @@ const SessionPage = styled.div`
   }
   &.lobby-page main.lobby-main {
     position: absolute;
-    z-index: 2;
+    /* Keep fixed modal backdrops inside the lobby above the header layer. */
+    z-index: 4;
     inset: calc(6.8rem + env(safe-area-inset-top)) 3rem
       calc(1.2rem + env(safe-area-inset-bottom));
     min-height: 0;
@@ -654,14 +703,15 @@ const SessionPage = styled.div`
     transform: translateX(50%);
   }
   .lobby-mascot {
+    --mascot-size: clamp(11rem, min(52vw, 22dvh), 23rem);
     position: absolute;
     z-index: 2;
     top: 51%;
     left: 50%;
     box-sizing: border-box;
-    width: clamp(13rem, min(44vw, 21dvh), 19rem);
-    height: clamp(13rem, min(44vw, 21dvh), 19rem);
-    padding: 1.6rem;
+    width: var(--mascot-size);
+    height: var(--mascot-size);
+    padding: 0;
     object-fit: contain;
     transform: translate(-50%, -50%);
     filter: drop-shadow(0 1rem 0.55rem #27351b36);
@@ -689,6 +739,22 @@ const SessionPage = styled.div`
     background: #011020;
     color: #fff;
     font: 700 1.6rem var(--display-font);
+  }
+  .participant-waiting-note {
+    position: absolute;
+    z-index: 3;
+    right: 0.5rem;
+    bottom: 7.8rem;
+    left: 0.5rem;
+    margin: 0 auto;
+    color: #89938b;
+    font: 400 0.95rem/1.55 var(--font-body);
+    text-align: center;
+    text-wrap: balance;
+  }
+  .participant-waiting-note span {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
   }
   .start-conversation:disabled {
     opacity: 0.55;
@@ -915,6 +981,9 @@ const SessionPage = styled.div`
     .conversation-mascot {
       --mascot-size: clamp(11rem, min(54vw, 21dvh), 19rem);
     }
+    .lobby-mascot {
+      --mascot-size: clamp(11rem, min(54vw, 21dvh), 19rem);
+    }
     .conversation-controls {
       gap: 0.2rem;
     }
@@ -938,6 +1007,9 @@ const SessionPage = styled.div`
     }
     .start-conversation {
       bottom: 1.2rem;
+    }
+    .participant-waiting-note {
+      bottom: 6.8rem;
     }
     .conversation-timer {
       margin-top: clamp(1.2rem, 4.5dvh, 2.8rem);

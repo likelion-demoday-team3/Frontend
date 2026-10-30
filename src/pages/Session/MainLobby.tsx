@@ -8,6 +8,7 @@ type MainLobbyProps = {
   mascotSrc: string;
   startDisabled: boolean;
   startLabel: string;
+  showParticipantNotice?: boolean;
   onStart: () => void;
 };
 
@@ -18,6 +19,7 @@ export default function MainLobby({
   mascotSrc,
   startDisabled,
   startLabel,
+  showParticipantNotice,
   onStart,
 }: MainLobbyProps) {
   return (
@@ -52,7 +54,7 @@ export default function MainLobby({
       >
         {participants.same.map((participant, index) => (
           <div
-            className="profile-avatar"
+            className={`profile-avatar${participant.memberId === myMemberId ? " own-profile" : ""}`}
             role="img"
             key={`same-${participant.nickname}-${index}`}
             style={{
@@ -70,6 +72,13 @@ export default function MainLobby({
           </div>
         ))}
       </div>
+      {showParticipantNotice && (
+        <p className="participant-waiting-note" role="status">
+          소개팅 참가자들이 입장하고 있어요! 참가자 확인이 끝나면 대화가 시작됩니다.{" "}
+          <span>오류가 아니니 절대 새로고침하거나 화면을 끄지 마세요.</span>
+          {" "}조금만 기다려주세요.
+        </p>
+      )}
       <button
         className="start-conversation"
         type="button"
