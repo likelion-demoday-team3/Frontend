@@ -152,19 +152,26 @@ export default function Scadule({
   async function removeSession(session: Session) {
     if (submitting || !isAdminToken()) return;
     const confirmed = window.confirm(
-      `${koreaTime(session.startTime)} 세션을 삭제할까요? 이 작업은 되돌릴 수 없어요.`,
+      `${koreaTime(session.startTime)} 세션을 삭제할까요? 신청자가 있으면 전원에게 참가비를 환불하고 취소돼요. 이 작업은 되돌릴 수 없어요.`,
     );
     if (!confirmed) return;
 
     setSubmitting(true);
     try {
-      await deleteAdminSession(session.sessionId);
+      const deletion = await deleteAdminSession(session.sessionId);
       const updatedSessions = await getSessions();
       onDataChanged(
         updatedSessions,
         mySessions.filter((item) => item.sessionId !== session.sessionId),
       );
-      setNotice("세션을 삭제했어요.");
+      // 신청 기록이 있는 세션은 지우지 않고 전원 환불 후 취소된다
+      setNotice(
+        deletion?.result === "CANCELLED"
+          ? deletion.refundedParticipants > 0
+            ? `신청자가 있어 ${deletion.refundedParticipants}명에게 참가비를 전액 환불하고 세션을 취소했어요.`
+            : "신청 기록이 있어 세션을 삭제하는 대신 취소했어요."
+          : "세션을 삭제했어요.",
+      );
     } catch (cause) {
       setNotice(
         cause instanceof Error ? cause.message : "세션을 삭제하지 못했어요.",

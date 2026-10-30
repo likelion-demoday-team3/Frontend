@@ -40,8 +40,15 @@ export function openSessionRecruiting(sessionId: number): Promise<null> {
   return apiRequest<null>(`/admin/sessions/${sessionId}/open`, { method: 'POST' })
 }
 
-export function deleteAdminSession(sessionId: number): Promise<null> {
-  return apiRequest<null>(`/admin/sessions/${sessionId}`, { method: 'DELETE' })
+// DELETED: 신청 기록이 없어 세션을 지움 / CANCELLED: 신청 기록이 있어 전원 100% 환불 후 취소 (목록에서는 둘 다 사라진다)
+export type SessionDeleteResult = {
+  sessionId: number
+  result: 'DELETED' | 'CANCELLED'
+  refundedParticipants: number
+}
+
+export function deleteAdminSession(sessionId: number): Promise<SessionDeleteResult> {
+  return apiRequest<SessionDeleteResult>(`/admin/sessions/${sessionId}`, { method: 'DELETE' })
 }
 
 export function submitSessionVotes(sessionId: number, rankedMemberIds: number[]): Promise<unknown> {
