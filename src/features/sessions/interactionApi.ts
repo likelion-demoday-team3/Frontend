@@ -3,6 +3,7 @@ import { apiRequest } from '../api/client'
 export type HeartStatus = {
   sentTo: number[]
   receivedCount: number
+  receivedFrom?: Array<{ senderId: number; senderAlias: string }>
   freeHeartRemaining: boolean
   heartsEndsAt: string | null
 }

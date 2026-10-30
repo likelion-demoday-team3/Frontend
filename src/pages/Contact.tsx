@@ -31,6 +31,7 @@ export default function Contact() {
     partner: Partner;
     action: "send" | "request";
   } | null>(null);
+  const [instagramFallbackTarget, setInstagramFallbackTarget] = useState<Partner | null>(null);
   const [cancelTarget, setCancelTarget] = useState<{
     partner: Partner;
     kind: "sent" | "request";
@@ -183,6 +184,18 @@ export default function Contact() {
       await refresh();
       return true;
     } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "";
+      if (
+        action === "request" &&
+        selectedType === "INSTAGRAM" &&
+        isInstagramUnavailable(cause, message)
+      ) {
+        const partner = partners.find((item) => item.memberId === memberId);
+        if (partner) {
+          setInstagramFallbackTarget(partner);
+          return false;
+        }
+      }
       setError(
         cause instanceof Error
           ? cause.message
@@ -373,7 +386,7 @@ export default function Contact() {
         </section>
       </main>
 
-      {contactTarget && (
+      {contactTarget && !instagramFallbackTarget && (
         <div
           className="send-modal-backdrop"
           role="presentation"
@@ -477,6 +490,51 @@ export default function Contact() {
                   ? "연락처 보내기"
                   : "연락처 요청하기"}
             </button>
+          </section>
+        </div>
+      )}
+
+      {instagramFallbackTarget && (
+        <div
+          className="send-modal-backdrop"
+          role="presentation"
+          onClick={() => {
+            setInstagramFallbackTarget(null);
+            setContactTarget(null);
+          }}
+        >
+          <section
+            className="send-contact-dialog instagram-fallback-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="instagram-fallback-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="instagram-fallback-title">
+              상대방의 인스타그램 아이디가 등록되어 있지 않아요.
+            </h2>
+            <p>대신 전화번호를 요청할까요?</p>
+            <div className="instagram-fallback-actions">
+              <button
+                type="button"
+                className="send-contact-confirm"
+                disabled={busyId === instagramFallbackTarget.memberId}
+                onClick={async () => {
+                  const partner = instagramFallbackTarget;
+                  setInstagramFallbackTarget(null);
+                  setContactTarget(null);
+                  await runAction(partner.memberId, "request", "PHONE");
+                }}
+              >예</button>
+              <button
+                type="button"
+                className="send-contact-confirm fallback-cancel"
+                onClick={() => {
+                  setInstagramFallbackTarget(null);
+                  setContactTarget(null);
+                }}
+              >아니요</button>
+            </div>
           </section>
         </div>
       )}
@@ -826,6 +884,29 @@ const ContactPage = styled.div`
     font-size: 1.2rem;
     line-height: 1.7;
   }
+  .instagram-fallback-dialog h2 {
+    margin: 1rem 0 0.8rem;
+    font-size: 2rem;
+    line-height: 1.5;
+  }
+  .instagram-fallback-dialog > p {
+    color: #737e73;
+    font-size: 1.35rem;
+  }
+  .instagram-fallback-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+  }
+  .instagram-fallback-actions .send-contact-confirm {
+    margin-top: 1.6rem;
+  }
+  .instagram-fallback-actions .fallback-cancel {
+    border: 0.1rem solid #e0e6dc;
+    background: #fff;
+    color: #536057;
+  }
   .guide {
     display: grid;
     gap: 1rem;
@@ -863,3 +944,16 @@ const ContactPage = styled.div`
     }
   }
 `;
+
+function isInstagramUnavailable(cause: unknown, message: string) {
+  const code =
+    typeof cause === "object" && cause !== null && "code" in cause &&
+    typeof cause.code === "string"
+      ? cause.code
+      : "";
+  return (
+    (/instagram|인스타그램/i.test(message) &&
+      /(등록.{0,8}(없|않)|미등록|없어요|not.{0,12}registered|not.{0,12}found|unavailable|missing)/i.test(message)) ||
+    /INSTAGRAM.*(NOT|MISSING|UNAVAILABLE|EMPTY)/i.test(code)
+  );
+}
