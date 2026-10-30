@@ -7,6 +7,8 @@ export type NotificationType =
   | 'SESSION_CANCELLED_BY_ADMIN'
   | 'SESSION_CANCELLED_LOW_ATTENDANCE'
   | 'NO_SHOW'
+  // 투표 완료로 보증금 반환. link가 없어 누르면 읽음 처리만 된다
+  | 'COMPLETION_REFUND'
   | 'CONTACT_REQUESTED'
   | 'CONTACT_REQUEST_ACCEPTED'
   | 'CONTACT_REQUEST_REJECTED'
