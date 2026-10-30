@@ -31,6 +31,10 @@ export type LiveMessage =
   | { kind: 'voting-started'; votingEndsAt: string }
   | { kind: 'hearts-started'; heartsEndsAt: string }
   | { kind: 'results-ready'; sessionId: number; coupleCount: number }
+  // 로비 마감(시작 시각)에 출석 인원이 모자라 세션이 취소됨. 로비에 있던 사람(=출석자)은 참가비를 돌려받는다
+  | { kind: 'cancelled'; sessionId: number; reason: 'INSUFFICIENT_ATTENDANCE' }
+  // 로비 마감 후 진행 확정. firstRoundAt(UTC)에 1라운드가 시작된다
+  | { kind: 'starting-soon'; sessionId: number; firstRoundAt: string }
   | { kind: 'heart-received'; sessionId: number; senderId: number; senderAlias: string; receivedCount: number }
   | { kind: 'contact-requested'; id: number; sessionId: number; requesterId: number; targetId: number; contactType: 'PHONE' | 'INSTAGRAM'; status: 'PENDING' | 'ACCEPTED' | 'REJECTED'; chargedGem: number; createdAt: string; respondedAt: string | null }
   | { kind: 'contact-request-answered'; id: number; sessionId: number; requesterId: number; targetId: number; contactType: 'PHONE' | 'INSTAGRAM'; status: 'PENDING' | 'ACCEPTED' | 'REJECTED'; chargedGem: number; createdAt: string; respondedAt: string | null }
@@ -109,6 +113,8 @@ export function connectLiveSession(
           subscribe('/user/queue/live/voting-started')
           subscribe('/user/queue/live/hearts-started')
           subscribe('/user/queue/live/results-ready')
+          subscribe('/user/queue/live/cancelled')
+          subscribe('/user/queue/live/starting-soon')
         }
         subscribe('/user/queue/live/heart-received')
         subscribe('/user/queue/live/contact-requested')
@@ -128,6 +134,8 @@ export function connectLiveSession(
           else if (destination?.endsWith('/voting-started')) onMessage({ kind: 'voting-started', ...payload })
           else if (destination?.endsWith('/hearts-started')) onMessage({ kind: 'hearts-started', ...payload })
           else if (destination?.endsWith('/results-ready')) onMessage({ kind: 'results-ready', ...payload })
+          else if (destination?.endsWith('/cancelled')) onMessage({ kind: 'cancelled', ...payload })
+          else if (destination?.endsWith('/starting-soon')) onMessage({ kind: 'starting-soon', ...payload })
           else if (destination?.endsWith('/heart-received')) onMessage({ kind: 'heart-received', ...payload })
           else if (destination?.endsWith('/contact-requested')) onMessage({ kind: 'contact-requested', ...payload })
           else if (destination?.endsWith('/contact-request-answered')) onMessage({ kind: 'contact-request-answered', ...payload })
