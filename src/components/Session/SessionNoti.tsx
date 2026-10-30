@@ -186,7 +186,7 @@ export default function SessionNoti({
                   (item.targetId === recipientId ||
                     (item.requesterId === recipientId &&
                       (item.status === "ACCEPTED" ||
-                        item.status === "DECLINED"))),
+                        item.status === "REJECTED"))),
               )
             : [];
         const previewRequestData: Array<
@@ -216,7 +216,7 @@ export default function SessionNoti({
           {
             requesterId: 5,
             targetId: recipientId ?? 1,
-            status: "DECLINED",
+            status: "REJECTED",
             contactType: "PHONE",
           },
           {
@@ -228,7 +228,7 @@ export default function SessionNoti({
           {
             requesterId: recipientId ?? 1,
             targetId: 7,
-            status: "DECLINED",
+            status: "REJECTED",
             contactType: "INSTAGRAM",
           },
         ];
@@ -287,7 +287,7 @@ export default function SessionNoti({
               (request) =>
                 request.requesterId === recipientId &&
                 (request.status === "ACCEPTED" ||
-                  request.status === "DECLINED") &&
+                  request.status === "REJECTED") &&
                 previousOutgoingRequestStatuses.current.get(request.id) ===
                   "PENDING",
             );
@@ -356,7 +356,7 @@ export default function SessionNoti({
       setIncomingRequests((items) =>
         items.map((item) =>
           item.id === request.id
-            ? { ...item, status: accept ? "ACCEPTED" : "DECLINED" }
+            ? { ...item, status: accept ? "ACCEPTED" : "REJECTED" }
             : item,
         ),
       );

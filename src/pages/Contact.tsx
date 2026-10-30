@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import styled from "styled-components";
 import PageHeader from "../components/common/PageHeader";
+import { ApiError } from "../features/api/client";
 import { getMyWallet } from "../features/wallet/api";
 import { getMyMember } from "../features/members/api";
 import { getContactShares, type ContactShare } from "../features/records/api";
@@ -14,6 +15,12 @@ import {
 } from "../features/sessions/interactionApi";
 
 type Partner = { memberId: number; nickname: string; roundNumber: number };
+
+// 회원은 전화번호·인스타그램 중 하나는 반드시 등록하므로, 요청한 종류가 없으면 나머지 하나는 항상 있다
+const otherContactType = (type: ContactType): ContactType =>
+  type === "PHONE" ? "INSTAGRAM" : "PHONE";
+const contactTypeLabel = (type: ContactType) =>
+  type === "PHONE" ? "전화번호" : "인스타그램 아이디";
 
 export default function Contact() {
   const params = new URLSearchParams(window.location.search);
@@ -31,7 +38,10 @@ export default function Contact() {
     partner: Partner;
     action: "send" | "request";
   } | null>(null);
-  const [instagramFallbackTarget, setInstagramFallbackTarget] = useState<Partner | null>(null);
+  const [contactFallback, setContactFallback] = useState<{
+    partner: Partner;
+    missing: ContactType;
+  } | null>(null);
   const [cancelTarget, setCancelTarget] = useState<{
     partner: Partner;
     kind: "sent" | "request";
@@ -184,15 +194,15 @@ export default function Contact() {
       await refresh();
       return true;
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "";
+      // 상대가 그 종류를 등록하지 않았으면 백엔드가 CONTACT_UNAVAILABLE로 알려준다
       if (
         action === "request" &&
-        selectedType === "INSTAGRAM" &&
-        isInstagramUnavailable(cause, message)
+        cause instanceof ApiError &&
+        cause.code === "CONTACT_UNAVAILABLE"
       ) {
         const partner = partners.find((item) => item.memberId === memberId);
         if (partner) {
-          setInstagramFallbackTarget(partner);
+          setContactFallback({ partner, missing: selectedType });
           return false;
         }
       }
@@ -386,7 +396,7 @@ export default function Contact() {
         </section>
       </main>
 
-      {contactTarget && !instagramFallbackTarget && (
+      {contactTarget && !contactFallback && (
         <div
           className="send-modal-backdrop"
           role="presentation"
@@ -494,12 +504,12 @@ export default function Contact() {
         </div>
       )}
 
-      {instagramFallbackTarget && (
+      {contactFallback && (
         <div
           className="send-modal-backdrop"
           role="presentation"
           onClick={() => {
-            setInstagramFallbackTarget(null);
+            setContactFallback(null);
             setContactTarget(null);
           }}
         >
@@ -511,26 +521,26 @@ export default function Contact() {
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="instagram-fallback-title">
-              상대방의 인스타그램 아이디가 등록되어 있지 않아요.
+              상대방의 {contactTypeLabel(contactFallback.missing)}가 등록되어 있지 않아요.
             </h2>
-            <p>대신 전화번호를 요청할까요?</p>
+            <p>대신 {contactTypeLabel(otherContactType(contactFallback.missing))}를 요청할까요?</p>
             <div className="instagram-fallback-actions">
               <button
                 type="button"
                 className="send-contact-confirm"
-                disabled={busyId === instagramFallbackTarget.memberId}
+                disabled={busyId === contactFallback.partner.memberId}
                 onClick={async () => {
-                  const partner = instagramFallbackTarget;
-                  setInstagramFallbackTarget(null);
+                  const { partner, missing } = contactFallback;
+                  setContactFallback(null);
                   setContactTarget(null);
-                  await runAction(partner.memberId, "request", "PHONE");
+                  await runAction(partner.memberId, "request", otherContactType(missing));
                 }}
               >예</button>
               <button
                 type="button"
                 className="send-contact-confirm fallback-cancel"
                 onClick={() => {
-                  setInstagramFallbackTarget(null);
+                  setContactFallback(null);
                   setContactTarget(null);
                 }}
               >아니요</button>
@@ -944,16 +954,3 @@ const ContactPage = styled.div`
     }
   }
 `;
-
-function isInstagramUnavailable(cause: unknown, message: string) {
-  const code =
-    typeof cause === "object" && cause !== null && "code" in cause &&
-    typeof cause.code === "string"
-      ? cause.code
-      : "";
-  return (
-    (/instagram|인스타그램/i.test(message) &&
-      /(등록.{0,8}(없|않)|미등록|없어요|not.{0,12}registered|not.{0,12}found|unavailable|missing)/i.test(message)) ||
-    /INSTAGRAM.*(NOT|MISSING|UNAVAILABLE|EMPTY)/i.test(code)
-  );
-}
