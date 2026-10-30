@@ -20,7 +20,8 @@ export const sendHeart = (sessionId: number, receiverId: number) =>
   })
 
 export type ContactType = 'PHONE' | 'INSTAGRAM'
-export type ContactRequestStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED'
+// 백엔드 ContactRequest.Status와 같은 값 (거절은 REJECTED)
+export type ContactRequestStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED'
 export type ContactRequest = {
   id: number
   sessionId: number
