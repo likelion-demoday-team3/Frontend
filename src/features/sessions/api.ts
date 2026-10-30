@@ -40,8 +40,8 @@ export function openSessionRecruiting(sessionId: number): Promise<null> {
   return apiRequest<null>(`/admin/sessions/${sessionId}/open`, { method: 'POST' })
 }
 
-export function deleteAdminSession(sessionId: number): Promise<null> {
-  return apiRequest<null>(`/admin/sessions/${sessionId}`, { method: 'DELETE' })
+export function cancelAdminSession(sessionId: number): Promise<null> {
+  return apiRequest<null>(`/admin/sessions/${sessionId}/cancel`, { method: 'POST' })
 }
 
 export function submitSessionVotes(sessionId: number, rankedMemberIds: number[]): Promise<unknown> {

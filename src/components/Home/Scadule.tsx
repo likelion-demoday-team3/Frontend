@@ -3,7 +3,7 @@ import styled from "styled-components";
 import {
   applyToSession,
   cancelSession,
-  deleteAdminSession,
+  cancelAdminSession,
   getMySessions,
   getSessions,
 } from "../../features/sessions/api";
@@ -149,25 +149,22 @@ export default function Scadule({
     }
   }
 
-  async function removeSession(session: Session) {
+  async function cancelManagedSession(session: Session) {
     if (submitting || !isAdminToken()) return;
     const confirmed = window.confirm(
-      `${koreaTime(session.startTime)} 세션을 삭제할까요? 이 작업은 되돌릴 수 없어요.`,
+      `${koreaTime(session.startTime)} 세션을 취소할까요? 신청자가 있다면 참가비가 전액 환불됩니다.`,
     );
     if (!confirmed) return;
 
     setSubmitting(true);
     try {
-      await deleteAdminSession(session.sessionId);
-      const updatedSessions = await getSessions();
-      onDataChanged(
-        updatedSessions,
-        mySessions.filter((item) => item.sessionId !== session.sessionId),
-      );
-      setNotice("세션을 삭제했어요.");
+      await cancelAdminSession(session.sessionId);
+      const [updatedSessions, updatedMine] = await Promise.all([getSessions(), getMySessions()]);
+      onDataChanged(updatedSessions, updatedMine);
+      setNotice("세션을 취소했어요.");
     } catch (cause) {
       setNotice(
-        cause instanceof Error ? cause.message : "세션을 삭제하지 못했어요.",
+        cause instanceof Error ? cause.message : "세션을 취소하지 못했어요.",
       );
     } finally {
       setSubmitting(false);
@@ -274,9 +271,9 @@ export default function Scadule({
                       className="delete-session-button"
                       type="button"
                       disabled={submitting}
-                      onClick={() => void removeSession(session)}
+                        onClick={() => void cancelManagedSession(session)}
                     >
-                      삭제
+                      취소
                     </button>
                   )}
                   <button
