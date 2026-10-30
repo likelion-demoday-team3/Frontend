@@ -13,6 +13,8 @@ import {
   type ContactShare,
 } from "../../features/records/api";
 import type { LiveMessage } from "../../features/live/stomp";
+import NotificationInbox from "../common/NotificationInbox";
+import { useUnreadNotificationCount } from "../common/useUnreadNotificationCount";
 
 type LiveNotificationMessage = Extract<
   LiveMessage,
@@ -38,6 +40,9 @@ export default function SessionNoti({
   recipientId,
   unavailable = false,
 }: SessionNotiProps) {
+  // 세션 밖 화면(홈·상점·마이페이지)의 벨은 백엔드 알림함(세션 진행·취소, 연락처 교환)을 보여준다
+  const { count: inboxUnread, refresh: refreshInboxUnread } =
+    useUnreadNotificationCount(unavailable);
   const previewParams = new URLSearchParams(window.location.search);
   const notificationPreview =
     (previewParams.get("preview") === "notifications" ||
@@ -497,7 +502,11 @@ export default function SessionNoti({
         ref={bellRef}
         className={className}
         type="button"
-        aria-label="알림함 열기"
+        aria-label={
+          unavailable && inboxUnread > 0
+            ? `알림함 열기, 안 읽은 알림 ${inboxUnread}개`
+            : "알림함 열기"
+        }
         onClick={openNotifications}
       >
         <svg
@@ -511,6 +520,11 @@ export default function SessionNoti({
         >
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
         </svg>
+        {unavailable && inboxUnread > 0 && (
+          <span className="unread-badge" aria-hidden="true">
+            {inboxUnread > 99 ? "99+" : inboxUnread}
+          </span>
+        )}
       </BellButton>
       {createPortal(
       <>
@@ -544,7 +558,13 @@ export default function SessionNoti({
           ×
         </button>
         {unavailable ? (
-          <p>알림을 불러올 수 없습니다.</p>
+          // 열 때마다 새로 불러오도록 열려 있을 때만 그린다
+          open && (
+            <NotificationInbox
+              onNavigate={() => setOpen(false)}
+              onReadChange={refreshInboxUnread}
+            />
+          )
         ) : loading ? (
           <p>알림을 불러오는 중이에요…</p>
         ) : (
@@ -785,9 +805,23 @@ function requestPartnerName(
 }
 
 const BellButton = styled.button`
+  position: relative;
   display: grid;
   place-items: center;
   padding: 0;
+  .unread-badge {
+    position: absolute;
+    top: 0.2rem;
+    right: 0.2rem;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    padding: 0 0.4rem;
+    border-radius: 0.8rem;
+    background: #ff4d4f;
+    color: #fff;
+    font: 700 1rem/1.6rem var(--font-body);
+    text-align: center;
+  }
   border: 0;
   border-radius: 50%;
   background: transparent;
