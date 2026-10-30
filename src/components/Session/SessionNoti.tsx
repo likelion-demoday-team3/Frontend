@@ -77,10 +77,12 @@ export default function SessionNoti({
       const nextHeartCount = notificationPreview ? 2 : apiHeartCount;
       const nextHeartSenders = notificationPreview
         ? ["구름산책", "달빛수집가"]
-        : Array.from(
-            { length: Math.min(nextHeartCount, 50) },
-            () => "상대방",
-          );
+        : heartResult.status === "fulfilled" && heartResult.value?.receivedFrom
+          ? heartResult.value.receivedFrom.map((sender) => sender.senderAlias || "상대방")
+          : Array.from(
+              { length: Math.min(nextHeartCount, 50) },
+              () => "상대방",
+            );
       const apiContacts =
         contactResult.status === "fulfilled"
           ? contactResult.value.items.filter(
