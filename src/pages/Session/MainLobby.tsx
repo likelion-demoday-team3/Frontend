@@ -4,22 +4,28 @@ import type { LobbyParticipant } from "./sessionUtils";
 type MainLobbyProps = {
   participants: { opposite: LobbyParticipant[]; same: LobbyParticipant[] };
   myMemberId: number | null;
+  myRealName: string;
+  myNickname: string;
   announcementIndex: number;
   mascotSrc: string;
   startDisabled: boolean;
   startLabel: string;
   showParticipantNotice?: boolean;
+  showIdleNotice?: boolean;
   onStart: () => void;
 };
 
 export default function MainLobby({
   participants,
   myMemberId,
+  myRealName,
+  myNickname,
   announcementIndex,
   mascotSrc,
   startDisabled,
   startLabel,
   showParticipantNotice,
+  showIdleNotice,
   onStart,
 }: MainLobbyProps) {
   return (
@@ -45,7 +51,15 @@ export default function MainLobby({
           </div>
         ))}
       </div>
-      <GuideBubble mode="lobby" index={announcementIndex} />
+      <GuideBubble
+        mode="lobby"
+        index={announcementIndex}
+        message={
+          announcementIndex === 0 && myRealName && myNickname
+            ? `이 소개팅에서 ${myRealName}님의 닉네임은 ${myNickname}입니다.`
+            : undefined
+        }
+      />
       <img className="lobby-mascot" src={mascotSrc} alt="키위 캐릭터" />
       <div
         className="profile-group same-profiles"
@@ -77,6 +91,11 @@ export default function MainLobby({
           소개팅 참가자들이 입장하고 있어요! 참가자 확인이 끝나면 대화가 시작됩니다.{" "}
           <span>오류가 아니니 절대 새로고침하거나 화면을 끄지 마세요.</span>
           {" "}조금만 기다려주세요.
+        </p>
+      )}
+      {showIdleNotice && (
+        <p className="participant-waiting-note" role="status">
+          짝이 매칭되지 않아 다음 대화 상대를 기다리고 있어요. 잠시만 기다려주세요.
         </p>
       )}
       <button

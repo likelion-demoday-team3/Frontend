@@ -277,16 +277,9 @@ export default function Store({
           ) : (
             products.map((item) => (
               <article
-                className={
-                  item.gemAmount === 20
-                    ? "package-card popular"
-                    : "package-card"
-                }
+                className="package-card"
                 key={item.productId}
               >
-                {item.gemAmount === 20 && (
-                  <span className="popular-badge">인기</span>
-                )}
                 <div className="gem-count">
                   <span className="gem-mark" aria-hidden="true">
                     ◆
@@ -661,21 +654,6 @@ const StorePage = styled.div<{
     border: 1px solid #e2e8dc;
     border-radius: 1.7rem;
     background: #fff;
-  }
-  .package-card.popular {
-    border: 0.2rem solid #a8d348;
-    background: #fbfff2;
-  }
-  .popular-badge {
-    position: absolute;
-    top: -0.8rem;
-    right: 1.4rem;
-    padding: 0.35rem 0.8rem;
-    border-radius: 99rem;
-    background: #a8d348;
-    color: #26321a;
-    font-size: 0.95rem;
-    font-weight: 800;
   }
   .gem-count {
     display: flex;

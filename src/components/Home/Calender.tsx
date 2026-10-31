@@ -179,7 +179,7 @@ export default function Calender({
                       key={dateKey(date)}
                       type="button"
                       disabled={!selectable}
-                      className={`calendar-day ${outside ? "outside" : ""} ${past ? "past" : ""} ${active ? "selected" : ""} ${hasSessions ? "has-sessions" : ""}`}
+                      className={`calendar-day ${outside ? "outside" : ""} ${past ? "past" : ""} ${active ? "selected" : ""} ${todaySelected ? "today" : ""} ${hasSessions ? "has-sessions" : ""}`}
                       aria-pressed={active}
                       aria-label={`${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}요일${hasSessions ? ", 세션 일정 있음" : ""}${todaySelected ? ", 오늘" : ""}`}
                       onClick={() => {
@@ -334,6 +334,21 @@ const CalendarStyles = styled.div`
     background: transparent;
   }
   .calendar-day.has-sessions {
+    position: relative;
+  }
+  .calendar-day.has-sessions::after {
+    position: absolute;
+    bottom: 0.35rem;
+    left: 50%;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: var(--green-dark, #718d28);
+    content: "";
+    transform: translateX(-50%);
+  }
+  .calendar-day.today {
+    border-radius: 1.3rem;
     background: var(--green);
   }
   .calendar-day.outside {

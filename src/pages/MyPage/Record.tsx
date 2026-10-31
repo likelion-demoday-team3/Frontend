@@ -21,7 +21,7 @@ const sections = [
 
 export default function Record() {
   return (
-    <MyPageFrame title="세션 기록">
+    <MyPageFrame title="소개팅 기록">
       {sections.map((section) => (
         <RecordLink key={section.href} href={section.href}>
           <Panel>

@@ -111,7 +111,7 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
             프로필 카드 <span>›</span>
           </a>
           <a href={`/mypage/record${suffix}`}>
-            세션 기록 <span>›</span>
+            소개팅 기록 <span>›</span>
           </a>
           <a href={`/mypage/reservation${suffix}`}>
             예약 확인 <span>›</span>

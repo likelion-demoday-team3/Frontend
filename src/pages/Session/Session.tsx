@@ -134,6 +134,9 @@ export default function Session({ sessionId }: SessionProps) {
   const [myLiveMemberId, setMyLiveMemberId] = useState<number | null>(
     lobbyPreviewMode || idlePreviewMode || callPreviewMode || notificationPreviewMode || votePreviewMode || heartLobbyPreviewMode ? 1 : null,
   );
+  const [myRealName, setMyRealName] = useState(
+    sessionPreviewMode ? "유진" : "",
+  );
   const [currentRound, setCurrentRound] = useState(1);
   const [conversationEndsAt, setConversationEndsAt] = useState<number | null>(
     callPreviewMode
@@ -462,6 +465,7 @@ export default function Session({ sessionId }: SessionProps) {
     getMyMember()
       .then((member) => {
         if (!active) return;
+        setMyRealName(member.name?.trim() ?? "");
         void refreshParticipants(member.gender);
         pollTimer = window.setInterval(
           () => void refreshParticipants(member.gender),
@@ -1505,6 +1509,8 @@ export default function Session({ sessionId }: SessionProps) {
                   <MainLobby
                     participants={lobbyParticipants}
                     myMemberId={myLiveMemberId}
+                    myRealName={myRealName}
+                    myNickname={session.myAlias ?? ""}
                     announcementIndex={announcementIndex}
                     mascotSrc={mascotSpeaking && mascotMouthOpen ? "/kw2.svg" : "/kw1.svg"}
                     startDisabled={
@@ -1528,6 +1534,7 @@ export default function Session({ sessionId }: SessionProps) {
                                   : `${currentRound}번째 대화 시작하기`
                     }
                     showParticipantNotice={isStarting && !assignment}
+                    showIdleNotice={phase === "idle"}
                     onStart={startConversation}
                   />
                 )}
