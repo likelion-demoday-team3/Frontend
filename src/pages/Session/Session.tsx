@@ -744,6 +744,24 @@ export default function Session({ sessionId }: SessionProps) {
         setFinalChoiceCountdown(null);
         setPhase("idle");
         setConnectionStatus("하트 선택 진행 중");
+      } else if (message.kind === "starting-soon") {
+        // 로비 마감과 함께 출석이 확정됐다. firstRoundAt에 서버가 1라운드 배정을 보낸다
+        setConnectionStatus("참가자 확인 완료 · 곧 첫 대화가 시작돼요");
+      } else if (message.kind === "cancelled") {
+        // 로비 마감 때 출석 인원이 모자라 취소됨. 로비에 있던 사람은 출석으로 처리돼 참가비를 돌려받는다
+        intentionalClose.current = true;
+        liveRef.current?.disconnect();
+        liveRef.current = null;
+        startRequested.current = false;
+        setIsStarting(false);
+        setSession((current) =>
+          current ? { ...current, status: "CANCELLED" } : current,
+        );
+        setPhase("ready");
+        setConnectionStatus("세션 취소");
+        setError(
+          "입장 인원이 모자라 세션이 취소됐어요. 참가비는 돌려드렸어요.",
+        );
       } else if (message.kind === "results-ready") {
         liveRef.current?.disconnect();
         window.history.pushState(
@@ -947,8 +965,9 @@ export default function Session({ sessionId }: SessionProps) {
 
   const startTime = session ? new Date(session.startTime).getTime() : 0;
   const opensAt = startTime - 5 * 60 * 1000;
-  const closesAt = startTime + 60 * 1000;
-  const joinWindowOpen = now >= opensAt && now <= closesAt;
+  // 백엔드 규칙: 로비는 시작 5분 전 ~ 시작 시각(미포함), 시작 시각에 출석 확정 후 15초 뒤 1라운드
+  const closesAt = startTime;
+  const joinWindowOpen = now >= opensAt && now < closesAt;
   const timeUntilEntry = Math.max(0, opensAt - now);
   const days = Math.floor(timeUntilEntry / 86400000);
   const hours = Math.floor((timeUntilEntry / 3600000) % 24);
