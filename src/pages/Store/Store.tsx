@@ -199,7 +199,10 @@ export default function Store({
 
   return (
     <StorePage
-      className={`${embedded ? "embedded" : ""}${inline ? " inline" : ""}`.trim() || undefined}
+      className={
+        `${embedded ? "embedded" : ""}${inline ? " inline" : ""}`.trim() ||
+        undefined
+      }
       $embedded={embedded}
       $inline={inline}
       $open={open}
@@ -224,7 +227,7 @@ export default function Store({
             </span>
             <strong>{gems}개</strong>
           </div>
-          <a href="/store/history">충전 내역</a>
+          <a href="/store/history">이용내역</a>
         </section>
       )}
       {!embedded && isLoggedIn && walletError && (
@@ -235,34 +238,41 @@ export default function Store({
 
       <section className="packages-section" id="gem-packages">
         <div className="section-heading">
-          <h2>
-            <span>보석 충전</span>
-            {embedded && !inline && (
-              <button
-                type="button"
-                className="section-close"
-                aria-label="충전 페이지 닫기"
-                onClick={onClose}
-              >
-                ×
-              </button>
-            )}
-          </h2>
-          <p>
-            {inline ? (
-              <>
-                세션 중에는 보석을 충전할 수 없어요. 필요한 상황에 대비해 미리
-                충전해 주세요.
-                <br />
-                단, 최종 투표가 끝나면 우측 상단의 노란색 + 버튼을 눌러 다시
-                충전할 수 있어요.
-              </>
-            ) : purchasesDisabled ? (
-              "세션이 끝난 뒤 보석을 충전할 수 있어요."
-            ) : (
-              "원하는 보석 상품을 선택하고 결제를 진행해요."
-            )}
-          </p>
+          <div className="section-heading-copy">
+            <h2>
+              <span>보석 충전</span>
+              {embedded && !inline && (
+                <button
+                  type="button"
+                  className="section-close"
+                  aria-label="충전 페이지 닫기"
+                  onClick={onClose}
+                >
+                  ×
+                </button>
+              )}
+            </h2>
+            <p>
+              {inline ? (
+                <>
+                  세션 중에는 보석을 충전할 수 없어요. 필요한 상황에 대비해 미리
+                  충전해 주세요.
+                  <br />
+                  단, 최종 투표가 끝나면 우측 상단의 노란색 + 버튼을 눌러 다시
+                  충전할 수 있어요.
+                </>
+              ) : purchasesDisabled ? (
+                "세션이 끝난 뒤 보석을 충전할 수 있어요."
+              ) : (
+                "원하는 보석 상품을 선택하고 결제를 진행해요."
+              )}
+            </p>
+          </div>
+          {!embedded && !inline && isLoggedIn && (
+            <a className="history-link" href="/store/charge-history">
+              충전내역
+            </a>
+          )}
         </div>
         <div className="package-list">
           {productsLoading ? (
@@ -276,10 +286,7 @@ export default function Store({
             <p className="product-state">판매 중인 상품이 없어요.</p>
           ) : (
             products.map((item) => (
-              <article
-                className="package-card"
-                key={item.productId}
-              >
+              <article className="package-card" key={item.productId}>
                 <div className="gem-count">
                   <span className="gem-mark" aria-hidden="true">
                     ◆
@@ -444,7 +451,6 @@ export default function Store({
           </section>
         </div>
       )}
-
     </StorePage>
   );
 }
@@ -548,7 +554,7 @@ const StorePage = styled.div<{
     justify-content: space-between;
     gap: 1rem;
     margin-top: 1.2rem;
-    padding: 1.6rem 2rem;
+    padding: 1.6rem 1.5rem 1.6rem 2rem;
     border-radius: 2.4rem;
     background: var(--green);
     color: #202820;
@@ -570,7 +576,8 @@ const StorePage = styled.div<{
     color: #31bfff;
     font-size: 1.8rem;
   }
-  .balance-card a {
+  .balance-card a,
+  .history-link {
     display: grid;
     min-width: 9.5rem;
     min-height: 4.3rem;
@@ -599,7 +606,22 @@ const StorePage = styled.div<{
     padding-top: 0;
   }
   .section-heading {
+    position: relative;
     margin-bottom: 1.4rem;
+  }
+  .section-heading-copy {
+    width: 100%;
+    min-height: 6.4rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+  }
+  .section-heading:has(.history-link) .section-heading-copy {
+    width: calc(100% - 12.5rem);
+    margin-left: 0;
+    text-align: left;
   }
   &.embedded .section-heading h2 {
     display: flex;
@@ -620,12 +642,35 @@ const StorePage = styled.div<{
     line-height: 1;
   }
   .section-heading h2 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     font: 400 2rem/1.3 var(--display-font);
+  }
+  .section-heading-copy h2 {
+    display: block;
+    text-align: left;
+  }
+  .section-heading-copy h2 > span {
+    display: block;
+  }
+  .section-heading-copy:has(.section-close) h2 {
+    display: flex;
+    justify-content: space-between;
+    text-align: left;
   }
   .section-heading p {
     margin-top: 0.5rem;
     color: #899188;
     font-size: 1.1rem;
+    text-align: left;
+  }
+  .history-link {
+    position: absolute;
+    top: 50%;
+    right: 1.5rem;
+    transform: translateY(-50%);
   }
   .package-list {
     display: grid;

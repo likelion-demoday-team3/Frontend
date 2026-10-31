@@ -9,7 +9,7 @@ export type WalletHistoryItem = {
   sessionId: number | null
   createdAt: string
   orderId?: string
-  paymentAmount?: number
+  paymentAmount?: number | null
   paymentMethod?: string
 }
 

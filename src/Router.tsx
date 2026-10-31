@@ -21,7 +21,8 @@ import RecordList from "./pages/MyPage/RecordList";
 import { restoreAccessToken } from "./features/auth/session";
 
 type Route =
-  | { page: "home" | "signup" | "login" | "result" | "result-detail" | "contact" | "store" | "charge-history" | "charge-info" | "payment-result" | "mypage" | "mypage-me" | "mypage-card" | "mypage-record" | "mypage-reservation" | "mypage-password" | "mypage-identity" }
+  | { page: "home" | "signup" | "login" | "result" | "result-detail" | "contact" | "store" | "charge-info" | "payment-result" | "mypage" | "mypage-me" | "mypage-card" | "mypage-record" | "mypage-reservation" | "mypage-password" | "mypage-identity" }
+  | { page: "charge-history"; mode: "usage" | "charge" }
   | { page: "mypage-record-list"; section: "matches" | "sent" | "received" }
   | { page: "session"; sessionId: number };
 
@@ -32,7 +33,9 @@ function routeFromPath(pathname: string): Route {
   if (route === "result-detail") return { page: "result-detail" };
   if (route === "contact") return { page: "contact" };
   if (route === "store") return { page: "store" };
-  if (route === "store/history" || route === "charge-history") return { page: "charge-history" };
+  if (route === "store/history") return { page: "charge-history", mode: "usage" };
+  if (route === "store/charge-history") return { page: "charge-history", mode: "charge" };
+  if (route === "charge-history") return { page: "charge-history", mode: "usage" };
   if (route === "charge-info") return { page: "charge-info" };
   if (route === "store/payment/result") return { page: "payment-result" };
   if (/^shop\/payment\/[^/]+\/(success|fail)$/.test(route)) return { page: "payment-result" };
@@ -101,7 +104,7 @@ export default function Router({
   if (route.page === "result-detail") return <ResultDetail key={window.location.search} />;
   if (route.page === "contact") return <Contact key={window.location.search} />;
   if (route.page === "store") return <Store />;
-  if (route.page === "charge-history") return <ChargeHistory />;
+  if (route.page === "charge-history") return <ChargeHistory key={route.mode} mode={route.mode} />;
   if (route.page === "charge-info") return <ChargeInfo />;
   if (route.page === "payment-result") return <PaymentResult />;
   if (route.page === "mypage") return <MyPage />;

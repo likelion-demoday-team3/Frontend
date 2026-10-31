@@ -24,6 +24,9 @@ type RefundState = 'closed' | 'confirm' | 'success'
 
 export default function ChargeInfo() {
   const params = new URLSearchParams(window.location.search)
+  const fromChargeHistory = params.get('from') === 'charge'
+  const historyHref = fromChargeHistory ? '/store/charge-history' : '/store/history'
+  const historyTitle = fromChargeHistory ? '충전내역' : '이용내역'
   const entryParam = params.get('entry')
   const entry = entryParam === null ? -1 : Number(entryParam)
   const requestedOrderId = params.get('orderId') ?? ''
@@ -108,7 +111,7 @@ export default function ChargeInfo() {
   const paymentAmount = payment?.amount ?? walletRecord?.paymentAmount ?? productPackage?.price ?? null
 
   return <InfoPage>
-    <header className="charge-header"><a href="/store/history" aria-label="충전 내역으로 돌아가기">‹</a><h1>충전 내역 상세</h1><span /></header>
+    <header className="charge-header"><a href={historyHref} aria-label={`${historyTitle}으로 돌아가기`}>‹</a><h1>{historyTitle} 상세</h1><span /></header>
     {loading ? <p className="state">결제 내역을 불러오는 중이에요…</p> : error ? <p className="state error" role="alert">{error}</p> : !payment && !walletRecord ? <p className="state">결제 내역을 찾을 수 없어요.</p> : <main>
       <section className="detail-card" aria-label={isRefunded ? '환불 정보' : '결제 정보'}><dl>
         <div><dt>주문번호</dt><dd>{orderId || '확인할 수 없음'}</dd></div>
@@ -141,7 +144,7 @@ export default function ChargeInfo() {
           <h2 id="refund-title">구매 취소가 완료되었습니다</h2>
           <p>보석 {refundResult?.revokedGem ?? gemAmount}개를 회수했어요.</p>
           {refundResult && <p className="balance-result">현재 보석 잔액 {refundResult.gemBalance}개</p>}
-          <button type="button" className="confirm full-width" onClick={() => { setRefundState('closed'); window.location.href = '/store/history' }}>확인</button>
+          <button type="button" className="confirm full-width" onClick={() => { setRefundState('closed'); window.location.href = historyHref }}>확인</button>
         </>}
       </section>
     </div>}
