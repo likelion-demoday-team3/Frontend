@@ -338,10 +338,10 @@ const CalendarStyles = styled.div`
   }
   .calendar-day.has-sessions::after {
     position: absolute;
-    bottom: 0.35rem;
+    bottom: 0.55rem;
     left: 50%;
-    width: 0.4rem;
-    height: 0.4rem;
+    width: 0.55rem;
+    height: 0.55rem;
     border-radius: 50%;
     background: var(--green-dark, #718d28);
     content: "";

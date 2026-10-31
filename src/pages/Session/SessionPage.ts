@@ -293,24 +293,6 @@ const SessionPage = styled.div`
     align-items: center;
     justify-content: center;
   }
-  .round-start-notice {
-    position: absolute;
-    z-index: 5;
-    top: 51%;
-    left: 50%;
-    width: max-content;
-    max-width: calc(100% - 3.2rem);
-    padding: 1.6rem 2.4rem;
-    border: 0.1rem solid #e2e9d9;
-    border-radius: 2.4rem;
-    background: var(--background);
-    box-shadow: 0 1.2rem 4rem #0003;
-    color: var(--ink);
-    font: 600 1.8rem/1.35 var(--display-font);
-    text-align: center;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-  }
   .conversation-character-group {
     display: flex;
     width: min(100%, 32rem);

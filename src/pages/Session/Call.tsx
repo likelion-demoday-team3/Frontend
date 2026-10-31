@@ -1,4 +1,6 @@
 import type { RefObject } from "react";
+import { createPortal } from "react-dom";
+import styled from "styled-components";
 import GuideBubble from "../../components/Session/GuideBubble";
 import ProfileCard from "../../components/Session/ProfileCard";
 import Report from "../../components/Session/Report";
@@ -25,6 +27,41 @@ type CallProps = {
   onSubmitReport: () => void;
   onCloseProfile: () => void;
 };
+
+const RoundStartLayer = styled.div`
+  position: fixed;
+  z-index: 20000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.6rem;
+`;
+
+const RoundStartBackdrop = styled.div`
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: rgb(0 0 0 / 42%);
+`;
+
+const RoundStartNotice = styled.div`
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(100%, 34rem);
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 2.4rem;
+  border: 0.1rem solid #8b6d51;
+  border-radius: 2rem;
+  background: #fbfff1;
+  box-shadow: 0 1rem 3rem #10161030;
+  color: #2b302c;
+  font: 700 2.4rem/1.3 var(--display-font);
+  text-align: center;
+  pointer-events: none;
+`;
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
@@ -79,9 +116,15 @@ export default function Call({
         </div>
       </div>
       {roundStartNotice && (
-        <div className="round-start-notice" role="status">
-          {roundStartNotice}
-        </div>
+        createPortal(
+          <RoundStartLayer>
+            <RoundStartBackdrop aria-hidden="true" />
+            <RoundStartNotice role="status">
+              {roundStartNotice}
+            </RoundStartNotice>
+          </RoundStartLayer>,
+          document.body,
+        )
       )}
       <div className="conversation-controls">
         <button
