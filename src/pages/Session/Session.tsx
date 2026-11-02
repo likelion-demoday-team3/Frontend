@@ -122,6 +122,9 @@ export default function Session({ sessionId }: SessionProps) {
             ? "lobby"
             : "ready",
   );
+  // 서버가 이번 라운드에 짝이 없다고 알려준 경우(round-idle, 재입장 IDLE)만 true.
+  // 대화를 마치고 다음 라운드를 기다리는 것도 phase가 "idle"이라 따로 구분한다
+  const [unmatchedThisRound, setUnmatchedThisRound] = useState(idlePreviewMode);
   const [assignment, setAssignment] = useState<LiveAssignment | null>(
     callPreviewMode
       ? createMockAssignment(
@@ -661,9 +664,11 @@ export default function Session({ sessionId }: SessionProps) {
           setConversationEndsAt(message.roundEndsAt ? Date.parse(message.roundEndsAt) : null);
           setCurrentRound(message.roundNumber);
           startRequested.current = true;
+          setUnmatchedThisRound(false);
           setPhase("assigned");
         } else {
           setConversationEndsAt(null);
+          setUnmatchedThisRound(message.status === "IDLE");
           setPhase(message.status === "IDLE" ? "idle" : "lobby");
         }
         setConnectionStatus(
@@ -707,6 +712,7 @@ export default function Session({ sessionId }: SessionProps) {
         );
         setIsStarting(false);
         startRequested.current = true;
+        setUnmatchedThisRound(false);
         setPhase("assigned");
         setCallStatus(
           isMockLiveEnabled
@@ -724,6 +730,7 @@ export default function Session({ sessionId }: SessionProps) {
         setAssignment(null);
         startRequested.current = false;
         setIsStarting(false);
+        setUnmatchedThisRound(true);
         setPhase("idle");
         setCallStatus("");
         setConnectionStatus("이번 라운드 대기");
@@ -757,6 +764,7 @@ export default function Session({ sessionId }: SessionProps) {
           message.heartsEndsAt ? Date.parse(message.heartsEndsAt) : Date.now(),
         );
         setFinalChoiceCountdown(null);
+        setUnmatchedThisRound(false);
         setPhase("idle");
         setConnectionStatus("하트 선택 진행 중");
       } else if (message.kind === "starting-soon") {
@@ -1226,6 +1234,7 @@ export default function Session({ sessionId }: SessionProps) {
     setIsStarting(false);
     setCallStatus("");
     setConnectionStatus("다음 대화 준비 완료");
+    setUnmatchedThisRound(false);
     setPhase("idle");
   }
 
@@ -1571,7 +1580,7 @@ export default function Session({ sessionId }: SessionProps) {
                                   : `${currentRound}번째 대화 시작하기`
                     }
                     showParticipantNotice={isStarting && !assignment}
-                    showIdleNotice={phase === "idle"}
+                    showIdleNotice={phase === "idle" && unmatchedThisRound}
                     onStart={startConversation}
                   />
                 )}
