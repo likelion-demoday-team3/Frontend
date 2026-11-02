@@ -979,8 +979,8 @@ export default function Session({ sessionId }: SessionProps) {
   );
 
   const startTime = session ? new Date(session.startTime).getTime() : 0;
-  const opensAt = startTime - 5 * 60 * 1000;
-  // 백엔드 규칙: 로비는 시작 5분 전 ~ 시작 시각(미포함), 시작 시각에 출석 확정 후 15초 뒤 1라운드
+  const opensAt = startTime - 10 * 60 * 1000;
+  // 백엔드 규칙: 로비는 시작 10분 전 ~ 시작 시각(미포함), 시작 시각에 출석 확정 후 15초 뒤 1라운드
   const closesAt = startTime;
   const joinWindowOpen = now >= opensAt && now < closesAt;
   const canEnterLobby = joinWindowOpen ||

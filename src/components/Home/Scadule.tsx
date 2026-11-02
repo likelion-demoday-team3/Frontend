@@ -333,7 +333,7 @@ export default function Scadule({
         })}
       </section>
       <p className="session-policy">
-        신청과 취소는 세션 시작 30분 전까지 가능해요.
+        신청과 취소는 세션 시작 10분 전까지 가능해요.
         <br />
         취소 환불액은 시작 시각까지 남은 시간에 따라 달라집니다.
       </p>

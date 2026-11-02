@@ -60,7 +60,7 @@ export default function Waiting({
             : joinWindowOpen
               ? "입장하면 상대 배정과 실시간 안내를 받을 수 있어요."
               : now < opensAt
-                ? "세션 시작 5분 전부터 입장할 수 있어요."
+                ? "세션 시작 10분 전부터 입장할 수 있어요."
                 : "세션 시작 시각까지만 입장할 수 있어요."}
         </p>
         {now < opensAt && (

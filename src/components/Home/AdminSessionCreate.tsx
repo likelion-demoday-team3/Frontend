@@ -7,10 +7,10 @@ type AdminSessionCreateProps = {
   onCreated: () => void;
 };
 
-// 서버 규칙: 성별 정원 3~6명, 완주 반환 ≤ 참가비, 신청 마감(시작 30분 전) 이후엔 모집 시작 불가
+// 서버 규칙: 성별 정원 3~6명, 완주 반환 ≤ 참가비, 신청 마감(시작 10분 전) 이후엔 모집 시작 불가
 const MIN_CAPACITY = 3;
 const MAX_CAPACITY = 6;
-const APPLY_DEADLINE_MINUTES = 30;
+const APPLY_DEADLINE_MINUTES = 10;
 
 const pad = (value: number) => String(value).padStart(2, "0");
 const dateInputValue = (date: Date) =>
