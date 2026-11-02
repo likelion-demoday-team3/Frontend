@@ -1531,6 +1531,7 @@ export default function Session({ sessionId }: SessionProps) {
                     myRealName={myRealName}
                     myNickname={session.myAlias ?? ""}
                     announcementIndex={announcementIndex}
+                    roundDurationSeconds={session?.roundDurationSeconds}
                     mascotSrc={mascotSpeaking && mascotMouthOpen ? "/kw2.svg" : "/kw1.svg"}
                     startDisabled={
                       phase === "idle" ||

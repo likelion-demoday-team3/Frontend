@@ -7,6 +7,7 @@ type MainLobbyProps = {
   myRealName: string;
   myNickname: string;
   announcementIndex: number;
+  roundDurationSeconds?: number;
   mascotSrc: string;
   startDisabled: boolean;
   startLabel: string;
@@ -21,6 +22,7 @@ export default function MainLobby({
   myRealName,
   myNickname,
   announcementIndex,
+  roundDurationSeconds,
   mascotSrc,
   startDisabled,
   startLabel,
@@ -54,6 +56,7 @@ export default function MainLobby({
       <GuideBubble
         mode="lobby"
         index={announcementIndex}
+        roundDurationSeconds={roundDurationSeconds}
         message={
           announcementIndex === 0 && myRealName && myNickname
             ? `이 소개팅에서 ${myRealName}님의 닉네임은 ${myNickname}입니다.`

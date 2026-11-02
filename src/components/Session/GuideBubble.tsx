@@ -3,8 +3,8 @@ import styled from "styled-components";
 export const lobbyGuideMessages = [
   "이 소개팅은 로테이션 방식으로 진행돼요.",
   "얼굴 공개 없이 오직 목소리로만 서로를 알아가요.",
-  "한 사람 당 10분의 대화 시간이 주어져요.",
-  "10분이 지나면 자동으로 종료되고 로비로 돌아와요.",
+  "한 사람과 대화할 시간이 주어져요.",
+  "대화 시간이 끝나면 자동으로 로비로 돌아와요.",
   "1분의 휴식시간이 지난 후 다음 대화가 시작돼요.",
   "보석은 미리 충전해두는 것을 추천드려요.",
   "서로를 1순위로 지목하면 최종 매칭이 성사돼요.",
@@ -27,6 +27,7 @@ type GuideBubbleProps = {
   mode?: "lobby" | "final-choice";
   index?: number;
   variant?: "lobby" | "conversation";
+  roundDurationSeconds?: number;
 };
 
 export default function GuideBubble({
@@ -34,11 +35,21 @@ export default function GuideBubble({
   mode = "lobby",
   index = 0,
   variant = "lobby",
+  roundDurationSeconds,
 }: GuideBubbleProps) {
   const messages =
     mode === "final-choice" ? finalChoiceGuideMessages : lobbyGuideMessages;
+  const minutes = roundDurationSeconds && Math.floor(roundDurationSeconds / 60);
+  const seconds = roundDurationSeconds && roundDurationSeconds % 60;
+  const duration = roundDurationSeconds
+    ? [minutes && `${minutes}분`, seconds && `${seconds}초`].filter(Boolean).join(" ")
+    : null;
   const visibleMessage =
-    message ?? messages[Math.min(index, messages.length - 1)];
+    message ?? (mode === "lobby" && duration && index === 2
+      ? `한 사람 당 ${duration}의 대화 시간이 주어져요.`
+      : mode === "lobby" && duration && index === 3
+        ? `${duration}이 지나면 자동으로 종료되고 로비로 돌아와요.`
+        : messages[Math.min(index, messages.length - 1)]);
 
   return (
     <Bubble $variant={variant} role="status" aria-live="polite">
