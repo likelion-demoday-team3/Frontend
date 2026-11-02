@@ -5,6 +5,7 @@ type MainLobbyProps = {
   participants: { opposite: LobbyParticipant[]; same: LobbyParticipant[] };
   myMemberId: number | null;
   announcementIndex: number;
+  roundDurationSeconds?: number;
   mascotSrc: string;
   startDisabled: boolean;
   startLabel: string;
@@ -15,6 +16,7 @@ export default function MainLobby({
   participants,
   myMemberId,
   announcementIndex,
+  roundDurationSeconds,
   mascotSrc,
   startDisabled,
   startLabel,
@@ -43,7 +45,7 @@ export default function MainLobby({
           </div>
         ))}
       </div>
-      <GuideBubble mode="lobby" index={announcementIndex} />
+      <GuideBubble mode="lobby" index={announcementIndex} roundDurationSeconds={roundDurationSeconds} />
       <img className="lobby-mascot" src={mascotSrc} alt="키위 캐릭터" />
       <div
         className="profile-group same-profiles"

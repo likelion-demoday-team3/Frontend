@@ -1361,6 +1361,7 @@ export default function Session({ sessionId }: SessionProps) {
                     participants={lobbyParticipants}
                     myMemberId={myLiveMemberId}
                     announcementIndex={announcementIndex}
+                    roundDurationSeconds={session?.roundDurationSeconds}
                     mascotSrc={mascotSpeaking && mascotMouthOpen ? "/kw2.svg" : "/kw1.svg"}
                     startDisabled={
                       phase === "idle" ||
