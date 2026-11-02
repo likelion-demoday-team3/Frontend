@@ -21,15 +21,16 @@ export type LiveAssignment = {
     interests: string[]
   }
   compatibility: { score: number; reason: string } | null
+  roundEndsAt?: string | null
 }
 
 export type LiveMessage =
-  | { kind: 'joined'; sessionId: number; memberId: number; status: 'JOINED' | 'ASSIGNED' | 'IDLE'; roundId: number | null; roundNumber: number | null; roomId: number | null; tableNo: number | null; partnerMemberId: number | null; partnerAlias: string | null; partnerProfileCard: LiveAssignment['partnerProfileCard'] | null }
+  | { kind: 'joined'; sessionId: number; memberId: number; status: 'JOINED' | 'ASSIGNED' | 'IDLE'; roundId: number | null; roundNumber: number | null; roomId: number | null; tableNo: number | null; partnerMemberId: number | null; partnerAlias: string | null; partnerProfileCard: LiveAssignment['partnerProfileCard'] | null; roundEndsAt?: string | null }
   | { kind: 'assigned'; assignment: LiveAssignment }
-  | { kind: 'idle'; roundNumber: number; breakSeconds: number }
-  | { kind: 'signal'; roomId: number; fromMemberId: number; type: 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE'; payload: string }
-  | { kind: 'voting-started'; votingEndsAt: string }
-  | { kind: 'hearts-started'; heartsEndsAt: string }
+  | { kind: 'idle'; sessionId: number; roundNumber: number; breakSeconds: number }
+  | { kind: 'signal'; sessionId: number; roomId: number; fromMemberId: number; type: 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE'; payload: string }
+  | { kind: 'voting-started'; sessionId: number; votingEndsAt: string }
+  | { kind: 'hearts-started'; sessionId: number; heartsEndsAt: string }
   | { kind: 'results-ready'; sessionId: number; coupleCount: number }
   // 로비 마감(시작 시각)에 출석 인원이 모자라 세션이 취소됨. 로비에 있던 사람(=출석자)은 참가비를 돌려받는다
   | { kind: 'cancelled'; sessionId: number; reason: 'INSUFFICIENT_ATTENDANCE' }

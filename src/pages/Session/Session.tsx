@@ -589,6 +589,17 @@ export default function Session({ sessionId }: SessionProps) {
 
   const handleMessage = useCallback(
     (message: LiveMessage) => {
+      if (message.kind === "assigned") {
+        if (message.assignment.sessionId !== sessionId) return;
+      } else if (
+        message.kind !== "heart-received" &&
+        message.kind !== "contact-requested" &&
+        message.kind !== "contact-request-answered" &&
+        message.kind !== "contact-received" &&
+        message.sessionId !== sessionId
+      ) {
+        return;
+      }
       if (
         message.kind === "heart-received" ||
         message.kind === "contact-requested" ||
@@ -645,11 +656,14 @@ export default function Session({ sessionId }: SessionProps) {
               nickname,
             },
             compatibility: null,
+            roundEndsAt: message.roundEndsAt,
           });
+          setConversationEndsAt(message.roundEndsAt ? Date.parse(message.roundEndsAt) : null);
           setCurrentRound(message.roundNumber);
           startRequested.current = true;
           setPhase("assigned");
         } else {
+          setConversationEndsAt(null);
           setPhase(message.status === "IDLE" ? "idle" : "lobby");
         }
         setConnectionStatus(
@@ -687,6 +701,7 @@ export default function Session({ sessionId }: SessionProps) {
             nickname,
           },
         });
+        setConversationEndsAt(message.assignment.roundEndsAt ? Date.parse(message.assignment.roundEndsAt) : null);
         setCurrentRound((round) =>
           Math.max(round, message.assignment.roundNumber),
         );
@@ -772,7 +787,7 @@ export default function Session({ sessionId }: SessionProps) {
         window.dispatchEvent(new PopStateEvent("popstate"));
       }
     },
-    [handleSignal],
+    [handleSignal, sessionId],
   );
 
   useEffect(() => {
@@ -968,6 +983,8 @@ export default function Session({ sessionId }: SessionProps) {
   // 백엔드 규칙: 로비는 시작 5분 전 ~ 시작 시각(미포함), 시작 시각에 출석 확정 후 15초 뒤 1라운드
   const closesAt = startTime;
   const joinWindowOpen = now >= opensAt && now < closesAt;
+  const canEnterLobby = joinWindowOpen ||
+    (session?.status === "IN_PROGRESS" && session.myStatus === "ATTENDED");
   const timeUntilEntry = Math.max(0, opensAt - now);
   const days = Math.floor(timeUntilEntry / 86400000);
   const hours = Math.floor((timeUntilEntry / 3600000) % 24);
@@ -980,8 +997,8 @@ export default function Session({ sessionId }: SessionProps) {
   function enterLobby() {
     if (
       !session ||
-      session.myStatus !== "APPLIED" ||
-      !joinWindowOpen ||
+      (session.myStatus !== "APPLIED" && session.myStatus !== "ATTENDED") ||
+      !canEnterLobby ||
       liveRef.current
     )
       return;
@@ -1567,7 +1584,7 @@ export default function Session({ sessionId }: SessionProps) {
                     startTime={session.startTime}
                     phase={phase}
                     connectionStatus={connectionStatus}
-                    joinWindowOpen={joinWindowOpen}
+                    joinWindowOpen={canEnterLobby}
                     now={now}
                     opensAt={opensAt}
                     days={days}
