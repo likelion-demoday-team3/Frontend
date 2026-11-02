@@ -38,7 +38,7 @@ function koreaDateKey(value: string) {
   }).formatToParts(new Date(value));
   const part = (name: string) =>
     parts.find((item) => item.type === name)?.value;
-  return `${part("year")}-${part("month")}-${part("day")}`;
+  return `${part("year")}-${Number(part("month"))}-${Number(part("day"))}`;
 }
 
 function koreaTime(value: string) {
