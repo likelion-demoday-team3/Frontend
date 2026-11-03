@@ -5,8 +5,13 @@ export function getSessions(): Promise<Session[]> {
   return apiRequest<Session[]>('/sessions')
 }
 
-export function getMySessions(): Promise<MySession[]> {
-  return apiRequest<MySession[]>('/sessions/my')
+/** 내가 신청한 세션. from·to(ISO 시각)를 주면 세션 시작 시각이 그 사이인 것만 받는다 */
+export function getMySessions(period: { from?: string; to?: string } = {}): Promise<MySession[]> {
+  const query = new URLSearchParams()
+  if (period.from) query.set('from', period.from)
+  if (period.to) query.set('to', period.to)
+  const search = query.toString()
+  return apiRequest<MySession[]>(search ? `/sessions/my?${search}` : '/sessions/my')
 }
 
 export function getSession(sessionId: number): Promise<SessionDetail> {

@@ -8,6 +8,7 @@ import {
   getSessions,
 } from "../../features/sessions/api";
 import type { MySession, Session } from "../../features/sessions/types";
+import PeriodFilter, { periodBounds, type PeriodRange } from "./PeriodFilter";
 
 const demoReservation: MySession = {
   sessionId: 101,
@@ -27,6 +28,26 @@ const dateLabel = (value: string) =>
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+
+/** 예약 한 건의 상태 뱃지. 내 신청 상태가 먼저, 신청 중이면 세션 상태를 보여준다 */
+function statusBadge(item: MySession): { label: string; tone?: "ready" } | null {
+  switch (item.myStatus) {
+    case "CANCELLED":
+      return { label: "예약 취소" };
+    case "ATTENDED":
+      return { label: "참여 완료", tone: "ready" };
+    case "NO_SHOW":
+      return { label: "불참" };
+    case "LEFT":
+      return { label: "중도 퇴장" };
+  }
+  // 세션 자체가 취소돼도 내 신청 상태는 APPLIED로 남는다
+  if (item.sessionStatus === "CANCELLED") return { label: "취소된 세션" };
+  if (item.sessionStatus === "READY") return { label: "진행 확정", tone: "ready" };
+  if (item.sessionStatus === "IN_PROGRESS") return { label: "진행 중", tone: "ready" };
+  if (item.sessionStatus === "COMPLETED") return { label: "종료" };
+  return null;
+}
 
 // 서버 규칙(신청 마감 10분 전, 진행 조건, RefundPolicy, 로비 시간)을 바꾸면 이 문구도 같이 고친다
 const policySections = [
@@ -87,6 +108,9 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
   const [busy, setBusy] = useState<number | null>(null);
   const [loading, setLoading] = useState(!demo);
   const [loginRequired, setLoginRequired] = useState(false);
+  const [range, setRange] = useState<PeriodRange>("6");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     if (demo) return;
@@ -101,12 +125,17 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
       return () => window.clearTimeout(timer);
     }
     let active = true;
-    Promise.all([getMySessions(), getSessions()])
+    setLoading(true);
+    Promise.all([
+      getMySessions(periodBounds(range, startDate, endDate)),
+      getSessions(),
+    ])
       .then(([mine, all]) => {
         if (!active) return;
-        // 세션 자체가 취소돼도 내 신청 상태는 APPLIED로 남는다. 취소된 세션도 구분해서 보여준다
-        setReservations(mine.filter((item) => item.myStatus === "APPLIED"));
+        // 선택한 기간(세션 시작 시각 기준)의 예약 기록 전부. 취소·불참·참여 완료도 뱃지로 구분해서 보여준다
+        setReservations(mine);
         setSessions(all);
+        setMessage("");
       })
       .catch((cause) => {
         if (active)
@@ -122,7 +151,7 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
     return () => {
       active = false;
     };
-  }, [demo]);
+  }, [demo, range, startDate, endDate]);
 
   async function cancel(reservation: MySession) {
     if (demo) {
@@ -136,8 +165,13 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
     setMessage("");
     try {
       const { refundedGem } = await cancelSession(reservation.sessionId);
+      // 기간별 예약 기록이라 목록에서 지우지 않고 취소 상태로 바꾼다
       setReservations((current) =>
-        current.filter((item) => item.sessionId !== reservation.sessionId),
+        current.map((item) =>
+          item.sessionId === reservation.sessionId
+            ? { ...item, myStatus: "CANCELLED" as const }
+            : item,
+        ),
       );
       setMessage(
         refundedGem > 0
@@ -155,6 +189,18 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
 
   return (
     <MyPageFrame title="예약 확인" demo={demo}>
+      <Panel>
+        <h2>기간 선택</h2>
+        <PeriodFilter
+          label="예약 내역 기간"
+          range={range}
+          startDate={startDate}
+          endDate={endDate}
+          onRangeChange={setRange}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+        />
+      </Panel>
       {loading || loginRequired || reservations.length === 0 ? (
         <Panel>
           <h2>예약 내역</h2>
@@ -162,13 +208,24 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
             {loading
               ? "예약 내역을 불러오는 중이에요…"
               : loginRequired
-                ? "진행 중인 예약을 보려면 로그인이 필요해요."
-                : "진행 중인 예약이 없어요."}
+                ? "예약 내역을 보려면 로그인이 필요해요."
+                : "선택한 기간에 예약 내역이 없어요."}
           </p>
         </Panel>
       ) : (
         reservations.map((item) => {
-          const cancelled = item.sessionStatus === "CANCELLED";
+          const badge = statusBadge(item);
+          // 신청 중인데 세션이 취소된 경우만 흐리게. 내가 취소한 기록·지난 기록은 그대로 읽히게 둔다
+          const cancelled =
+            item.myStatus === "APPLIED" && item.sessionStatus === "CANCELLED";
+          // 서버도 모집 중(RECRUITING)인 세션의 신청만 본인 취소를 받는다
+          const cancellable =
+            item.myStatus === "APPLIED" && item.sessionStatus === "RECRUITING";
+          // 현재 인원·취소 영역은 아직 열리지 않은 예약(모집 중·진행 확정)에만 보여준다
+          const upcoming =
+            item.myStatus === "APPLIED" &&
+            (item.sessionStatus === "RECRUITING" ||
+              item.sessionStatus === "READY");
           const session = sessions.find(
             (value) => value.sessionId === item.sessionId,
           );
@@ -183,9 +240,10 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
             >
               <h2>
                 세션 예약
-                {cancelled && <span className="badge">취소된 세션</span>}
-                {item.sessionStatus === "READY" && (
-                  <span className="badge ready">진행 확정</span>
+                {badge && (
+                  <span className={badge.tone ? `badge ${badge.tone}` : "badge"}>
+                    {badge.label}
+                  </span>
                 )}
               </h2>
               <p className="hint">예약일자</p>
@@ -199,13 +257,13 @@ export default function Reservation({ demo = false }: { demo?: boolean }) {
                   인원 미달 또는 운영 사정으로 취소되어 참가비가 전액
                   환불됐어요.
                 </p>
-              ) : (
+              ) : !upcoming ? null : (
                 <>
                   <p className="hint" style={{ marginTop: "1.5rem" }}>
                     현재 인원 (남:여)
                   </p>
                   <strong>{attendance}</strong>
-                  {item.sessionStatus === "READY" ? (
+                  {!cancellable ? (
                     // 진행 확정 뒤에는 서버도 본인 취소를 받지 않는다
                     <p className="hint" style={{ marginTop: "1.8rem" }}>
                       진행이 확정된 세션은 예약을 취소할 수 없어요.
