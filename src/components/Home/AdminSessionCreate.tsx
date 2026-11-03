@@ -12,6 +12,9 @@ type AdminSessionCreateProps = {
 const MIN_CAPACITY = 3;
 const MAX_CAPACITY = 6;
 const APPLY_DEADLINE_MINUTES = 10;
+// 결과·공유 단계는 사용자가 직접 닫을 때까지 이어져서 이 값은 진행에 쓰이지 않는다.
+// 서버가 1초 이상을 요구하므로 고정값만 보낸다.
+const RESULT_AND_SHARE_SECONDS = 300;
 
 const pad = (value: number) => String(value).padStart(2, "0");
 const dateInputValue = (date: Date) =>
@@ -25,7 +28,6 @@ const initialForm = (selectedDate: Date) => ({
   completionRefundGem: 5,
   roundMinutes: 10,
   votingMinutes: 3,
-  resultMinutes: 5,
 });
 
 export default function AdminSessionCreate({
@@ -90,7 +92,7 @@ export default function AdminSessionCreate({
         capacityPerGender: form.capacityPerGender,
         roundDurationSeconds: form.roundMinutes * 60,
         votingDurationSeconds: form.votingMinutes * 60,
-        resultAndShareDurationSeconds: form.resultMinutes * 60,
+        resultAndShareDurationSeconds: RESULT_AND_SHARE_SECONDS,
         entryFeeGem: form.entryFeeGem + form.completionRefundGem,
         completionRefundGem: form.completionRefundGem,
       });
@@ -173,7 +175,7 @@ export default function AdminSessionCreate({
             <p className="admin-hint">
               신청 시 즉시 차감: 보석 {form.entryFeeGem + form.completionRefundGem}개 (보증금은 투표 완료 시 반환)
             </p>
-            <div className="field-row three">
+            <div className="field-row">
               <label>
                 라운드(분)
                 <input type="number" required min={1} value={form.roundMinutes} onChange={update("roundMinutes")} />
@@ -181,10 +183,6 @@ export default function AdminSessionCreate({
               <label>
                 투표(분)
                 <input type="number" required min={1} value={form.votingMinutes} onChange={update("votingMinutes")} />
-              </label>
-              <label>
-                결과·공유(분)
-                <input type="number" required min={1} value={form.resultMinutes} onChange={update("resultMinutes")} />
               </label>
             </div>
             {error && (
@@ -270,9 +268,6 @@ const AdminStyles = styled.div`
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.8rem;
-  }
-  .field-row.three {
-    grid-template-columns: repeat(3, 1fr);
   }
   .admin-error {
     color: var(--text-danger);
