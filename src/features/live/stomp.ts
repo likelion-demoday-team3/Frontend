@@ -27,6 +27,7 @@ export type LiveAssignment = {
 export type LiveMessage =
   | { kind: 'joined'; sessionId: number; memberId: number; status: 'JOINED' | 'ASSIGNED' | 'IDLE'; roundId: number | null; roundNumber: number | null; roomId: number | null; tableNo: number | null; partnerMemberId: number | null; partnerAlias: string | null; partnerProfileCard: LiveAssignment['partnerProfileCard'] | null; roundEndsAt?: string | null }
   | { kind: 'assigned'; assignment: LiveAssignment }
+  // [휴식 제거] 서버가 breakSeconds를 0으로 보낸다 (화면에서는 쓰지 않음)
   | { kind: 'idle'; sessionId: number; roundNumber: number; breakSeconds: number }
   | { kind: 'signal'; sessionId: number; roomId: number; fromMemberId: number; type: 'OFFER' | 'ANSWER' | 'ICE_CANDIDATE'; payload: string }
   | { kind: 'voting-started'; sessionId: number; votingEndsAt: string }
