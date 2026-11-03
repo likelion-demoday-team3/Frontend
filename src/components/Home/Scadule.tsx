@@ -50,6 +50,12 @@ function koreaTime(value: string) {
   }).format(new Date(value));
 }
 
+// 서버의 entryFeeGem은 신청 시 차감액이고 보증금(completionRefundGem)이 그 안에 포함돼 있다.
+// 화면에는 참가비(보증금 제외)와 보증금을 나눠 보여준다.
+function participationFee(session: Session) {
+  return Math.max(0, session.entryFeeGem - session.completionRefundGem);
+}
+
 function cancellationRefund(session: Session) {
   const hoursLeft =
     (new Date(session.startTime).getTime() - Date.now()) / 3600000;
@@ -126,7 +132,7 @@ export default function Scadule({
       if (pendingAction === "apply") {
         const result = await applyToSession(session.sessionId);
         setNotice(
-          `신청 완료 · ${result.alias} · 참가비 ${result.chargedGem}개 차감`,
+          `신청 완료 · ${result.alias} · 보석 ${result.chargedGem}개 차감`,
         );
       } else {
         const result = await cancelSession(session.sessionId);
@@ -152,7 +158,7 @@ export default function Scadule({
   async function removeSession(session: Session) {
     if (submitting || !isAdminToken()) return;
     const confirmed = window.confirm(
-      `${koreaTime(session.startTime)} 세션을 삭제할까요? 신청자가 있으면 전원에게 참가비를 환불하고 취소돼요. 이 작업은 되돌릴 수 없어요.`,
+      `${koreaTime(session.startTime)} 세션을 삭제할까요? 신청자가 있으면 전원에게 참가비와 보증금을 환불하고 취소돼요. 이 작업은 되돌릴 수 없어요.`,
     );
     if (!confirmed) return;
 
@@ -168,7 +174,7 @@ export default function Scadule({
       setNotice(
         deletion?.result === "CANCELLED"
           ? deletion.refundedParticipants > 0
-            ? `신청자가 있어 ${deletion.refundedParticipants}명에게 참가비를 전액 환불하고 세션을 취소했어요.`
+            ? `신청자가 있어 ${deletion.refundedParticipants}명에게 참가비와 보증금을 전액 환불하고 세션을 취소했어요.`
             : "신청 기록이 있어 세션을 삭제하는 대신 취소했어요."
           : "세션을 삭제했어요.",
       );
@@ -365,7 +371,7 @@ export default function Scadule({
             </h2>
             <p className="dialog-description" id="booking-description">
               {pendingAction === "apply"
-                ? "신청 시 참가비가 바로 차감됩니다."
+                ? "신청 시 참가비와 보증금이 바로 차감됩니다."
                 : "취소 환불액은 세션 시작까지 남은 시간에 따라 정해져요."}
             </p>
             <div className="gem-summary">
@@ -374,7 +380,8 @@ export default function Scadule({
                   <div>
                     <span>세션 참가비</span>
                     <strong>
-                      <span className="gem">◆</span> {pending.entryFeeGem}개
+                      <span className="gem">◆</span>{" "}
+                      {participationFee(pending)}개
                     </strong>
                   </div>
                   <div className="refund-row">
@@ -385,7 +392,7 @@ export default function Scadule({
                     </strong>
                   </div>
                   <div className="gem-total">
-                    <span>신청 시 차감</span>
+                    <span>신청 시 즉시 차감 (참가비+보증금)</span>
                     <strong>
                       <span className="gem">◆</span> {pending.entryFeeGem}개
                     </strong>

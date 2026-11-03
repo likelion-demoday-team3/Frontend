@@ -7,7 +7,8 @@ type AdminSessionCreateProps = {
   onCreated: () => void;
 };
 
-// 서버 규칙: 성별 정원 3~6명, 완주 반환 ≤ 참가비, 신청 마감(시작 10분 전) 이후엔 모집 시작 불가
+// 서버 규칙: 성별 정원 3~6명, 신청 마감(시작 10분 전) 이후엔 모집 시작 불가.
+// 서버의 entryFeeGem은 신청 시 차감액(보증금 포함)이다. 폼에서는 참가비와 보증금을 따로 받고 합쳐서 보낸다.
 const MIN_CAPACITY = 3;
 const MAX_CAPACITY = 6;
 const APPLY_DEADLINE_MINUTES = 10;
@@ -80,11 +81,6 @@ export default function AdminSessionCreate({
       setError(`시작 시각은 지금부터 ${APPLY_DEADLINE_MINUTES}분 이후여야 해요.`);
       return;
     }
-    if (form.completionRefundGem > form.entryFeeGem) {
-      setError("보증금은 참가비보다 클 수 없어요.");
-      return;
-    }
-
     setSubmitting(true);
     setError("");
     let createdId: number | null = null;
@@ -95,7 +91,7 @@ export default function AdminSessionCreate({
         roundDurationSeconds: form.roundMinutes * 60,
         votingDurationSeconds: form.votingMinutes * 60,
         resultAndShareDurationSeconds: form.resultMinutes * 60,
-        entryFeeGem: form.entryFeeGem,
+        entryFeeGem: form.entryFeeGem + form.completionRefundGem,
         completionRefundGem: form.completionRefundGem,
       });
       await openSessionRecruiting(createdId);
@@ -174,6 +170,9 @@ export default function AdminSessionCreate({
                 <input type="number" required min={0} value={form.completionRefundGem} onChange={update("completionRefundGem")} />
               </label>
             </div>
+            <p className="admin-hint">
+              신청 시 즉시 차감: 보석 {form.entryFeeGem + form.completionRefundGem}개 (보증금은 투표 완료 시 반환)
+            </p>
             <div className="field-row three">
               <label>
                 라운드(분)
