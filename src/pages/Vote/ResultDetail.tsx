@@ -13,6 +13,7 @@ import {
   type ResultProductInfo,
   type VoteSummary,
 } from "../../features/sessions/resultsApi";
+import { getSessionPartners } from "../../features/sessions/interactionApi";
 import {
   createPreviewResult,
   previewResultProducts,
@@ -34,7 +35,7 @@ export default function ResultDetail() {
   const preview =
     previewParams.has("preview") &&
     (import.meta.env.DEV || previewParams.has("showTest"));
-  const [partners] = useState<Array<{ memberId: number; nickname: string }>>(
+  const [partners, setPartners] = useState<Array<{ memberId: number; nickname: string }>>(
     () => {
       if (preview)
         return [
@@ -76,7 +77,7 @@ export default function ResultDetail() {
     Record<string, ResultDetails>
   >({});
   const [targetIds, setTargetIds] = useState<Record<string, string>>({});
-  const [myMemberId] = useState<number | null>(() => {
+  const [myMemberId, setMyMemberId] = useState<number | null>(() => {
     if (!sessionId) return null;
     try {
       const context = JSON.parse(
@@ -111,6 +112,21 @@ export default function ResultDetail() {
       return;
     }
     let active = true;
+    // 브라우저를 닫았다 다시 와도 대화한 상대와 내 memberId를 서버에서 받는다.
+    // 실패하면 같은 탭에 저장해 둔 목록을 그대로 쓴다
+    getSessionPartners(sessionId).then(
+      (result) => {
+        if (!active) return;
+        setPartners(
+          result.partners.map((partner) => ({
+            memberId: partner.memberId,
+            nickname: partner.alias || "상대방",
+          })),
+        );
+        setMyMemberId(result.myMemberId);
+      },
+      () => undefined,
+    );
     Promise.all([
       getMyWallet(),
       getVoteSummary(sessionId),

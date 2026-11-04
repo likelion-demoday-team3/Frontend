@@ -54,5 +54,15 @@ export const respondToContactRequest = (sessionId: number, requestId: number, ac
 export const getContactRequests = (page = 0, size = 50) =>
   apiRequest<Paged<ContactRequest>>(`/api/contact-history/requests?page=${page}&size=${size}`)
 
+// 세션에서 내가 대화한 상대 목록. 연락처 화면이 탭을 새로 열어도 서버에서 다시 받는다
+export type SessionPartners = {
+  sessionId: number
+  myMemberId: number
+  partners: Array<{ memberId: number; alias: string | null; roundNumber: number }>
+}
+
+export const getSessionPartners = (sessionId: number) =>
+  apiRequest<SessionPartners>(`/api/sessions/${sessionId}/partners`)
+
 export const closeResultsWindow = (sessionId: number) =>
   apiRequest<null>(`/api/sessions/${sessionId}/results/close`, { method: 'POST' })

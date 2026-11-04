@@ -8,6 +8,7 @@ import { connectLiveSession } from "../features/live/stomp";
 import { getContactShares, type ContactShare } from "../features/records/api";
 import {
   getContactRequests,
+  getSessionPartners,
   closeResultsWindow,
   requestContact,
   sendContact,
@@ -89,6 +90,8 @@ export default function Contact() {
       setLoading(false);
       return;
     }
+    // 같은 탭에서 세션을 마치고 왔다면 저장해 둔 목록을 먼저 보여주고, 곧바로 서버 목록으로 바꾼다
+    let hasStoredPartners = false;
     const stored = sessionId
       ? sessionStorage.getItem(`kiiwee.session-context:${sessionId}`)
       : null;
@@ -100,12 +103,38 @@ export default function Contact() {
         };
         setPartners(context.partners ?? []);
         setMyMemberId(context.myMemberId ?? null);
+        hasStoredPartners = (context.partners?.length ?? 0) > 0;
       } catch {
-        /* 잘못된 임시 화면 상태는 무시하고 안내를 표시 */
+        /* 잘못된 임시 화면 상태는 무시하고 서버 목록을 쓴다 */
       }
     }
     let active = true;
-    refresh()
+    // 브라우저를 닫았다 다시 와도 대화한 상대와 내 memberId를 서버에서 받는다
+    const loadPartners = sessionId
+      ? getSessionPartners(sessionId).then(
+          (result) => {
+            if (!active) return;
+            setPartners(
+              result.partners.map((partner) => ({
+                memberId: partner.memberId,
+                nickname: partner.alias || "상대방",
+                roundNumber: partner.roundNumber,
+              })),
+            );
+            setMyMemberId(result.myMemberId);
+          },
+          (cause) => {
+            // 저장해 둔 목록이 있으면 그대로 쓰고, 없을 때만 오류를 알린다
+            if (active && !hasStoredPartners)
+              setError(
+                cause instanceof Error
+                  ? cause.message
+                  : "대화 상대 목록을 불러오지 못했어요.",
+              );
+          },
+        )
+      : Promise.resolve();
+    Promise.all([refresh(), loadPartners])
       .catch((cause) => {
         if (active)
           setError(
@@ -315,11 +344,8 @@ export default function Contact() {
             )}
             {!partners.length && (
               <section className="pending-card" role="status">
-                <h2>대화 상대 정보가 없어요</h2>
-                <p>
-                  세션 화면에서 대화 상대 정보가 전달되지 않았습니다. 세션을
-                  다시 열고 결과 화면으로 이동해주세요.
-                </p>
+                <h2>대화한 상대가 없어요</h2>
+                <p>이 세션에서 대화를 나눈 상대가 없어 연락처를 주고받을 수 없어요.</p>
               </section>
             )}
             <section className="partner-list" aria-label="대화 상대 목록">
