@@ -20,7 +20,7 @@ export type SessionDetail = Session & {
   resultAndShareDurationSeconds: number
   myStatus: MyStatus | null
   myAlias: string | null
-  liveStatus?: 'WAITING' | 'LOBBY' | 'IN_ROUND' | 'VOTING' | 'RESULT_AND_SHARE' | 'CLOSED'
+  liveStatus?: 'WAITING' | 'LOBBY' | 'IN_ROUND' | 'HEART' | 'VOTING' | 'RESULT_AND_SHARE' | 'CLOSED'
   currentRoundNumber?: number
   phaseEndsAt?: string | null
 }

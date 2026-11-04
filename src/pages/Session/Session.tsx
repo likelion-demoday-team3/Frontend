@@ -175,22 +175,57 @@ export default function Session({ sessionId }: SessionProps) {
         { nickname: "햇살한스푼", roundNumber: 6, memberId: 7 },
       ];
     }
-    return heartLobbyPreviewMode
-      ? [
-          { nickname: "구름산책", roundNumber: 1, memberId: 2 },
-          { nickname: "달빛수집가", roundNumber: 2, memberId: 3 },
-          { nickname: "포근한오후", roundNumber: 3, memberId: 4 },
-          { nickname: "초록새벽", roundNumber: 4, memberId: 5 },
-          { nickname: "느린토끼", roundNumber: 5, memberId: 6 },
-        ]
-      : [];
+    if (heartLobbyPreviewMode) {
+      return [
+        { nickname: "구름산책", roundNumber: 1, memberId: 2 },
+        { nickname: "달빛수집가", roundNumber: 2, memberId: 3 },
+        { nickname: "포근한오후", roundNumber: 3, memberId: 4 },
+        { nickname: "초록새벽", roundNumber: 4, memberId: 5 },
+        { nickname: "느린토끼", roundNumber: 5, memberId: 6 },
+      ];
+    }
+    // 새로고침·재입장: 앞에서 만난 상대 목록을 sessionStorage에서 되살린다.
+    // (복원하지 않으면 아래 effect가 빈 목록으로 덮어써서 하트·투표·연락처 화면이 비게 된다)
+    if (sessionPreviewMode) return [];
+    try {
+      const stored = sessionStorage.getItem(
+        `kiiwee.session-context:${sessionId}`,
+      );
+      const partners = stored
+        ? (JSON.parse(stored) as { partners?: unknown }).partners
+        : null;
+      if (!Array.isArray(partners)) return [];
+      return partners.filter(
+        (item): item is { nickname: string; roundNumber: number; memberId: number } =>
+          typeof item === "object" &&
+          item !== null &&
+          typeof item.memberId === "number" &&
+          typeof item.roundNumber === "number" &&
+          typeof item.nickname === "string",
+      );
+    } catch {
+      return [];
+    }
   });
   useEffect(() => {
+    const key = `kiiwee.session-context:${sessionId}`;
+    let storedMemberId: number | null = null;
+    try {
+      const stored = sessionStorage.getItem(key);
+      const parsed = stored
+        ? (JSON.parse(stored) as { myMemberId?: unknown })
+        : null;
+      const value = parsed?.myMemberId;
+      if (typeof value === "number") storedMemberId = value;
+    } catch {
+      // 깨진 값은 새로 덮어쓴다
+    }
     sessionStorage.setItem(
-      `kiiwee.session-context:${sessionId}`,
+      key,
       JSON.stringify({
         partners: encounteredProfiles,
-        myMemberId: myLiveMemberId ?? assignment?.memberId ?? null,
+        // 재입장 직후 아직 memberId를 모를 때 기존 값을 지우지 않는다
+        myMemberId: myLiveMemberId ?? assignment?.memberId ?? storedMemberId,
       }),
     );
   }, [sessionId, encounteredProfiles, myLiveMemberId, assignment?.memberId]);
@@ -277,6 +312,14 @@ export default function Session({ sessionId }: SessionProps) {
   const previousConversationRemainingRef = useRef<number | null>(null);
   const shownConversationCountdownsRef = useRef<Set<number>>(new Set());
   const startConversationRef = useRef<() => void>(() => undefined);
+  // 서버 기준 라이브 단계. 하트·투표 중에 재입장하면 joined(JOINED)가 와도 로비로 돌아가지 않게 막는다
+  const livePhaseRef = useRef<"HEART" | "VOTING" | null>(null);
+  const sessionRef = useRef<SessionDetail | null>(null);
+  sessionRef.current = session;
+  // 상대가 재접속해 새 연결로 offer를 보내면 기존 RTCPeerConnection을 버리고 다시 만든다
+  const [peerResetKey, setPeerResetKey] = useState(0);
+  const awaitRemoteOfferRef = useRef(false);
+  const autoReconnectTriedRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -374,9 +417,24 @@ export default function Session({ sessionId }: SessionProps) {
       .then((result) => {
         if (active) {
           setSession(result);
+          if (result.currentRoundNumber)
+            setCurrentRound((round) =>
+              Math.max(round, result.currentRoundNumber ?? 0),
+            );
           if (result.liveStatus === "VOTING" && result.phaseEndsAt) {
+            livePhaseRef.current = "VOTING";
             setVotingEndsAt(result.phaseEndsAt);
             setPhase("voting");
+          } else if (result.liveStatus === "HEART") {
+            // 하트 단계에 재입장: 하트 로비로 바로 복원한다
+            livePhaseRef.current = "HEART";
+            setFinalChoiceLobby(true);
+            setFinalChoiceStartsAt(
+              result.phaseEndsAt ? Date.parse(result.phaseEndsAt) : Date.now(),
+            );
+            setFinalChoiceCountdown(null);
+            setUnmatchedThisRound(false);
+            setPhase("idle");
           }
         }
       })
@@ -538,20 +596,49 @@ export default function Session({ sessionId }: SessionProps) {
     async (signal: Extract<LiveMessage, { kind: "signal" }>) => {
       const peer = peerRef.current;
       if (!peer) {
-        pendingSignals.current = [...pendingSignals.current, signal].slice(-32);
+        // OFFER/ANSWER는 ICE 후보에 밀려 버려지지 않도록 따로 지킨다
+        const queued = [...pendingSignals.current, signal];
+        const descriptions = queued.filter((item) => item.type !== "ICE_CANDIDATE");
+        const candidates = queued
+          .filter((item) => item.type === "ICE_CANDIDATE")
+          .slice(-64);
+        pendingSignals.current = queued.filter(
+          (item) => descriptions.includes(item) || candidates.includes(item),
+        );
         return;
       }
       if (signal.roomId !== peer.assignment.roomId) return;
       const connection = peer.connection;
-      try {
-        if (signal.type === "ICE_CANDIDATE") {
+      if (
+        signal.type === "OFFER" &&
+        connection.remoteDescription &&
+        connection.signalingState === "stable"
+      ) {
+        // 이미 연결을 맺은 상대가 다시 offer를 보냈다 = 상대가 재입장해 새 RTCPeerConnection을 만든 것.
+        // 기존 연결에 그대로 적용하면 실패하므로 연결을 새로 만들고, 새 연결은 이 offer에 응답만 한다
+        connection.close();
+        peerRef.current = null;
+        candidateQueue.current = [];
+        pendingSignals.current = [signal];
+        awaitRemoteOfferRef.current = true;
+        setPeerResetKey((key) => key + 1);
+        return;
+      }
+      if (signal.type === "ICE_CANDIDATE") {
+        try {
           const candidate = JSON.parse(signal.payload) as RTCIceCandidateInit;
           if (connection.remoteDescription)
             await connection.addIceCandidate(candidate);
           else candidateQueue.current.push(candidate);
-          return;
+        } catch {
+          // 이전 연결에서 온 늦은 후보는 적용되지 않아도 통화에 영향이 없다
         }
-
+        return;
+      }
+      // 보낸 offer가 없는데 온 answer는 이전 연결의 것이라 무시한다
+      if (signal.type === "ANSWER" && connection.signalingState !== "have-local-offer")
+        return;
+      try {
         const description = signal.payload.startsWith("{")
           ? (JSON.parse(signal.payload) as RTCSessionDescriptionInit)
           : ({
@@ -569,7 +656,7 @@ export default function Session({ sessionId }: SessionProps) {
           await connection.setLocalDescription({ type: "rollback" });
         await connection.setRemoteDescription(description);
         for (const candidate of candidateQueue.current.splice(0))
-          await connection.addIceCandidate(candidate);
+          await connection.addIceCandidate(candidate).catch(() => undefined);
 
         if (signal.type === "OFFER") {
           const answer = await connection.createAnswer();
@@ -666,9 +753,32 @@ export default function Session({ sessionId }: SessionProps) {
           startRequested.current = true;
           setUnmatchedThisRound(false);
           setPhase("assigned");
+        } else if (livePhaseRef.current) {
+          // 하트·투표 단계에 재입장: 진행 중인 라운드가 없어 JOINED가 오지만 화면은 그대로 둔다
+          setConnectionStatus(
+            livePhaseRef.current === "HEART"
+              ? "하트 선택 진행 중"
+              : "최종 투표 진행 중",
+          );
+          return;
         } else {
           setConversationEndsAt(null);
           setUnmatchedThisRound(message.status === "IDLE");
+          if (message.status === "IDLE" && message.roundNumber !== null) {
+            const roundNumber = message.roundNumber;
+            setCurrentRound((round) => Math.max(round, roundNumber));
+          } else if (message.status === "JOINED") {
+            const current = sessionRef.current;
+            const lastRound = current?.currentRoundNumber ?? 0;
+            if (
+              current?.status === "IN_PROGRESS" &&
+              current.liveStatus === "IN_ROUND" &&
+              lastRound > 0
+            ) {
+              // 라운드 사이에 재입장: 직전 라운드는 끝났으니 다음 라운드 번호로 안내한다
+              setCurrentRound((round) => Math.max(round, lastRound + 1));
+            }
+          }
           setPhase(message.status === "IDLE" ? "idle" : "lobby");
         }
         setConnectionStatus(
@@ -737,6 +847,7 @@ export default function Session({ sessionId }: SessionProps) {
       } else if (message.kind === "signal") {
         void handleSignal(message);
       } else if (message.kind === "voting-started") {
+        livePhaseRef.current = "VOTING";
         peerRef.current?.connection.close();
         peerRef.current = null;
         streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -750,6 +861,7 @@ export default function Session({ sessionId }: SessionProps) {
         setPhase("voting");
         setConnectionStatus("최종 투표 진행 중");
       } else if (message.kind === "hearts-started") {
+        livePhaseRef.current = "HEART";
         peerRef.current?.connection.close();
         peerRef.current = null;
         streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -813,6 +925,9 @@ export default function Session({ sessionId }: SessionProps) {
     setIsPartnerSpeaking(false);
 
     let cancelled = false;
+    // 상대가 재입장해 보낸 offer로 연결을 다시 만드는 경우, 이쪽은 offer를 보내지 않고 응답만 한다
+    const answerOnly = awaitRemoteOfferRef.current;
+    awaitRemoteOfferRef.current = false;
     async function startPeer() {
       try {
         if (!navigator.mediaDevices?.getUserMedia)
@@ -867,6 +982,7 @@ export default function Session({ sessionId }: SessionProps) {
             });
         };
         connection.onnegotiationneeded = async () => {
+          if (answerOnly) return;
           try {
             makingOffer.current = true;
             await connection.setLocalDescription(
@@ -974,7 +1090,7 @@ export default function Session({ sessionId }: SessionProps) {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, [assignment, handleSignal, phase, sendSignal, sessionId]);
+  }, [assignment, handleSignal, peerResetKey, phase, sendSignal, sessionId]);
 
   useEffect(
     () => () => {
@@ -1024,6 +1140,11 @@ export default function Session({ sessionId }: SessionProps) {
       return;
     }
 
+    connectLive();
+  }
+
+  function connectLive() {
+    intentionalClose.current = false;
     const live = connectLiveSession(
       sessionId,
       handleMessage,
@@ -1042,13 +1163,31 @@ export default function Session({ sessionId }: SessionProps) {
         setError(message);
         setIsStarting(false);
         startRequested.current = false;
-        setPhase("ready");
         liveRef.current?.disconnect();
         liveRef.current = null;
+        // 하트·투표 화면은 유지하고, 로비·대화 단계에서만 입장 화면으로 돌아간다
+        if (!livePhaseRef.current) setPhase("ready");
       },
     );
     liveRef.current = live;
   }
+
+  // 하트·투표 단계에 새로고침하면 입장 버튼이 없는 화면이 바로 뜬다.
+  // 실시간 연결을 자동으로 다시 열어 결과 이동·알림·하트 단계 전환을 계속 받는다
+  useEffect(() => {
+    if (
+      isMockLiveEnabled ||
+      autoReconnectTriedRef.current ||
+      liveRef.current ||
+      !session ||
+      !livePhaseRef.current ||
+      session.status !== "IN_PROGRESS" ||
+      session.myStatus !== "ATTENDED"
+    )
+      return;
+    autoReconnectTriedRef.current = true;
+    connectLive();
+  }, [session]);
 
   function startConversation() {
     if (autoStartTimeoutRef.current !== null) {
