@@ -39,6 +39,38 @@ import {
 } from "./sessionUtils";
 import type { LobbyParticipant, PeerState, Phase, SessionProps } from "./sessionUtils";
 
+const PLAYBACK_BLOCKED_MESSAGE =
+  "브라우저에서 음성 재생이 막혔어요. 화면을 한 번 누르면 상대 목소리가 나와요.";
+
+const MIC_LOBBY_NOTICE =
+  "마이크 권한이 필요해요. 주소창의 🔒(또는 ⓘ) → 마이크 → 허용으로 바꿔주세요. 허용하지 않으면 상대 목소리만 들리고 내 목소리는 전달되지 않아요.";
+
+/** 마이크를 쓸 수 없을 때 보여줄 안내. 권한 거부면 브라우저 설정에서 허용하는 방법을 알려준다 */
+function microphoneErrorMessage(cause: unknown) {
+  const name = cause instanceof DOMException ? cause.name : "";
+  if (name === "NotAllowedError" || name === "PermissionDeniedError")
+    return "마이크 권한이 꺼져 있어요. 주소창의 🔒(또는 ⓘ) → 마이크 → 허용으로 바꾼 뒤 마이크 버튼을 눌러주세요. 그 전까지는 상대 목소리만 들려요.";
+  if (name === "NotFoundError" || name === "DevicesNotFoundError")
+    return "사용할 수 있는 마이크를 찾지 못했어요. 그 전까지는 상대 목소리만 들려요.";
+  return cause instanceof Error && cause.message
+    ? cause.message
+    : "마이크를 사용할 수 없어요. 그 전까지는 상대 목소리만 들려요.";
+}
+
+const MIC_UNSUPPORTED_MESSAGE =
+  "이 브라우저에서는 마이크를 사용할 수 없어요. 그 전까지는 상대 목소리만 들려요.";
+
+/** 마이크 권한만 받고 바로 끈다. 실패하면 이유를 담아 던진다 */
+async function requestMicrophoneAccess() {
+  if (!navigator.mediaDevices?.getUserMedia)
+    throw new Error(MIC_UNSUPPORTED_MESSAGE);
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: false,
+  });
+  stream.getTracks().forEach((track) => track.stop());
+}
+
 export default function Session({ sessionId }: SessionProps) {
   const previewParams = new URLSearchParams(window.location.search);
   const isMockLiveEnabled =
@@ -297,6 +329,14 @@ export default function Session({ sessionId }: SessionProps) {
   const mutedRef = useRef(false);
   const speakerEnabledRef = useRef(true);
   const audioPlaybackBlockedRef = useRef(false);
+  // 브라우저가 상대 음성 자동 재생을 막았는지 (스피커 버튼에 "눌러서 소리 켜기"로 보여준다)
+  const [playbackBlocked, setPlaybackBlocked] = useState(false);
+  // 마이크를 못 가져온 상태. 이때는 상대 목소리만 받는 연결로 붙고, 마이크 버튼은 "권한 필요"로 보인다
+  const [micUnavailable, setMicUnavailable] = useState(false);
+  const markPlaybackBlocked = useCallback((blocked: boolean) => {
+    audioPlaybackBlockedRef.current = blocked;
+    setPlaybackBlocked(blocked);
+  }, []);
   const audioContextRef = useRef<AudioContext | null>(null);
   const speechFrameRef = useRef<number | null>(null);
   const candidateQueue = useRef<RTCIceCandidateInit[]>([]);
@@ -973,18 +1013,26 @@ export default function Session({ sessionId }: SessionProps) {
     awaitRemoteOfferRef.current = false;
     async function startPeer() {
       try {
-        if (!navigator.mediaDevices?.getUserMedia)
-          throw new Error("이 브라우저에서는 마이크를 사용할 수 없어요.");
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: false,
-        });
+        // 마이크를 못 가져와도 연결은 만든다. 그래야 상대 목소리는 들리고 상대도 연결된 걸 안다
+        let stream: MediaStream | null = null;
+        try {
+          if (!navigator.mediaDevices?.getUserMedia)
+            throw new Error(MIC_UNSUPPORTED_MESSAGE);
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: false,
+          });
+          setMicUnavailable(false);
+        } catch (micCause) {
+          setMicUnavailable(true);
+          setError(microphoneErrorMessage(micCause));
+        }
         if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
+          stream?.getTracks().forEach((track) => track.stop());
           return;
         }
         streamRef.current = stream;
-        stream.getAudioTracks().forEach((track) => {
+        stream?.getAudioTracks().forEach((track) => {
           track.enabled = !mutedRef.current;
         });
         if (!iceServersRef.current) {
@@ -1011,9 +1059,15 @@ export default function Session({ sessionId }: SessionProps) {
             { urls: "stun:stun.l.google.com:19302" },
           ],
         });
-        stream
-          .getTracks()
-          .forEach((track) => connection.addTrack(track, stream));
+        const localStream = stream;
+        if (localStream) {
+          localStream
+            .getTracks()
+            .forEach((track) => connection.addTrack(track, localStream));
+        } else {
+          // 마이크 없이 받기 전용으로 연결한다
+          connection.addTransceiver("audio", { direction: "recvonly" });
+        }
         connection.onicecandidate = (event) => {
           if (event.candidate)
             sendSignal({
@@ -1051,7 +1105,8 @@ export default function Session({ sessionId }: SessionProps) {
               setIsPartnerSpeaking(false),
             );
             audio.srcObject = event.streams[0];
-            audio.volume = speakerEnabledRef.current ? 1 : 0;
+            // iOS Safari는 volume을 바꿀 수 없어(항상 1) 스피커 끄기는 muted로 한다
+            audio.muted = !speakerEnabledRef.current;
             const audioContext = new AudioContext();
             const analyser = audioContext.createAnalyser();
             analyser.fftSize = 256;
@@ -1077,11 +1132,11 @@ export default function Session({ sessionId }: SessionProps) {
               .play()
               .then(
                 () => {
-                  audioPlaybackBlockedRef.current = false;
+                  markPlaybackBlocked(false);
                 },
                 () => {
-                  audioPlaybackBlockedRef.current = true;
-                  setError("브라우저에서 음성 재생이 차단됐어요. 스피커폰 버튼을 눌러주세요.");
+                  markPlaybackBlocked(true);
+                  setError(PLAYBACK_BLOCKED_MESSAGE);
                 },
               );
           }
@@ -1106,13 +1161,10 @@ export default function Session({ sessionId }: SessionProps) {
         }
         setCallStatus("상대와 음성을 연결하고 있어요.");
       } catch (cause) {
-        const name = cause instanceof DOMException ? cause.name : "";
         setError(
-          name === "NotAllowedError" || name === "PermissionDeniedError"
-            ? "마이크 권한이 허용되지 않았어요. 브라우저에서 이 사이트의 마이크 권한을 허용해주세요."
-            : cause instanceof Error
-              ? cause.message
-              : "마이크와 음성 연결을 시작하지 못했어요.",
+          cause instanceof Error && cause.message
+            ? cause.message
+            : "음성 연결을 시작하지 못했어요.",
         );
         setCallStatus("음성 연결을 시작하지 못했어요.");
       }
@@ -1128,12 +1180,36 @@ export default function Session({ sessionId }: SessionProps) {
         audioContextRef.current = null;
       }
       setIsPartnerSpeaking(false);
+      markPlaybackBlocked(false);
       peerRef.current?.connection.close();
       peerRef.current = null;
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, [assignment, handleSignal, peerResetKey, phase, sendSignal, sessionId]);
+  }, [assignment, handleSignal, markPlaybackBlocked, peerResetKey, phase, sendSignal, sessionId]);
+
+  // 자동 재생이 막혔으면, 사용자가 화면 어디든 처음 누를 때 다시 재생한다
+  // (브라우저는 사용자가 한 번 누른 뒤에는 재생을 허락한다. 스피커 버튼을 눌러도 여기서 먼저 시도된다)
+  useEffect(() => {
+    if (!playbackBlocked) return;
+    const retryPlayback = () => {
+      const audio = audioRef.current;
+      if (!audio || !audioPlaybackBlockedRef.current) return;
+      void audioContextRef.current?.resume().catch(() => undefined);
+      void audio.play().then(
+        () => {
+          markPlaybackBlocked(false);
+          setError((current) =>
+            current === PLAYBACK_BLOCKED_MESSAGE ? "" : current,
+          );
+        },
+        () => undefined,
+      );
+    };
+    document.addEventListener("pointerdown", retryPlayback, true);
+    return () =>
+      document.removeEventListener("pointerdown", retryPlayback, true);
+  }, [markPlaybackBlocked, playbackBlocked]);
 
   useEffect(
     () => () => {
@@ -1172,6 +1248,8 @@ export default function Session({ sessionId }: SessionProps) {
     setError("");
     setPhase("connecting");
     intentionalClose.current = false;
+    // 대화가 시작되기 전에 마이크 권한을 미리 받아 둔다 (입장 버튼을 누른 이 순간에 허용 창이 뜬다)
+    if (!isMockLiveEnabled) void checkMicrophone();
 
     if (isMockLiveEnabled) {
       startRequested.current = false;
@@ -1356,7 +1434,40 @@ export default function Session({ sessionId }: SessionProps) {
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
 
+  /** 마이크 권한을 받아 본다. 성공하면 true */
+  async function checkMicrophone() {
+    try {
+      await requestMicrophoneAccess();
+      setMicUnavailable(false);
+      return true;
+    } catch (cause) {
+      setMicUnavailable(true);
+      setError(microphoneErrorMessage(cause));
+      return false;
+    }
+  }
+
+  /** "권한 필요" 상태의 마이크 버튼. 권한을 다시 받으면 새 마이크로 연결을 다시 만든다 */
+  async function retryMicrophone() {
+    if (!(await checkMicrophone())) return;
+    setError("");
+    if (phase === "assigned" && peerRef.current) {
+      // 기존 연결에 마이크를 끼워 넣지 않고 연결을 새로 만든다.
+      // 상대는 새 offer를 재입장처럼 받아 연결을 다시 맺는다 (handleSignal의 재입장 처리)
+      peerRef.current.connection.close();
+      peerRef.current = null;
+      candidateQueue.current = [];
+      pendingSignals.current = [];
+      awaitRemoteOfferRef.current = false;
+      setPeerResetKey((key) => key + 1);
+    }
+  }
+
   function toggleMute() {
+    if (micUnavailable) {
+      void retryMicrophone();
+      return;
+    }
     const nextMuted = !mutedRef.current;
     mutedRef.current = nextMuted;
     streamRef.current?.getAudioTracks().forEach((track) => {
@@ -1368,10 +1479,10 @@ export default function Session({ sessionId }: SessionProps) {
   function toggleSpeaker() {
     if (audioPlaybackBlockedRef.current && audioRef.current) {
       speakerEnabledRef.current = true;
-      audioRef.current.volume = 1;
+      audioRef.current.muted = false;
       void audioRef.current.play().then(
         () => {
-          audioPlaybackBlockedRef.current = false;
+          markPlaybackBlocked(false);
           setSpeakerEnabled(true);
           setError("");
         },
@@ -1382,7 +1493,7 @@ export default function Session({ sessionId }: SessionProps) {
     const nextEnabled = !speakerEnabled;
     speakerEnabledRef.current = nextEnabled;
     if (audioRef.current) {
-      audioRef.current.volume = nextEnabled ? 1 : 0;
+      audioRef.current.muted = !nextEnabled;
       if (nextEnabled) {
         void audioRef.current.play().then(
           () => setError(""),
@@ -1400,6 +1511,7 @@ export default function Session({ sessionId }: SessionProps) {
     streamRef.current = null;
     audioRef.current?.pause();
     if (audioRef.current) audioRef.current.srcObject = null;
+    markPlaybackBlocked(false);
     if (speechFrameRef.current !== null)
       window.cancelAnimationFrame(speechFrameRef.current);
     speechFrameRef.current = null;
@@ -1734,6 +1846,7 @@ export default function Session({ sessionId }: SessionProps) {
                   />
                 ) : (
                   <MainLobby
+                    micNotice={micUnavailable ? MIC_LOBBY_NOTICE : undefined}
                     participants={lobbyParticipants}
                     myMemberId={myLiveMemberId}
                     myRealName={myRealName}
@@ -1797,6 +1910,8 @@ export default function Session({ sessionId }: SessionProps) {
                     isPartnerSpeaking={isPartnerSpeaking}
                     muted={muted}
                     speakerEnabled={speakerEnabled}
+                    speakerBlocked={playbackBlocked}
+                    micUnavailable={micUnavailable}
                     reportPopupOpen={reportPopupOpen}
                     profileCardOpen={profileCardOpen}
                     audioRef={audioRef}

@@ -13,6 +13,8 @@ type MainLobbyProps = {
   startLabel: string;
   showParticipantNotice?: boolean;
   showIdleNotice?: boolean;
+  /** 마이크 권한이 없을 때 로비에 띄울 안내 */
+  micNotice?: string;
   onStart: () => void;
 };
 
@@ -28,6 +30,7 @@ export default function MainLobby({
   startLabel,
   showParticipantNotice,
   showIdleNotice,
+  micNotice,
   onStart,
 }: MainLobbyProps) {
   return (
@@ -94,6 +97,11 @@ export default function MainLobby({
           소개팅 참가자들이 입장하고 있어요! 참가자 확인이 끝나면 대화가 시작됩니다.{" "}
           <span>오류가 아니니 절대 새로고침하거나 화면을 끄지 마세요.</span>
           {" "}조금만 기다려주세요.
+        </p>
+      )}
+      {micNotice && (
+        <p className="participant-waiting-note" role="alert">
+          {micNotice}
         </p>
       )}
       {showIdleNotice && (

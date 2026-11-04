@@ -16,6 +16,10 @@ type CallProps = {
   isPartnerSpeaking: boolean;
   muted: boolean;
   speakerEnabled: boolean;
+  /** 브라우저가 상대 음성 재생을 막은 상태. 누르면 다시 재생한다 */
+  speakerBlocked?: boolean;
+  /** 마이크를 못 가져온 상태. 누르면 권한을 다시 받는다 */
+  micUnavailable?: boolean;
   reportPopupOpen: boolean;
   profileCardOpen: boolean;
   audioRef: RefObject<HTMLAudioElement | null>;
@@ -28,10 +32,12 @@ type CallProps = {
   onCloseProfile: () => void;
 };
 
+// 라운드 시작 안내는 보여주기만 하고 터치는 아래 버튼(마이크·스피커 등)으로 그대로 넘긴다
 const RoundStartLayer = styled.div`
   position: fixed;
   z-index: 20000;
   inset: 0;
+  pointer-events: none;
   display: grid;
   place-items: center;
   padding: 1.6rem;
@@ -75,6 +81,8 @@ export default function Call({
   isPartnerSpeaking,
   muted,
   speakerEnabled,
+  speakerBlocked = false,
+  micUnavailable = false,
   reportPopupOpen,
   profileCardOpen,
   audioRef,
@@ -129,9 +137,9 @@ export default function Call({
       <div className="conversation-controls">
         <button
           type="button"
-          className={`conversation-control${muted ? " is-muted" : " is-mic-on"}`}
+          className={`conversation-control${muted || micUnavailable ? " is-muted" : " is-mic-on"}`}
           onClick={onToggleMute}
-          aria-pressed={muted}
+          aria-pressed={muted || micUnavailable}
         >
           <span className="control-icon mute-icon" aria-hidden="true">
             <svg viewBox="0 0 40 40" fill="none">
@@ -139,18 +147,26 @@ export default function Call({
               <path d="M9 19a11 11 0 0 0 22 0M20 30v6m-7 0h14" />
             </svg>
           </span>
-          <span>마이크</span>
+          <span>{micUnavailable ? "권한 필요" : "마이크"}</span>
         </button>
         <button
           type="button"
-          className={`conversation-control${speakerEnabled ? " is-speaker-on" : " is-speaker-off"}`}
+          className={`conversation-control${speakerEnabled && !speakerBlocked ? " is-speaker-on" : " is-speaker-off"}`}
           onClick={onToggleSpeaker}
-          aria-pressed={speakerEnabled}
+          aria-pressed={speakerEnabled && !speakerBlocked}
         >
+          {/* 상대 소리 켜기·끄기. 스피커폰 전환이 아니라서 일반 스피커 아이콘을 쓴다 */}
           <span className="control-icon" aria-hidden="true">
-            <img src="/speakerphoneIcon.svg" alt="" />
+            <svg viewBox="0 0 40 40" fill="none">
+              <path d="M7 16h6l8-7v22l-8-7H7z" />
+              {speakerEnabled && !speakerBlocked ? (
+                <path d="M27 15a7 7 0 0 1 0 10M31 11a12.5 12.5 0 0 1 0 18" />
+              ) : (
+                <path d="M27 15l8 10M35 15l-8 10" />
+              )}
+            </svg>
           </span>
-          <span>스피커</span>
+          <span>{speakerBlocked ? "눌러서 소리 켜기" : "소리"}</span>
         </button>
         <button
           type="button"
