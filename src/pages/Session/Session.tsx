@@ -651,7 +651,30 @@ export default function Session({ sessionId }: SessionProps) {
         const polite =
           peer.assignment.memberId > peer.assignment.partnerMemberId;
         ignoreOffer.current = !polite && collision;
-        if (ignoreOffer.current) return;
+        if (ignoreOffer.current) {
+          // 상대 offer와 엇갈려 이쪽(impolite)이 무시했다. 보통은 상대가 양보하고 이쪽 offer에 답한다.
+          // 그런데 상대가 이쪽 offer를 받기 전에 새로고침했다면 그 offer는 사라져서 양쪽이 서로 기다리게 된다.
+          // 잠시 뒤에도 답이 없으면 같은 offer를 다시 보내 상대(polite)가 받아들이게 한다
+          const pendingOfferSdp = connection.localDescription?.sdp;
+          const assignmentAtCollision = peer.assignment;
+          window.setTimeout(() => {
+            if (
+              peerRef.current?.connection !== connection ||
+              connection.signalingState !== "have-local-offer" ||
+              !pendingOfferSdp ||
+              connection.localDescription?.sdp !== pendingOfferSdp
+            )
+              return;
+            sendSignal({
+              sessionId,
+              roomId: assignmentAtCollision.roomId,
+              toMemberId: assignmentAtCollision.partnerMemberId,
+              type: "OFFER",
+              payload: pendingOfferSdp,
+            });
+          }, 3000);
+          return;
+        }
         if (collision && polite)
           await connection.setLocalDescription({ type: "rollback" });
         await connection.setRemoteDescription(description);
