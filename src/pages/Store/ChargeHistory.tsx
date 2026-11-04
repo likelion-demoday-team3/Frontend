@@ -64,7 +64,8 @@ export default function ChargeHistory({ mode }: { mode: HistoryMode }) {
     .filter(({ record }) => {
       if (mode === 'usage') {
         if (isGemPurchase(record) || isPurchaseRefund(record)) return false
-        if (filter === 'deduction') return !isUsageReturn(record)
+        // 차감은 실제로 보석이 빠진 기록만. 가입 축하 보석·운영자 지급처럼 들어온 기록은 전체에만 보인다
+        if (filter === 'deduction') return record.amount < 0
         if (filter === 'return') return isUsageReturn(record)
         return true
       }

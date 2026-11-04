@@ -9,6 +9,8 @@ export type NotificationType =
   | 'NO_SHOW'
   // 투표 완료로 보증금 반환. link가 없어 누르면 읽음 처리만 된다
   | 'COMPLETION_REFUND'
+  // 이벤트 기간 가입 축하 보석. 누르면 이용내역(/store/history)으로 이동
+  | 'SIGNUP_BONUS'
   | 'CONTACT_REQUESTED'
   | 'CONTACT_REQUEST_ACCEPTED'
   | 'CONTACT_REQUEST_REJECTED'
