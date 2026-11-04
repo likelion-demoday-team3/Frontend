@@ -701,6 +701,26 @@ export default function Session({ sessionId }: SessionProps) {
         );
       } else if (message.kind === "joined") {
         setMyLiveMemberId(message.memberId);
+        // 서버가 돌려준 지난 상대 목록으로 복원한다 (새 탭·다른 기기로 재입장해도 하트·투표 후보가 유지됨).
+        // 이미 아는 라운드는 기존 별칭을 지키고, 모르는 라운드만 채운다
+        const restoredPartners = message.partners ?? [];
+        if (restoredPartners.length > 0) {
+          setEncounteredProfiles((profiles) => {
+            const known = new Set(profiles.map((profile) => profile.roundNumber));
+            const added = restoredPartners
+              .filter((partner) => !known.has(partner.roundNumber))
+              .map((partner) => ({
+                nickname: partner.alias || "상대방",
+                roundNumber: partner.roundNumber,
+                memberId: partner.memberId,
+              }));
+            return added.length === 0
+              ? profiles
+              : [...profiles, ...added].sort(
+                  (left, right) => left.roundNumber - right.roundNumber,
+                );
+          });
+        }
         if (
           message.status === "ASSIGNED" &&
           message.roomId !== null &&
