@@ -47,7 +47,13 @@ export type AdminReport = {
   resolvedAt: string | null
 }
 
-export type SuspendResult = { memberId: number; cancelledApplications: number; resolvedReports: number }
+export type SuspendResult = {
+  memberId: number
+  cancelledApplications: number
+  /** 환불 규정(24시간 전 100%, 12시간 전 50%, 그 이후 0%)으로 돌려준 보석 합계 */
+  refundedGem: number
+  resolvedReports: number
+}
 
 export const getAdminReports = (status?: ReportStatus) =>
   apiRequest<AdminReport[]>(`/admin/reports${status ? `?status=${status}` : ''}`)

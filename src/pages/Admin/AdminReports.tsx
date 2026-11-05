@@ -90,13 +90,14 @@ export default function AdminReports() {
     const target = describe(report.reported);
     if (
       !window.confirm(
-        `${target} 님을 이용 정지할까요?\n새 세션 신청이 막히고, 신청해 둔 시작 전 세션은 취소·환불돼요.`,
+        `${target} 님을 이용 정지할까요?\n새 세션 신청이 막히고, 신청해 둔 시작 전 세션은 취소돼요.
+참가비는 환불 규정을 따라요 (24시간 전 100%, 12시간 전 50%, 그 이후 0%).`,
       )
     )
       return;
     void run(`suspend-${report.reportId}`, async () => {
       const result = await suspendMember(report.reported.memberId);
-      return `${target} 님을 이용 정지했어요. 취소한 신청 ${result.cancelledApplications}개, 함께 처리된 신고 ${result.resolvedReports}개`;
+      return `${target} 님을 이용 정지했어요. 취소한 신청 ${result.cancelledApplications}개 (환불 보석 ${result.refundedGem}개), 함께 처리된 신고 ${result.resolvedReports}개`;
     });
   };
 
