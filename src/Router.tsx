@@ -18,10 +18,11 @@ import Reservation from "./pages/MyPage/Reservation";
 import ChangePW from "./pages/MyPage/ChangePW";
 import ItsMe from "./pages/MyPage/ItsMe";
 import RecordList from "./pages/MyPage/RecordList";
+import AdminReports from "./pages/Admin/AdminReports";
 import { restoreAccessToken } from "./features/auth/session";
 
 type Route =
-  | { page: "home" | "signup" | "login" | "result" | "result-detail" | "contact" | "store" | "charge-info" | "payment-result" | "mypage" | "mypage-me" | "mypage-card" | "mypage-record" | "mypage-reservation" | "mypage-password" | "mypage-identity" }
+  | { page: "home" | "signup" | "login" | "result" | "result-detail" | "contact" | "store" | "charge-info" | "payment-result" | "mypage" | "mypage-me" | "mypage-card" | "mypage-record" | "mypage-reservation" | "mypage-password" | "mypage-identity" | "admin-reports" }
   | { page: "charge-history"; mode: "usage" | "charge" }
   | { page: "mypage-record-list"; section: "matches" | "sent" | "received" }
   | { page: "session"; sessionId: number };
@@ -46,6 +47,7 @@ function routeFromPath(pathname: string): Route {
   if (route === "mypage/reservation" || route === "reservation") return { page: "mypage-reservation" };
   if (route === "mypage/change-password") return { page: "mypage-password" };
   if (route === "mypage/identity") return { page: "mypage-identity" };
+  if (route === "admin/reports") return { page: "admin-reports" };
   const recordListRoute = route.match(/^mypage\/record\/(matches|sent|received)$/);
   if (recordListRoute) return { page: "mypage-record-list", section: recordListRoute[1] as "matches" | "sent" | "received" };
   const sessionRoute = route.match(/^session\/(\d+)$/);
@@ -114,6 +116,7 @@ export default function Router({
   if (route.page === "mypage-reservation") return <Reservation />;
   if (route.page === "mypage-password") return <ChangePW />;
   if (route.page === "mypage-identity") return <ItsMe />;
+  if (route.page === "admin-reports") return <AdminReports />;
   if (route.page === "mypage-record-list") return <RecordList section={route.section} />;
   if (route.page === "session")
     return (

@@ -911,6 +911,14 @@ const SessionPage = styled.div`
     text-align: center;
   }
 
+  .report-notice {
+    margin-top: 1.4rem;
+    color: var(--text-secondary);
+    font-size: 1.3rem;
+    line-height: 1.6;
+    text-align: center;
+  }
+
   @media (max-width: 37.4rem) {
     padding-right: 3rem;
     padding-left: 3rem;

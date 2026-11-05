@@ -25,6 +25,7 @@ import { getOwnVote, type OwnVote } from "../../features/sessions/resultsApi";
 import { getIceServers } from "../../features/live/api";
 import { getLiveSessionState } from "../../features/live/api";
 import { getMyMember } from "../../features/members/api";
+import { submitReport } from "../../features/reports/api";
 import SessionPage from "./SessionPage";
 import Call from "./Call";
 import HeartLobby from "./HeartLobby.tsx";
@@ -300,6 +301,8 @@ export default function Session({ sessionId }: SessionProps) {
   const [, setCallStatus] = useState("상대 배정을 기다리는 중");
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState("");
+  // 신고 접수 안내. 오류 문구(빨간색)와 구분해 잠깐 보여준다
+  const [reportNotice, setReportNotice] = useState("");
   const [lobbyParticipants, setLobbyParticipants] = useState<{
     opposite: LobbyParticipant[];
     same: LobbyParticipant[];
@@ -1938,9 +1941,31 @@ export default function Session({ sessionId }: SessionProps) {
                       setReportPopupOpen(true);
                     }}
                     onCloseReport={() => setReportPopupOpen(false)}
-                    onSubmitReport={() => {
+                    onSubmitReport={(reason) => {
                       setReportPopupOpen(false);
-                      setError("신고 제출은 백엔드 연동 후 사용할 수 있어요.");
+                      setError("");
+                      const showNotice = (message: string) => {
+                        setReportNotice(message);
+                        window.setTimeout(() => setReportNotice(""), 4000);
+                      };
+                      if (isMockLiveEnabled) {
+                        showNotice("신고가 접수됐어요. 운영자가 확인할게요.");
+                        return;
+                      }
+                      void submitReport(sessionId, assignment.partnerMemberId, reason).then(
+                        (receipt) =>
+                          showNotice(
+                            receipt.alreadyReported
+                              ? "이미 신고한 상대예요. 운영자가 확인하고 있어요."
+                              : "신고가 접수됐어요. 운영자가 확인할게요.",
+                          ),
+                        (cause) =>
+                          setError(
+                            cause instanceof Error
+                              ? cause.message
+                              : "신고를 접수하지 못했어요. 다시 시도해주세요.",
+                          ),
+                      );
                     }}
                     onCloseProfile={() => setProfileCardOpen(false)}
                   />
@@ -1951,6 +1976,11 @@ export default function Session({ sessionId }: SessionProps) {
         {error && (
           <p className="error-message" role="alert">
             {error}
+          </p>
+        )}
+        {reportNotice && (
+          <p className="report-notice" role="status">
+            {reportNotice}
           </p>
         )}
       </main>

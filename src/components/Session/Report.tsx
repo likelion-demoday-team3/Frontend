@@ -1,22 +1,14 @@
 import { useState } from "react";
 import styled from "styled-components";
+import { reportReasons, type ReportReason } from "../../features/reports/api";
 
 type ReportProps = {
   onClose: () => void;
-  onSubmit: (reason: string) => void;
+  onSubmit: (reason: ReportReason) => void;
 };
 
-const reasons = [
-  "규칙을 위반했어요.",
-  "대화 중간에 나갔어요.",
-  "성희롱을 했어요.",
-  "성별을 속였어요.",
-  "계속 만나자고 말해요.",
-  "사이버 언어폭력을 해요.",
-];
-
 export default function Report({ onClose, onSubmit }: ReportProps) {
-  const [selectedReason, setSelectedReason] = useState("");
+  const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
 
   return (
     <>
@@ -37,15 +29,15 @@ export default function Report({ onClose, onSubmit }: ReportProps) {
         <Description>신고 내용을 선택해주세요.</Description>
         <Divider />
         <ReasonList>
-          {reasons.map((reason) => (
+          {reportReasons.map((reason) => (
             <ReasonButton
-              key={reason}
+              key={reason.code}
               type="button"
-              className={selectedReason === reason ? "selected" : ""}
-              aria-pressed={selectedReason === reason}
-              onClick={() => setSelectedReason(reason)}
+              className={selectedReason === reason.code ? "selected" : ""}
+              aria-pressed={selectedReason === reason.code}
+              onClick={() => setSelectedReason(reason.code)}
             >
-              {reason}
+              {reason.label}
             </ReasonButton>
           ))}
         </ReasonList>

@@ -120,6 +120,11 @@ export default function Home() {
           }}
         />
         {isLoggedIn && isAdminToken() && (
+          <a className="admin-reports-link" href="/admin/reports">
+            신고 관리 →
+          </a>
+        )}
+        {isLoggedIn && isAdminToken() && (
           <AdminSessionCreate
             selectedDate={selectedDate}
             onCreated={(createdDate) => {
@@ -180,6 +185,20 @@ const HomeShell = styled.div`
   margin: 0 auto;
   background: var(--background);
   box-shadow: 0 0 6rem #26372508;
+
+  .admin-reports-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 4.6rem;
+    margin: 1.6rem 3rem 0;
+    border-radius: 1.2rem;
+    background: #17231b;
+    color: #fff;
+    font-size: 1.35rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
 
   .home-header {
     display: flex;

@@ -4,6 +4,7 @@ import styled from "styled-components";
 import GuideBubble from "../../components/Session/GuideBubble";
 import ProfileCard from "../../components/Session/ProfileCard";
 import Report from "../../components/Session/Report";
+import type { ReportReason } from "../../features/reports/api";
 import type { LiveAssignment } from "../../features/live/stomp";
 
 type CallProps = {
@@ -28,7 +29,7 @@ type CallProps = {
   onOpenProfile: () => void;
   onOpenReport: () => void;
   onCloseReport: () => void;
-  onSubmitReport: () => void;
+  onSubmitReport: (reason: ReportReason) => void;
   onCloseProfile: () => void;
 };
 
