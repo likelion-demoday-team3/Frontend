@@ -68,6 +68,20 @@ export default function RecordList({ section }: { section: Section }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
+  const [copiedContactId, setCopiedContactId] = useState<number | null>(null);
+  const [copyError, setCopyError] = useState("");
+
+  async function copyContact(item: ContactShare) {
+    if (!item.contactValue) return;
+    try {
+      await navigator.clipboard.writeText(item.contactValue);
+      setCopiedContactId(item.id);
+      setCopyError("");
+      window.setTimeout(() => setCopiedContactId(null), 1800);
+    } catch {
+      setCopyError("복사하지 못했어요. 연락처를 길게 눌러 복사해주세요.");
+    }
+  }
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -275,6 +289,7 @@ export default function RecordList({ section }: { section: Section }) {
               <a href="/mypage/record/received">전체 목록 보기</a>
             </FocusNote>
           )}
+          {copyError && <p className="error" role="alert">{copyError}</p>}
           {status ??
             (visibleShares.length ? (
               <RecordRows>
@@ -296,6 +311,15 @@ export default function RecordList({ section }: { section: Section }) {
                         </span>
                       )}
                     </div>
+                    {section === "received" && item.contactValue && (
+                      <CopyButton
+                        type="button"
+                        onClick={() => void copyContact(item)}
+                        aria-label={`${item.senderAlias ?? "상대방"} 연락처 복사`}
+                      >
+                        {copiedContactId === item.id ? "복사됨" : "복사"}
+                      </CopyButton>
+                    )}
                     {section === "sent" && (
                       <span className="badge">
                         {contactLabel[item.contactType]}
@@ -512,6 +536,19 @@ const RecordRows = styled.ul`
     text-decoration: underline;
     text-underline-offset: 0.3rem;
   }
+`;
+
+const CopyButton = styled.button`
+  flex: 0 0 auto;
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: 99rem;
+  background: #eef1ec;
+  color: #647065;
+  font-size: 1.1rem;
+  font-weight: 400;
+  line-height: 1.2;
+  cursor: pointer;
 `;
 
 const FocusNote = styled.p`

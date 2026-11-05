@@ -4,7 +4,7 @@ import { createSession, openSessionRecruiting } from "../../features/sessions/ap
 
 type AdminSessionCreateProps = {
   selectedDate: Date;
-  onCreated: () => void;
+  onCreated: (createdDate: Date) => void;
 };
 
 // 서버 규칙: 성별 정원 3~6명, 신청 마감(시작 10분 전) 이후엔 모집 시작 불가.
@@ -98,7 +98,7 @@ export default function AdminSessionCreate({
       });
       await openSessionRecruiting(createdId);
       setOpen(false);
-      onCreated();
+      onCreated(new Date(`${form.date}T00:00:00`));
     } catch (cause) {
       const message =
         cause instanceof Error ? cause.message : "세션을 만들지 못했어요.";

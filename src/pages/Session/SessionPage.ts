@@ -428,6 +428,20 @@ const SessionPage = styled.div`
     inset: 0;
     pointer-events: none;
   }
+  .lobby-welcome-note {
+    position: absolute;
+    z-index: 4;
+    top: 19%;
+    left: 50%;
+    display: grid;
+    width: min(32rem, calc(100% - 2rem));
+    gap: 0.2rem;
+    transform: translateX(-50%);
+    color: #090909;
+    font: 700 clamp(1.7rem, 4.4vw, 2.2rem)/1.45 var(--display-font);
+    text-align: center;
+    text-wrap: balance;
+  }
   .profile-avatar {
     position: absolute;
     display: grid;
@@ -446,6 +460,11 @@ const SessionPage = styled.div`
   .profile-avatar span {
     color: #44280e;
     font: 700 2.7rem/1 var(--display-font);
+  }
+  .profile-avatar.entering {
+    animation:
+      profile-arrive 0.55s ease-out both,
+      profile-float 4.8s ease-in-out infinite;
   }
   .choice-profile {
     padding: 0;
@@ -499,45 +518,7 @@ const SessionPage = styled.div`
     color: #2b302c;
     font: 700 2.4rem/1.3 var(--display-font);
   }
-  .heart-balance-summary {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 2rem;
-    padding: 1.5rem 1.6rem;
-    border-radius: 1.4rem;
-    background: #f2f7e7;
-    color: #899188;
-    font: 400 1.4rem/1.4 var(--font-body);
-    text-align: left;
-  }
-  .heart-balance-summary strong {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    color: #2b302c;
-    font-size: 1.8rem;
-    font-weight: 700;
-  }
-  .heart-balance-summary i {
-    color: #ff4a78;
-    font-size: 2rem;
-    font-style: normal;
-  }
-  .heart-balance-summary .gem-mark {
-    color: var(--gem-blue);
-  }
-  .heart-charge-backdrop {
-    z-index: 22;
-  }
-  .heart-charge-modal h2 {
-    margin-top: 0.5rem;
-  }
-  .heart-charge-modal .heart-profile-round {
-    margin-top: 0.8rem;
-  }
-  .heart-charge-summary {
+  .heart-send-summary {
     display: flex;
     width: 100%;
     flex-direction: column;
@@ -549,16 +530,14 @@ const SessionPage = styled.div`
     font: 400 1.4rem/1.4 var(--font-body);
     text-align: left;
   }
-  .heart-charge-summary-row,
-  .heart-charge-quantity-row {
+  .heart-send-summary-row {
     display: flex;
     min-height: 3.8rem;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
   }
-  .heart-charge-summary-row strong,
-  .heart-charge-quantity-row strong {
+  .heart-send-summary-row strong {
     display: inline-flex;
     align-items: center;
     gap: 0.6rem;
@@ -567,50 +546,22 @@ const SessionPage = styled.div`
     font-weight: 700;
     white-space: nowrap;
   }
-  .heart-charge-summary-row i,
-  .heart-charge-quantity-row i {
+  .heart-send-summary-row i {
     color: #ff4a78;
     font-size: 1.8rem;
     font-style: normal;
   }
-  .heart-charge-summary-row .gem-mark {
+  .heart-send-summary-row .gem-mark {
     color: var(--gem-blue);
   }
-  .heart-charge-cost-row {
+  .heart-send-cost-row {
     margin-top: 0.6rem;
     padding-top: 1rem;
     border-top: 1px solid #dce4d2;
     color: #2b302c;
     font-weight: 700;
   }
-  .heart-quantity-control {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.9rem;
-  }
-  .heart-quantity-arrows {
-    display: flex;
-    flex-direction: row;
-    gap: 0.2rem;
-  }
-  .heart-quantity-arrows button {
-    width: 2.4rem;
-    height: 1.8rem;
-    padding: 0;
-    border: 0;
-    border-radius: 0.4rem;
-    background: #e3ecd6;
-    color: #52633a;
-    font-size: 0.9rem;
-    line-height: 1;
-    cursor: pointer;
-  }
-  .heart-quantity-arrows button:disabled {
-    color: #adb5a5;
-    cursor: default;
-  }
-  .heart-send-button,
-  .heart-buy-button {
+  .heart-send-button {
     width: 100%;
     min-height: 4.6rem;
     margin-top: 1.8rem;
@@ -624,33 +575,6 @@ const SessionPage = styled.div`
   .heart-send-button:disabled {
     background: #e3e7df;
     color: #8b918a;
-    cursor: default;
-  }
-  .heart-charge-button {
-    min-height: 4rem;
-    margin-top: 0.9rem;
-    padding: 0.6rem;
-    border: 0;
-    background: transparent;
-    color: #66716b;
-    font: 500 1.4rem var(--font-body);
-    text-decoration: underline;
-    cursor: pointer;
-  }
-  .heart-charge-button:disabled {
-    color: #a1a69f;
-    cursor: default;
-  }
-  .heart-buy-button {
-    min-height: 4rem;
-    margin-top: 0.8rem;
-    background: transparent;
-    color: #66716b;
-    font-size: 1.3rem;
-    text-decoration: underline;
-  }
-  .heart-buy-button:disabled {
-    color: #a1a69f;
     cursor: default;
   }
   .same-profiles .profile-avatar {
@@ -734,6 +658,31 @@ const SessionPage = styled.div`
     text-align: center;
     text-wrap: balance;
   }
+  .participant-waiting-note.minigame-waiting-note {
+    right: 1.8rem;
+    bottom: 50%;
+    left: 1.8rem;
+    display: grid;
+    gap: 0.9rem;
+    padding: 2rem 1.8rem;
+    transform: translateY(50%);
+    border: 0.1rem solid #e4e9df;
+    border-radius: 1.8rem;
+    background: #fbfff1;
+    box-shadow: 0 0.6rem 2rem #2b302c14;
+    color: var(--ink);
+    font-size: 1.25rem;
+  }
+  .participant-waiting-note.minigame-waiting-note strong {
+    font: 400 1.9rem/1.35 var(--display-font);
+  }
+  .participant-waiting-note.minigame-waiting-note span {
+    text-decoration: none;
+  }
+  .participant-waiting-note .minigame-coming {
+    color: #567a24;
+    font-weight: 700;
+  }
   .participant-waiting-note span {
     text-decoration: underline;
     text-underline-offset: 0.15em;
@@ -748,6 +697,16 @@ const SessionPage = styled.div`
     }
     50% {
       translate: 0 -0.9rem;
+    }
+  }
+  @keyframes profile-arrive {
+    from {
+      opacity: 0;
+      scale: 0.65;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
     }
   }
   .session-intro {

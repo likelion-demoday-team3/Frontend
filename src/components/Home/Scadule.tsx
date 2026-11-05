@@ -25,7 +25,7 @@ type ScaduleProps = {
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 const dateKey = (date: Date) =>
-  `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const dateLabel = (date: Date) =>
   `${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}요일`;
 

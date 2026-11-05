@@ -8,7 +8,7 @@ const sessionPreviews = [
   { label: "로비 · 참가자와 내 프로필", mode: "lobby" },
   { label: "다음 대화 대기 · 로비", mode: "idle" },
   { label: "최종 선택 · 참가자 목록", mode: "hearts" },
-  { label: "최종 선택 · 하트 충전 팝업", mode: "heart-charge" },
+  { label: "최종 선택 · 하트 보내기 모달", mode: "heart-send" },
   { label: "최종 선택 · 하트 제한 팝업", mode: "heart-restriction" },
   { label: "1:1 대화 · 기본 화면", mode: "one-to-one" },
   { label: "1:1 대화 · 프로필 카드 열림", mode: "one-to-one-profile" },
@@ -30,8 +30,7 @@ const notificationPreviews = [
 ] as const;
 
 const resultPreviews = [
-  { label: "매칭 결과 · 응답 대기", mode: "matched" },
-  { label: "매칭 결과 · 서로 수락", mode: "mutual" },
+  { label: "매칭 성공 결과", mode: "matched" },
   { label: "매칭 실패", mode: "failed" },
 ];
 

@@ -14,21 +14,27 @@ export default function Result() {
   const sessionId = Number(params.get("sessionId"));
   const mockMode =
     params.has("preview") && (import.meta.env.DEV || params.has("showTest"));
-  const matched = params.get("preview") !== "failed";
-  const partnerAlreadyAccepted = params.get("preview") === "mutual";
+  const previewMatched = params.get("preview") !== "failed";
   const [gems, setGems] = useState(0);
   const [summary, setSummary] = useState<VoteSummary | null>(null);
   const [personalMatch, setPersonalMatch] = useState<MatchHistoryItem | null>(null);
   const [loading, setLoading] = useState(!mockMode);
   const [loadError, setLoadError] = useState("");
-  const [myDecision, setMyDecision] = useState<"accepted" | "declined" | null>(
-    null,
-  );
-  const partnerAccepted = partnerAlreadyAccepted;
+  const displayedMatch: MatchHistoryItem | null = mockMode
+    ? {
+        sessionId: sessionId || 1,
+        sessionStartTime: new Date().toISOString(),
+        matched: previewMatched,
+        partnerMemberId: previewMatched ? 2 : null,
+        partnerAlias: previewMatched ? "구름산책" : null,
+        matchedAt: previewMatched ? new Date().toISOString() : null,
+      }
+    : personalMatch;
 
   useEffect(() => {
     if (mockMode) {
       setGems(5);
+      setSummary({ sessionId: sessionId || 1, coupleCount: 3 });
       setLoading(false);
       return;
     }
@@ -76,126 +82,39 @@ export default function Result() {
       <PageHeader title="투표 결과" gems={gems} onGemsChange={setGems} />
 
       <main>
-        {mockMode ? (
-          matched ? (
-            <>
-              <section className="match-intro">
-                <h2>
-                  축하합니다!
-                  <br />
-                  매칭이 성사되었습니다.
-                </h2>
-                <p>연락처를 교환하실건가요?</p>
-              </section>
-
-              <section className="exchange-card" aria-label="연락처 교환 의사">
-                <div className="profile mine">
-                  <div className="avatar">나</div>
-                  <strong>내 닉네임</strong>
-                  <span>나</span>
-                </div>
-                <div
-                  className="exchange-flow"
-                  aria-label={
-                    myDecision === "accepted" && partnerAccepted
-                      ? "서로 수락했어요"
-                      : "연락처 교환 응답 대기 중"
-                  }
-                >
-                  <span
-                    className={`flow-line${myDecision === "accepted" ? " accepted" : ""}`}
-                  />
-                  <span
-                    className={`flow-line reverse${partnerAccepted ? " accepted" : ""}`}
-                  />
-                  <span className="flow-heart" aria-hidden="true">
-                    ♥
-                  </span>
-                </div>
-                <div className="profile partner">
-                  <div className="avatar">구</div>
-                  <strong>구름산책</strong>
-                  <span>상대방</span>
-                </div>
-                <div className="decision-actions">
-                  <button
-                    type="button"
-                    className={myDecision === "accepted" ? "selected" : ""}
-                    onClick={() => setMyDecision("accepted")}
-                  >
-                    수락
-                  </button>
-                  <button
-                    type="button"
-                    className={
-                      myDecision === "declined"
-                        ? "selected secondary"
-                        : "secondary"
-                    }
-                    onClick={() => setMyDecision("declined")}
-                  >
-                    거절
-                  </button>
-                </div>
-                <p className="partner-note" role="status">
-                  {partnerAccepted
-                    ? "상대방이 연락처 교환을 수락했어요."
-                    : "응답 대기 중..."}
-                </p>
-              </section>
-            </>
-          ) : (
-            <>
-              <section className="miss-intro">
-                <h2>
-                  아쉽지만 이번에는
-                  <br />
-                  매칭이 이루어지지 않았어요.
-                </h2>
-              </section>
-              <section className="miss-card">
-                <GuideBubble
-                  message="아직 끝나지 않았어요! 마지막까지 함께해주세요!"
-                  variant="conversation"
-                />
-                <img src="/kw1.svg" alt="키위 캐릭터" />
-              </section>
-            </>
-          )
-        ) : loading ? (
+        {!mockMode && loading ? (
           <section className="pending-card" role="status">
             <h2>결과를 불러오는 중이에요</h2>
           </section>
-        ) : loadError ? (
+        ) : !mockMode && loadError ? (
           <section className="pending-card" role="alert">
             <h2>결과를 불러오지 못했어요</h2>
             <p>{loadError}</p>
           </section>
-        ) : personalMatch?.matched ? (
+        ) : displayedMatch?.matched ? (
           <>
             <section className="match-intro">
+              <span className="match-heart" aria-hidden="true">♥</span>
               <h2>
                 축하해요!
                 <br />
-                {personalMatch.partnerAlias ?? "상대방"}님과 매칭됐어요.
+                {displayedMatch.partnerAlias ?? "상대방"}님과 매칭됐어요.
               </h2>
-              <p>서로를 최종 선택했어요.</p>
+              <p>서로를 1순위로 선택했어요.</p>
             </section>
             <section className="summary-card personal-match-card">
               <div className="avatar">
-                {Array.from(personalMatch.partnerAlias ?? "상")[0]}
+                {Array.from(displayedMatch.partnerAlias ?? "상")[0]}
               </div>
-              <strong>{personalMatch.partnerAlias ?? "상대방"}</strong>
-              <p>서로의 선택이 이어졌어요. 연락처를 확인해보세요.</p>
-              <a className="contact-result-button" href={`/contact?sessionId=${sessionId}`}>
-                연락처 확인하기
-              </a>
-              <p className="couple-count">
-                이번 세션에서 {summary?.coupleCount ?? 0}커플이 매칭됐어요.
+              <strong>{displayedMatch.partnerAlias ?? "상대방"}</strong>
+              <p className="contact-note">
+                연락처가 자동으로 교환됐어요.
+                <br />
+                마이페이지 &gt; 소개팅 기록에서 확인할 수 있어요.
               </p>
             </section>
           </>
-        ) : personalMatch ? (
+        ) : displayedMatch ? (
           <>
             <section className="miss-intro">
               <h2>
@@ -262,18 +181,17 @@ const ResultPage = styled.div`
     color: #202820;
     font: 400 2.8rem/1.4 var(--display-font);
   }
+  .match-heart {
+    display: block;
+    margin-bottom: 0.8rem;
+    color: #ff4a78;
+    font-size: 3.2rem;
+    line-height: 1;
+  }
   .match-intro p {
     margin-top: 1.6rem;
     color: #747f73;
     font-size: 1.5rem;
-  }
-  .exchange-card {
-    position: relative;
-    padding: 2.2rem 1.5rem 1.7rem;
-    border: 1px solid #e4e9df;
-    border-radius: 2.2rem;
-    background: white;
-    box-shadow: 0 0.8rem 2rem #26372508;
   }
   .personal-match-card {
     display: flex;
@@ -297,24 +215,14 @@ const ResultPage = styled.div`
   .personal-match-card > strong {
     font-size: 1.8rem;
   }
-  .personal-match-card > p,
-  .couple-count {
+  .personal-match-card > p {
     color: #747f73;
     font-size: 1.3rem;
     line-height: 1.6;
   }
-  .contact-result-button {
-    display: flex;
-    width: 100%;
-    min-height: 4.8rem;
-    align-items: center;
-    justify-content: center;
-    margin-top: 0.6rem;
-    border-radius: 1.2rem;
-    background: var(--green);
-    color: var(--ink);
-    font-weight: 700;
-    text-decoration: none;
+  .personal-match-card .contact-note {
+    max-width: 30rem;
+    margin-top: 0.4rem;
   }
   .pending-card {
     display: grid;
@@ -334,20 +242,6 @@ const ResultPage = styled.div`
     font-size: 1.3rem;
     line-height: 1.7;
   }
-  .profile {
-    display: flex;
-    width: 39%;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.6rem;
-    text-align: center;
-  }
-  .profile.mine {
-    float: left;
-  }
-  .profile.partner {
-    float: right;
-  }
   .avatar {
     display: grid;
     width: 6.8rem;
@@ -358,106 +252,6 @@ const ResultPage = styled.div`
     background: #f0f7e2;
     color: #607d2f;
     font: 400 2.6rem var(--display-font);
-  }
-  .partner .avatar {
-    border-color: #f0dfc9;
-    background: #fff6e9;
-    color: #8b6d51;
-  }
-  .profile strong {
-    font-size: 1.35rem;
-  }
-  .profile > span {
-    color: #90988d;
-    font-size: 1.1rem;
-  }
-  .exchange-flow {
-    position: absolute;
-    top: 4.9rem;
-    left: 50%;
-    display: flex;
-    width: 8.8rem;
-    height: 2.8rem;
-    flex-direction: column;
-    justify-content: center;
-    gap: 1rem;
-    transform: translateX(-50%);
-  }
-  .flow-line {
-    position: relative;
-    display: block;
-    width: 100%;
-    height: 0.38rem;
-    border-radius: 1rem;
-    background: #c7cdc3;
-    transition: background 180ms ease;
-  }
-  .flow-line::after {
-    position: absolute;
-    top: 50%;
-    right: -0.1rem;
-    width: 0.8rem;
-    height: 0.8rem;
-    border-top: 0.34rem solid currentColor;
-    border-right: 0.34rem solid currentColor;
-    color: #c7cdc3;
-    content: "";
-    transform: translateY(-50%) rotate(45deg);
-  }
-  .flow-line.accepted {
-    background: #00111f;
-  }
-  .flow-line.accepted::after {
-    color: #00111f;
-  }
-  .flow-line.reverse {
-    transform: rotate(180deg);
-  }
-  .flow-heart {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    padding: 0.3rem;
-    background: white;
-    color: #96a092;
-    font-size: 1.8rem;
-    transform: translate(-50%, -50%);
-  }
-  .decision-actions {
-    display: grid;
-    clear: both;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.8rem;
-    padding-top: 1.8rem;
-  }
-  .decision-actions button {
-    min-height: 4.5rem;
-    border: 1px solid #e0e5dc;
-    border-radius: 1.2rem;
-    background: white;
-    color: var(--ink);
-    font-weight: 700;
-    transition:
-      background 160ms ease,
-      border-color 160ms ease;
-  }
-  .decision-actions button.selected {
-    border-color: #a8d348;
-    background: var(--green);
-  }
-  .decision-actions button.selected.secondary {
-    border-color: #a8d348;
-    background: var(--green);
-  }
-  .decision-note,
-  .partner-note {
-    margin-top: 1.1rem;
-    color: #6c832f;
-    font-size: 1.2rem;
-    text-align: center;
-  }
-  .partner-note {
-    color: #6c832f;
   }
   .miss-intro {
     padding-bottom: 2rem;

@@ -83,13 +83,11 @@ export default function Session({ sessionId }: SessionProps) {
       previewKind ?? "",
     );
   const idlePreviewMode = isMockLiveEnabled && previewKind === "idle";
-  const heartChargePreviewMode =
-    isMockLiveEnabled && previewKind === "heart-charge";
   const heartRestrictionPreviewMode =
     isMockLiveEnabled && previewKind === "heart-restriction";
   const heartLobbyPreviewMode =
     isMockLiveEnabled &&
-    ["hearts", "heart-charge", "heart-restriction"].includes(
+    ["hearts", "heart-send", "heart-restriction"].includes(
       previewKind ?? "",
     );
   const callPreviewMode =
@@ -265,7 +263,11 @@ export default function Session({ sessionId }: SessionProps) {
     nickname: string;
     roundNumber: number;
     memberId: number;
-  } | null>(null);
+  } | null>(() =>
+    previewKind === "heart-send"
+      ? { nickname: "구름산책", roundNumber: 1, memberId: 2 }
+      : null,
+  );
   const [heartsRemaining, setHeartsRemaining] = useState(1);
   const [gemsRemaining, setGemsRemaining] = useState(isMockLiveEnabled ? 5 : 0);
   const [shopOpen, setShopOpen] = useState(
@@ -273,9 +275,7 @@ export default function Session({ sessionId }: SessionProps) {
       new URLSearchParams(window.location.search).get("paymentReturn") ===
       "embedded",
   );
-  const [heartPurchaseQuantity, setHeartPurchaseQuantity] = useState(1);
   const [heartsSent, setHeartsSent] = useState<Record<number, number>>({});
-  const [heartChargeOpen, setHeartChargeOpen] = useState(heartChargePreviewMode);
   const [heartRestrictionOpen, setHeartRestrictionOpen] = useState(heartRestrictionPreviewMode);
   const [isPartnerSpeaking, setIsPartnerSpeaking] = useState(false);
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
@@ -315,12 +315,15 @@ export default function Session({ sessionId }: SessionProps) {
     return { opposite: roster.slice(0, 2), same: roster.slice(2) };
   });
   const [announcementIndex, setAnnouncementIndex] = useState(0);
+  const [showLobbyWelcome, setShowLobbyWelcome] = useState(false);
   const [mascotSpeaking, setMascotSpeaking] = useState(false);
   const [mascotMouthOpen, setMascotMouthOpen] = useState(false);
   const [autoStartCountdown, setAutoStartCountdown] = useState<number | null>(
     null,
   );
   const liveRef = useRef<LiveConnection | null>(null);
+  const lobbyWelcomeStarted = useRef(false);
+  const lobbyWelcomeTimer = useRef<number | null>(null);
   const iceServersRef = useRef<RTCIceServer[] | null>(null);
   const peerRef = useRef<PeerState | null>(null);
   const pendingSignals = useRef<Extract<LiveMessage, { kind: "signal" }>[]>([]);
@@ -552,10 +555,30 @@ export default function Session({ sessionId }: SessionProps) {
           ) {
             return current;
           }
-          const placed = createLobbyParticipants([...opposite, ...same]);
+          const currentById = new Map(
+            [...current.opposite, ...current.same].map((person) => [
+              person.memberId,
+              person,
+            ]),
+          );
+          const newcomers = [...opposite, ...same].filter(
+            (person) => !currentById.has(person.memberId),
+          );
+          const generated = createLobbyParticipants([
+            ...currentById.values(),
+            ...newcomers,
+          ]);
+          const generatedById = new Map(
+            generated.map((person) => [person.memberId, person]),
+          );
+          const place = (person: (typeof opposite)[number]) =>
+            currentById.get(person.memberId) ?? {
+              ...generatedById.get(person.memberId)!,
+              entering: true,
+            };
           return {
-            opposite: placed.slice(0, opposite.length),
-            same: placed.slice(opposite.length),
+            opposite: opposite.map(place),
+            same: same.map(place),
           };
         });
       } catch {
@@ -570,7 +593,7 @@ export default function Session({ sessionId }: SessionProps) {
         void refreshParticipants(member.gender);
         pollTimer = window.setInterval(
           () => void refreshParticipants(member.gender),
-          5000,
+          1500,
         );
       })
       .catch(() => setLobbyParticipants({ opposite: [], same: [] }));
@@ -1051,7 +1074,7 @@ export default function Session({ sessionId }: SessionProps) {
           }
         }
         if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
+          stream?.getTracks().forEach((track) => track.stop());
           return;
         }
         const connection = new RTCPeerConnection({
@@ -1474,6 +1497,11 @@ export default function Session({ sessionId }: SessionProps) {
       track.enabled = !nextMuted;
     });
     setMuted(nextMuted);
+    if (!nextMuted) {
+      window.alert(
+        "마이크를 켰어요. 마이크가 작동하지 않으면 브라우저 설정에서 마이크 권한이 허용되어 있는지 확인해주세요.",
+      );
+    }
   }
 
   function toggleSpeaker() {
@@ -1623,20 +1651,19 @@ export default function Session({ sessionId }: SessionProps) {
   }) {
     if ((heartsSent[profile.memberId] ?? 0) > 0) return;
     if (isMockLiveEnabled) {
+      if (heartsRemaining < 1 && gemsRemaining < 1) return;
       setHeartsRemaining((count) => Math.max(0, count - 1));
+      if (heartsRemaining < 1)
+        setGemsRemaining((count) => Math.max(0, count - 1));
       setHeartsSent((sent) => ({ ...sent, [profile.memberId]: 1 }));
       setSelectedProfile(null);
       return;
     }
-    if (heartsRemaining < 1) {
-      setHeartPurchaseQuantity(1);
-      setSelectedProfile(profile);
-      setHeartChargeOpen(true);
-      return;
-    }
+    if (heartsRemaining < 1 && gemsRemaining < 1) return;
     try {
-      await sendHeartRequest(sessionId, profile.memberId);
+      const receipt = await sendHeartRequest(sessionId, profile.memberId);
       setHeartsRemaining(0);
+      setGemsRemaining((count) => Math.max(0, count - receipt.chargedGem));
       setHeartsSent((sent) => ({ ...sent, [profile.memberId]: 1 }));
       setSelectedProfile(null);
     } catch (cause) {
@@ -1644,32 +1671,6 @@ export default function Session({ sessionId }: SessionProps) {
         cause instanceof Error ? cause.message : "하트를 보내지 못했어요.",
       );
     }
-  }
-
-  async function buyHeart() {
-    const quantity = Math.max(
-      1,
-      Math.min(heartPurchaseQuantity, gemsRemaining),
-    );
-    if (gemsRemaining < quantity) return;
-    if (!isMockLiveEnabled && selectedProfile) {
-      try {
-        await sendHeartRequest(sessionId, selectedProfile.memberId);
-        const wallet = await getMyWallet();
-        setGemsRemaining(wallet.gemBalance);
-        setHeartsSent((sent) => ({ ...sent, [selectedProfile.memberId]: 1 }));
-        setHeartChargeOpen(false);
-        setSelectedProfile(null);
-      } catch (cause) {
-        setError(
-          cause instanceof Error ? cause.message : "하트를 보내지 못했어요.",
-        );
-      }
-      return;
-    }
-    setGemsRemaining((count) => count - quantity);
-    setHeartsRemaining((count) => count + quantity);
-    setHeartChargeOpen(false);
   }
 
   useEffect(() => {
@@ -1684,6 +1685,29 @@ export default function Session({ sessionId }: SessionProps) {
   }, [assignment, conversationEndsAt, now, phase]);
 
   const lobbyVisible = phase === "lobby" || phase === "idle";
+  useEffect(() => {
+    if (
+      phase !== "lobby" ||
+      !myRealName ||
+      !session?.myAlias ||
+      lobbyWelcomeStarted.current
+    ) {
+      return;
+    }
+    lobbyWelcomeStarted.current = true;
+    setShowLobbyWelcome(true);
+    lobbyWelcomeTimer.current = window.setTimeout(() => {
+      setShowLobbyWelcome(false);
+      lobbyWelcomeTimer.current = null;
+    }, 5000);
+  }, [myRealName, phase, session?.myAlias]);
+  useEffect(
+    () => () => {
+      if (lobbyWelcomeTimer.current !== null)
+        window.clearTimeout(lobbyWelcomeTimer.current);
+    },
+    [],
+  );
   const inlineStoreVisible = phase === "ready" || phase === "connecting";
   const heartParticipants = useMemo(() => {
     const candidates = encounteredProfiles.filter(
@@ -1825,27 +1849,18 @@ export default function Session({ sessionId }: SessionProps) {
                     heartsRemaining={heartsRemaining}
                     gemsRemaining={gemsRemaining}
                     heartsSent={heartsSent}
-                    isMockLiveEnabled={isMockLiveEnabled}
-                    heartChargeOpen={heartChargeOpen}
                     heartRestrictionOpen={heartRestrictionOpen}
-                    heartPurchaseQuantity={heartPurchaseQuantity}
-                    setHeartPurchaseQuantity={setHeartPurchaseQuantity}
                     setSelectedProfile={setSelectedProfile}
-                    onOpenHeartCharge={() => {
-                      setHeartPurchaseQuantity(1);
-                      setHeartChargeOpen(true);
-                    }}
-                    onCloseHeartCharge={() => setHeartChargeOpen(false)}
                     onCloseHeartRestriction={() =>
                       setHeartRestrictionOpen(false)
                     }
                     onSendHeart={sendHeart}
-                    onBuyHeart={buyHeart}
                     onSelectProfile={setSelectedProfile}
                     onStart={enterFinalSelection}
                   />
                 ) : (
                   <MainLobby
+                    showWelcome={showLobbyWelcome}
                     micNotice={micUnavailable ? MIC_LOBBY_NOTICE : undefined}
                     participants={lobbyParticipants}
                     myMemberId={myLiveMemberId}

@@ -12,6 +12,7 @@ export type LobbyParticipant = {
   x: string;
   y: string;
   delay: string;
+  entering?: boolean;
 };
 
 export const createLobbyParticipants = (

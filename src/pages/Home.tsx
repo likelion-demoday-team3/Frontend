@@ -122,7 +122,10 @@ export default function Home() {
         {isLoggedIn && isAdminToken() && (
           <AdminSessionCreate
             selectedDate={selectedDate}
-            onCreated={() => setReload((value) => value + 1)}
+            onCreated={(createdDate) => {
+              setSelectedDate(createdDate);
+              setReload((value) => value + 1);
+            }}
           />
         )}
       </main>

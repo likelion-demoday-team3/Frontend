@@ -482,15 +482,18 @@ export default function Contact() {
             <h2 id="send-contact-title">{contactTarget.partner.nickname}</h2>
             {contactTarget.action === "send" ? (
               <div className="gem-cost">
-                <span>차감 보석</span>
+                <span>보석 차감</span>
                 <strong>
                   <span aria-hidden="true">◆</span> 1개
                 </strong>
               </div>
             ) : (
-              <p className="request-cost-note">
-                상대방이 연락처 요청을 수락하면 보석 1개가 차감돼요.
-              </p>
+              <div className="gem-cost">
+                <span>요청 수락 시 보석 차감</span>
+                <strong>
+                  <span aria-hidden="true">◆</span> 1개
+                </strong>
+              </div>
             )}
             <p className="contact-type-label">
               {contactTarget.action === "send"
@@ -860,15 +863,12 @@ const ContactPage = styled.div`
     font-weight: 700;
     white-space: nowrap;
   }
+  .gem-cost > span {
+    color: #2b302c;
+    font-weight: 700;
+  }
   .gem-cost strong span {
     color: #31bfff;
-  }
-  .request-cost-note {
-    width: 100%;
-    margin-top: 1.6rem;
-    color: #737e73;
-    font-size: 1.1rem;
-    line-height: 1.6;
   }
   .contact-type-label {
     margin: 1.8rem 0 0.9rem;
