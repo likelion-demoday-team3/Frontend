@@ -128,6 +128,9 @@ export default function Home() {
             }}
           />
         )}
+        {isLoggedIn && isAdminToken() && (
+          <AdminLink href="/admin/error-reports">오류 제보 관리 →</AdminLink>
+        )}
       </main>
 
       <BusinessInfo />
@@ -173,6 +176,20 @@ export default function Home() {
     </HomeShell>
   );
 }
+
+const AdminLink = styled.a`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4.6rem;
+  margin: 1.6rem 3rem 0;
+  border-radius: 1.2rem;
+  background: #17231b;
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 700;
+  text-decoration: none;
+`;
 
 const HomeShell = styled.div`
   max-width: 43rem;
