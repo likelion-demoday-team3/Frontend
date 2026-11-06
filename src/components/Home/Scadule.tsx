@@ -24,8 +24,9 @@ type ScaduleProps = {
 };
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+// koreaDateKey·Calender와 같은 형식(0 없음, 예: 2026-11-6)이어야 날짜별 목록이 맞는다
 const dateKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 const dateLabel = (date: Date) =>
   `${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}요일`;
 
