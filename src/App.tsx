@@ -10,7 +10,10 @@ import { installErrorCapture } from "./features/errorReports/autoCapture";
 installErrorCapture();
 
 export default function App() {
-  const [showThumbnail, setShowThumbnail] = useState(true);
+  const [showThumbnail, setShowThumbnail] = useState(() => {
+    const initialPath = window.location.pathname.replace(/\/+$/, "") || "/";
+    return initialPath === "/" || initialPath === "/home";
+  });
   const [fadingThumbnail, setFadingThumbnail] = useState(false);
   const [thumbnailReady, setThumbnailReady] = useState(false);
 
