@@ -508,6 +508,32 @@ const SessionPage = styled.div`
     font: 400 2.8rem/1 var(--font-body);
     cursor: pointer;
   }
+  .entry-notice-modal {
+    width: min(100%, 34rem);
+    align-items: stretch;
+    padding: 3rem 2.4rem 2.4rem;
+    text-align: left;
+  }
+  .entry-notice-modal h2 {
+    margin-top: 2rem;
+    text-align: center;
+  }
+  .entry-notice-list {
+    display: grid;
+    width: 100%;
+    gap: 1rem;
+    margin: 1.8rem 0 0;
+    padding-left: 1.8rem;
+    color: #536057;
+    font: 400 1.3rem/1.5 var(--font-body);
+  }
+  .entry-notice-list li::marker {
+    color: #8b6d51;
+  }
+  .entry-notice-modal .heart-send-button {
+    flex: 0 0 auto;
+    margin-top: 2rem;
+  }
   .heart-profile-round {
     margin-top: 1.6rem;
     color: #899188;

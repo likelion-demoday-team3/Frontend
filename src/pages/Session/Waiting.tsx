@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatDate, pad } from "./sessionUtils";
 
 type WaitingProps = {
@@ -27,6 +28,8 @@ export default function Waiting({
   seconds,
   onEnter,
 }: WaitingProps) {
+  const [noticeOpen, setNoticeOpen] = useState(false);
+
   return (
     <>
       <section className="session-intro">
@@ -73,11 +76,64 @@ export default function Waiting({
           className="primary"
           type="button"
           disabled={!joinWindowOpen || phase === "connecting"}
-          onClick={onEnter}
+          onClick={() => setNoticeOpen(true)}
         >
           {phase === "connecting" ? "연결 중…" : "입장하기"}
         </button>
       </section>
+      {noticeOpen && (
+        <div
+          className="heart-modal-backdrop entry-notice-backdrop"
+          role="presentation"
+          onClick={() => setNoticeOpen(false)}
+        >
+          <section
+            className="heart-modal entry-notice-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="entry-notice-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              className="heart-modal-close"
+              type="button"
+              aria-label="안내 닫기"
+              onClick={() => setNoticeOpen(false)}
+            >
+              ×
+            </button>
+            <h2 id="entry-notice-title">입장 전 확인해주세요</h2>
+            <ul className="entry-notice-list">
+              <li>안정적인 네트워크 환경에서 진행해주세요.</li>
+              <li>
+                상대가 내 목소리를 들을 수 있게 마이크 권한을 허용해주세요.
+              </li>
+              <li>
+                참가자가 홀수면 일부 라운드에서 상대가 배정되지 않을 수
+                있습니다. 오류가 아니니 다음 대화까지 기다려주세요.
+              </li>
+              <li>
+                새로고침하거나 창을 닫으면 연결이 끊길 수 있습니다. 소개팅이
+                끝날 때까지 화면을 유지해주세요.
+              </li>
+              <li>
+                소개팅에 참가했더라도 최종 투표를 진행하지 않으면 보증금을
+                돌려받을 수 없어요.
+              </li>
+            </ul>
+            <button
+              className="heart-send-button"
+              type="button"
+              onClick={() => {
+                setNoticeOpen(false);
+                onEnter();
+              }}
+            >
+              확인했습니다
+            </button>
+          </section>
+        </div>
+      )}
     </>
   );
 }
