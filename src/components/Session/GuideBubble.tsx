@@ -3,10 +3,7 @@ import styled from "styled-components";
 export const lobbyGuideMessages = [
   "이 소개팅은 로테이션 방식으로 진행돼요.",
   "얼굴 공개 없이 오직 목소리로만 서로를 알아가요.",
-  "한 사람과 대화할 시간이 주어져요.",
-  // [휴식 제거] 라운드 사이 휴식을 없애서 아래 두 문구 대신 한 문구로 안내한다
-  // "대화 시간이 끝나면 자동으로 로비로 돌아와요.",
-  // "1분의 휴식시간이 지난 후 다음 대화가 시작돼요.",
+  "한 사람씩 돌아가며 10분동안 대화해요.",
   "대화 시간이 끝나면 바로 다음 대화가 시작돼요.",
   "보석은 미리 충전해두는 것을 추천드려요.",
   "서로를 1순위로 지목하면 최종 매칭이 성사돼요.",
@@ -15,7 +12,7 @@ export const lobbyGuideMessages = [
 
 export const finalChoiceGuideMessages = [
   "모든 대화가 끝났습니다.",
-  "3분 후 최종 선택이 시작됩니다.",
+  "1분 후 최종 선택이 시작됩니다.",
   "최종 선택 전 호감을 표시할 수 있는 시간을 드립니다.",
   "프로필을 눌러 마음에 드는 상대에게 하트를 보내세요.",
   "상대는 누가 하트를 보냈는지 확인할 수 있습니다.",
@@ -44,10 +41,13 @@ export default function GuideBubble({
   const minutes = roundDurationSeconds && Math.floor(roundDurationSeconds / 60);
   const seconds = roundDurationSeconds && roundDurationSeconds % 60;
   const duration = roundDurationSeconds
-    ? [minutes && `${minutes}분`, seconds && `${seconds}초`].filter(Boolean).join(" ")
+    ? [minutes && `${minutes}분`, seconds && `${seconds}초`]
+        .filter(Boolean)
+        .join(" ")
     : null;
   const visibleMessage =
-    message ?? (mode === "lobby" && duration && index === 2
+    message ??
+    (mode === "lobby" && duration && index === 2
       ? `한 사람 당 ${duration}의 대화 시간이 주어져요.`
       : mode === "lobby" && duration && index === 3
         ? `${duration}이 지나면 자동으로 종료되고 로비로 돌아와요.`
