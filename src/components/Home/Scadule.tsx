@@ -243,6 +243,12 @@ export default function Scadule({
               : myGender === "FEMALE"
                 ? session.femaleRemaining
                 : remaining;
+          const seatRemainingLabel =
+            myGender === "FEMALE"
+              ? `여자 ${session.femaleRemaining}자리 남음`
+              : myGender === "MALE"
+                ? `남자 ${session.maleRemaining}자리 남음`
+                : `${remaining}자리 남음`;
           const time = koreaTime(session.startTime);
           const tone = ["dark", "light", "green"][index % 3];
           return (
@@ -314,7 +320,7 @@ export default function Scadule({
                 <span>
                   여자 {female}명 · 남자 {male}명 신청 중
                 </span>
-                <strong>{remaining}자리 남음</strong>
+                <strong>{seatRemainingLabel}</strong>
               </div>
               <div
                 className="capacity-track"
