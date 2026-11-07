@@ -226,9 +226,7 @@ export default function Scadule({
         )}
         {!loading && !loadError && sessionsForDay.length === 0 && (
           <p className="session-empty">
-            {isLoggedIn
-              ? "선택한 날짜에는 신청 가능한 세션이 없어요."
-              : "로그인하면 신청 가능한 세션을 확인할 수 있어요."}
+            선택한 날짜에는 신청 가능한 세션이 없어요.
           </p>
         )}
         {sessionsForDay.map((session, index) => {

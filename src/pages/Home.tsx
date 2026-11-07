@@ -34,11 +34,26 @@ export default function Home() {
     setLoading(true);
     setLoadError("");
     if (!token) {
-      setSessions([]);
+      // 로그인 전에도 세션 목록은 보여준다. 내 신청 내역·성별은 로그인해야 알 수 있다
       setMySessions([]);
       setMyGender(null);
       setIsLoggedIn(false);
-      setLoading(false);
+      getSessions()
+        .then((items) => {
+          if (active) setSessions(items);
+        })
+        .catch((cause) => {
+          if (!active) return;
+          setSessions([]);
+          setLoadError(
+            cause instanceof Error
+              ? cause.message
+              : "세션 정보를 불러오지 못했어요.",
+          );
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
       return () => {
         active = false;
       };
@@ -57,11 +72,10 @@ export default function Home() {
           // The API client clears the token only for expired/invalid-token codes.
           // A generic 401 from one data endpoint should not hide public navigation.
           if (!getAccessToken()) {
+            // 로그인이 만료되면 로그인 전 상태로 다시 불러온다 (세션 목록은 계속 보인다)
             setIsLoggedIn(false);
-            setSessions([]);
             setMySessions([]);
             setMyGender(null);
-            setLoadError("로그인이 만료됐어요. 다시 로그인해주세요.");
           } else {
             setLoadError(cause.message);
           }
