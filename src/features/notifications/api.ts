@@ -11,6 +11,8 @@ export type NotificationType =
   | 'COMPLETION_REFUND'
   // 이벤트 기간 가입 축하 보석. 누르면 이용내역(/store/history)으로 이동
   | 'SIGNUP_BONUS'
+  // (운영자) 새 오류 제보·처음 보는 자동 수집 오류. 누르면 /admin/error-reports
+  | 'ERROR_REPORTED'
   | 'CONTACT_REQUESTED'
   | 'CONTACT_REQUEST_ACCEPTED'
   | 'CONTACT_REQUEST_REJECTED'

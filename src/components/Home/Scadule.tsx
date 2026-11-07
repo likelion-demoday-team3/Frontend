@@ -24,8 +24,9 @@ type ScaduleProps = {
 };
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+// koreaDateKey·Calender와 같은 형식(0 없음, 예: 2026-11-6)이어야 날짜별 목록이 맞는다
 const dateKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 const dateLabel = (date: Date) =>
   `${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}요일`;
 
@@ -225,9 +226,7 @@ export default function Scadule({
         )}
         {!loading && !loadError && sessionsForDay.length === 0 && (
           <p className="session-empty">
-            {isLoggedIn
-              ? "선택한 날짜에는 신청 가능한 세션이 없어요."
-              : "로그인하면 신청 가능한 세션을 확인할 수 있어요."}
+            선택한 날짜에는 신청 가능한 세션이 없어요.
           </p>
         )}
         {sessionsForDay.map((session, index) => {

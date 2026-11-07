@@ -2,7 +2,7 @@ import { apiRequest } from '../api/client'
 import type { CancellationResult, MySession, ParticipationResult, Session, SessionDetail } from './types'
 
 export function getSessions(): Promise<Session[]> {
-  return apiRequest<Session[]>('/sessions')
+  return apiRequest<Session[]>('/sessions', { authenticated: 'optional' })
 }
 
 /** 내가 신청한 세션. from·to(ISO 시각)를 주면 세션 시작 시각이 그 사이인 것만 받는다 */

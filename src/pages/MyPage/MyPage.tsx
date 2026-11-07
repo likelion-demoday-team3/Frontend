@@ -116,6 +116,9 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
           <a href={`/mypage/reservation${suffix}`}>
             예약 확인 <span>›</span>
           </a>
+          <a href="/mypage/error-report">
+            오류 제보하기 <span>›</span>
+          </a>
         </section>
         <section className="account-actions" aria-label="계정 관리">
           <button
