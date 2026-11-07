@@ -27,6 +27,7 @@ import { getLiveSessionState } from "../../features/live/api";
 import { getMyMember } from "../../features/members/api";
 import SessionPage from "./SessionPage";
 import Call from "./Call";
+import MiniGame from "./MiniGame";
 import HeartLobby from "./HeartLobby.tsx";
 import MainLobby from "./MainLobby";
 import Waiting from "./Waiting";
@@ -182,6 +183,9 @@ export default function Session({ sessionId }: SessionProps) {
               ? 10_000
               : 9 * 60_000)
       : null,
+  );
+  const [miniGameEndsAt, setMiniGameEndsAt] = useState<number | null>(() =>
+    idlePreviewMode ? Date.now() + 55_000 : null,
   );
   const [finalChoiceLobby, setFinalChoiceLobby] = useState(heartLobbyPreviewMode);
   const [finalChoiceStartsAt, setFinalChoiceStartsAt] = useState<number | null>(
@@ -871,9 +875,14 @@ export default function Session({ sessionId }: SessionProps) {
           setConversationEndsAt(null);
           setUnmatchedThisRound(message.status === "IDLE");
           if (message.status === "IDLE" && message.roundNumber !== null) {
+            setMiniGameEndsAt(
+              Date.now() +
+                (sessionRef.current?.roundDurationSeconds ?? 180) * 1000,
+            );
             const roundNumber = message.roundNumber;
             setCurrentRound((round) => Math.max(round, roundNumber));
           } else if (message.status === "JOINED") {
+            setMiniGameEndsAt(null);
             const current = sessionRef.current;
             const lastRound = current?.currentRoundNumber ?? 0;
             if (
@@ -895,6 +904,7 @@ export default function Session({ sessionId }: SessionProps) {
               : "로비 입장 완료",
         );
       } else if (message.kind === "assigned") {
+        setMiniGameEndsAt(null);
         setMyLiveMemberId(message.assignment.memberId);
         // 상대는 서버가 정한 세션 별칭으로 기록한다
         const nickname =
@@ -941,6 +951,10 @@ export default function Session({ sessionId }: SessionProps) {
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         setConversationEndsAt(null);
+        setMiniGameEndsAt(
+          Date.now() +
+            (sessionRef.current?.roundDurationSeconds ?? 180) * 1000,
+        );
         setIsPartnerSpeaking(false);
         setCurrentRound((round) => Math.max(round, message.roundNumber));
         setAssignment(null);
@@ -959,6 +973,7 @@ export default function Session({ sessionId }: SessionProps) {
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         setConversationEndsAt(null);
+        setMiniGameEndsAt(null);
         setIsPartnerSpeaking(false);
         setVotingEndsAt(message.votingEndsAt);
         setFinalChoiceLobby(false);
@@ -973,6 +988,7 @@ export default function Session({ sessionId }: SessionProps) {
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         setConversationEndsAt(null);
+        setMiniGameEndsAt(null);
         setIsPartnerSpeaking(false);
         setAssignment(null);
         setIsStarting(false);
@@ -1684,7 +1700,12 @@ export default function Session({ sessionId }: SessionProps) {
     }
   }, [assignment, conversationEndsAt, now, phase]);
 
-  const lobbyVisible = phase === "lobby" || phase === "idle";
+  const miniGameVisible = phase === "idle" && unmatchedThisRound && !finalChoiceLobby;
+  const lobbyVisible =
+    (phase === "lobby" || phase === "idle") && !miniGameVisible;
+  const miniGameRemaining = Math.max(0, (miniGameEndsAt ?? now) - now);
+  const miniGameMinutes = Math.floor(miniGameRemaining / 60000);
+  const miniGameSeconds = Math.floor((miniGameRemaining % 60000) / 1000);
   useEffect(() => {
     if (
       phase !== "lobby" ||
@@ -1730,16 +1751,16 @@ export default function Session({ sessionId }: SessionProps) {
           ? "vote-page"
           : lobbyVisible
             ? "lobby-page"
-            : phase === "assigned"
+          : phase === "assigned" || miniGameVisible
               ? "conversation-page"
               : ""
       }
     >
       {lobbyVisible && <LobbyBackground />}
       <header
-        className={`session-header ${lobbyVisible ? "lobby-header" : phase === "assigned" || phase === "voting" ? "conversation-header" : "entry-header"}`}
+        className={`session-header ${lobbyVisible ? "lobby-header" : phase === "assigned" || miniGameVisible || phase === "voting" ? "conversation-header" : "entry-header"}`}
       >
-        {lobbyVisible || phase === "assigned" || phase === "voting" ? (
+        {lobbyVisible || phase === "assigned" || miniGameVisible || phase === "voting" ? (
           <>
             <SessionNoti
               className="lobby-bell"
@@ -1747,7 +1768,9 @@ export default function Session({ sessionId }: SessionProps) {
               recipientId={myLiveMemberId ?? assignment?.memberId}
             />
             <h1>
-              {lobbyVisible
+              {miniGameVisible
+                ? "미니게임"
+                : lobbyVisible
                 ? "로비"
                 : phase === "voting"
                   ? "최종투표"
@@ -1782,7 +1805,7 @@ export default function Session({ sessionId }: SessionProps) {
             ? "lobby-main"
             : phase === "voting"
               ? "vote-main"
-              : phase === "assigned"
+              : phase === "assigned" || miniGameVisible
                 ? "conversation-main"
                 : ""
         }
@@ -1898,6 +1921,13 @@ export default function Session({ sessionId }: SessionProps) {
               </>
             ) : (
               <>
+                {miniGameVisible && (
+                  <MiniGame
+                    minutes={miniGameMinutes}
+                    seconds={miniGameSeconds}
+                    isUrgent={miniGameRemaining <= 10_000}
+                  />
+                )}
                 {phase === "ready" || phase === "connecting" ? (
                   <Waiting
                     startTime={session.startTime}

@@ -6,7 +6,7 @@ const sessionPreviews = [
   { label: "입장 가능 · 시작 2분 전", mode: "waiting-open" },
   { label: "입장 마감 · 시작 후 1분 경과", mode: "waiting-closed" },
   { label: "로비 · 참가자와 내 프로필", mode: "lobby" },
-  { label: "다음 대화 대기 · 로비", mode: "idle" },
+  { label: "미니게임 대기 화면", mode: "idle" },
   { label: "최종 선택 · 참가자 목록", mode: "hearts" },
   { label: "최종 선택 · 하트 보내기 모달", mode: "heart-send" },
   { label: "최종 선택 · 하트 제한 팝업", mode: "heart-restriction" },

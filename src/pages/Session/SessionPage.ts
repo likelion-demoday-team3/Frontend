@@ -281,6 +281,225 @@ const SessionPage = styled.div`
   .conversation-timer strong.is-urgent {
     color: #e32636;
   }
+  .minigame-game {
+    position: absolute;
+    top: 25%;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem 0.8rem;
+    border-radius: 1.4rem;
+    background: #f6f9ef;
+  }
+  .minigame-status-row {
+    display: flex;
+    width: min(100%, 32rem);
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-top: 0.8rem;
+  }
+  .minigame-score {
+    flex: 0 0 auto;
+    padding: 0.45rem 0.8rem;
+    border: 0.1rem solid #e1e8dc;
+    border-radius: 99rem;
+    background: #f6faef;
+    color: #536057;
+    font: 500 1.25rem/1.3 var(--font-body);
+  }
+  .minigame-score strong {
+    color: #2b302c;
+    font-weight: 700;
+  }
+  .minigame-instruction {
+    flex: 0 0 auto;
+    width: 100%;
+    margin-top: 0;
+    color: #747f73;
+    font: 400 1.2rem/1.4 var(--font-body);
+    text-align: center;
+  }
+  .minigame-instruction-desktop {
+    display: inline;
+  }
+  .minigame-instruction-mobile {
+    display: none;
+  }
+  .stair-timebar {
+    width: min(62%, 24rem);
+    height: 1rem;
+    flex: 0 0 auto;
+    overflow: hidden;
+    margin: 0;
+    border-radius: 99rem;
+    background: #e8ecdf;
+  }
+  .stair-timebar span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--green);
+    transform-origin: left center;
+    transition: transform 60ms linear, background-color 200ms ease;
+  }
+  .stair-timebar span.is-urgent {
+    background: #ff8b6a;
+  }
+  .staircase-board {
+    position: relative;
+    width: min(100%, 32rem);
+    min-height: 0;
+    flex: 1;
+    margin-top: 0.6rem;
+    overflow: hidden;
+    touch-action: none;
+    cursor: pointer;
+  }
+  .stair-step {
+    position: absolute;
+    width: 23%;
+    height: 1.35rem;
+    border: 0.2rem solid #704d37;
+    border-radius: 0.55rem;
+    background: #8b6d51;
+    box-shadow: 0 0.35rem 0 #704d37;
+    transition: left 60ms linear, bottom 220ms ease;
+  }
+  .stair-step.moving {
+    border-color: #a27d57;
+  }
+  .stair-step.flashing {
+    animation: stair-flash 900ms ease-in-out infinite;
+  }
+  @keyframes stair-flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
+  .stair-step.active {
+    border-color: #704d37;
+    background: #b79a78;
+    box-shadow: 0 0 0 0.18rem #eadbc7, 0 0.35rem 0 #704d37;
+  }
+  .stair-player {
+    position: absolute;
+    z-index: 2;
+    width: clamp(5rem, 16vw, 6.4rem);
+    height: auto;
+    object-fit: contain;
+    transform: translateX(-50%);
+    transition: left 220ms ease, bottom 220ms ease, transform 180ms ease;
+  }
+  .stair-player.facing-left {
+    transform: translateX(-50%) scaleX(-1);
+  }
+  .stair-cloud-overlay {
+    position: absolute;
+    z-index: 1;
+    top: 28%;
+    left: 0;
+    width: 100%;
+    height: 44%;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at 12% 52%, #fbfdf7 0 20%, transparent 44%),
+      radial-gradient(ellipse at 38% 43%, #fbfdf7 0 25%, transparent 49%),
+      radial-gradient(ellipse at 66% 58%, #fbfdf7 0 24%, transparent 48%),
+      radial-gradient(ellipse at 94% 46%, #fbfdf7 0 22%, transparent 46%),
+      linear-gradient(180deg, transparent 0%, rgba(251, 253, 247, 0.98) 16%, rgba(251, 253, 247, 0.98) 84%, transparent 100%);
+    opacity: 0;
+    transition: opacity 500ms ease;
+  }
+  .stair-cloud-overlay.visible {
+    opacity: 0.99;
+  }
+  .stair-player.falling {
+    animation: stair-player-fall 650ms cubic-bezier(0.45, 0, 1, 1) forwards;
+  }
+  @keyframes stair-player-fall {
+    0% { transform: translateX(-50%) translateY(0) rotate(0); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(16rem) rotate(24deg); opacity: 0; }
+  }
+  .stair-game-over {
+    position: absolute;
+    z-index: 5;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    border-radius: 1.8rem;
+    background: #fcfffbeb;
+    text-align: center;
+    animation: stair-game-over-reveal 180ms ease 620ms both;
+  }
+  @keyframes stair-game-over-reveal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .stair-game-over h2 {
+    color: #2b302c;
+    font: 400 3rem/1.2 var(--display-font);
+  }
+  .stair-game-over p {
+    color: #747f73;
+    font: 400 1.4rem/1.4 var(--font-body);
+  }
+  .stair-game-over p.stair-best-score {
+    color: #2b302c;
+    font-weight: 700;
+  }
+  .stair-game-over button {
+    min-height: 4.6rem;
+    margin-top: 0.8rem;
+    padding: 0 2.4rem;
+    border: 0;
+    border-radius: 1.1rem;
+    background: var(--green);
+    color: #2b302c;
+    font: 700 1.5rem/1 var(--display-font);
+  }
+  .minigame-start-screen {
+    position: absolute;
+    z-index: 4;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.3rem;
+    padding: 1.5rem;
+    border-radius: inherit;
+    background: #f6f9ef;
+    text-align: center;
+  }
+  .minigame-start-screen h1 {
+    margin: 0;
+    color: #2b302c;
+    font: 400 3rem/1.2 var(--display-font);
+  }
+  .minigame-start-screen p {
+    margin: 0;
+    color: #747f73;
+    font: 400 1.2rem/1.5 var(--font-body);
+  }
+  .minigame-start-screen button {
+    min-height: 3.8rem;
+    margin-top: 0.4rem;
+    padding: 0 2.2rem;
+    border: 0;
+    border-radius: 1rem;
+    background: var(--green);
+    color: #2b302c;
+    font: 700 1.35rem/1 var(--display-font);
+    cursor: pointer;
+  }
   .conversation-stage {
     position: absolute;
     top: 24%;
@@ -944,6 +1163,12 @@ const SessionPage = styled.div`
     .conversation-stage {
       top: 23%;
       bottom: 31%;
+    }
+    .minigame-instruction-mobile {
+      display: inline;
+    }
+    .minigame-instruction-desktop {
+      display: none;
     }
     .conversation-mascot {
       --mascot-size: clamp(11rem, min(54vw, 21dvh), 19rem);
