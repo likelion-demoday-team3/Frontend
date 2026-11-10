@@ -38,6 +38,8 @@ export const confirmMyIdentityVerification = (identityVerificationId: string) =>
 
 export type MemberProfile = {
   university: string
+  /** 학교 지역 (시·도, 예: 서울). 가입 때 학교 메일로 자동으로 정해지고 고칠 수 없다 */
+  region: string | null
   idealType: string | null
   datingStyle: string | null
   contactStyle: string | null
@@ -45,7 +47,7 @@ export type MemberProfile = {
   interests: string[]
 }
 
-export type UpdateMemberProfile = Omit<MemberProfile, 'university'>
+export type UpdateMemberProfile = Omit<MemberProfile, 'university' | 'region'>
 
 export const getMyProfile = () => apiRequest<MemberProfile>('/members/my/profile')
 

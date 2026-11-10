@@ -13,6 +13,8 @@ export type LiveAssignment = {
   partnerProfileCard: {
     memberId: number
     university: string | null
+    /** 학교 지역 (시·도, 예: 서울) */
+    region?: string | null
     nickname?: string | null
     idealType: string | null
     datingStyle: string | null

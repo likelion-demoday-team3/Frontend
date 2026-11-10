@@ -30,6 +30,7 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
   const [values, setValues] = useState<UpdateMemberProfile>(emptyProfile);
   const [interestDraft, setInterestDraft] = useState("");
   const [university, setUniversity] = useState("");
+  const [region, setRegion] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -41,6 +42,7 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
   useEffect(() => {
     if (demo) {
       setUniversity("서강대학교");
+      setRegion("서울");
       setValues({
         idealType: "곰상",
         datingStyle: "전시회나 맛집 탐방",
@@ -61,6 +63,7 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
       .then(([member, profile]) => {
         if (!active) return;
         setUniversity(profile.university || member.university);
+        setRegion(profile.region ?? "");
         setValues(toPayload(profile));
         setError("");
       })
@@ -182,6 +185,10 @@ export default function CardEdit({ demo = false }: { demo?: boolean }) {
             <Field>
               학교 정보
               <input value={university} readOnly />
+            </Field>
+            <Field>
+              지역
+              <input value={region || "정보 없음"} readOnly />
             </Field>
             <Field>
               이상형

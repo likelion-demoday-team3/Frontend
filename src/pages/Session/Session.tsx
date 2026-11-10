@@ -847,6 +847,7 @@ export default function Session({ sessionId }: SessionProps) {
               ...(message.partnerProfileCard ?? {
                 memberId: message.partnerMemberId,
                 university: null,
+                region: null,
                 idealType: null,
                 datingStyle: null,
                 contactStyle: null,

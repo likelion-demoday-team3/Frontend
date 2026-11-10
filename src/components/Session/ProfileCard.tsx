@@ -35,7 +35,10 @@ export default function ProfileCard({
         <CloseButton type="button" aria-label="닫기" onClick={onClose}>
           ×
         </CloseButton>
-        <University>{profile.university || "학교 정보 없음"}</University>
+        <University>
+          {profile.university || "학교 정보 없음"}
+          {profile.region ? ` · ${profile.region}` : ""}
+        </University>
         <Nickname id="profile-card-title">
           {profile.nickname || "상대방"}
         </Nickname>

@@ -163,6 +163,7 @@ export function createMockAssignment(
     partnerProfileCard: {
       memberId: roundNumber + 1,
       university: emptyProfile ? null : "연세대학교",
+      region: emptyProfile ? null : "서울",
       nickname: alias,
       idealType: emptyProfile ? null : "대화가 잘 통하는 사람",
       datingStyle: emptyProfile ? null : "전시회나 맛집 탐방",
