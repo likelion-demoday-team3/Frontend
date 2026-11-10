@@ -48,7 +48,7 @@ function routeFromPath(pathname: string): Route {
   if (route === "mypage/reservation" || route === "reservation") return { page: "mypage-reservation" };
   if (route === "mypage/change-password") return { page: "mypage-password" };
   if (route === "mypage/identity") return { page: "mypage-identity" };
-  if (route === "mypage/error-report") return { page: "mypage-error-report" };
+  if (route === "mypage/error-report" || route === "error-report") return { page: "mypage-error-report" };
   if (route === "admin/error-reports") return { page: "admin-error-reports" };
   const recordListRoute = route.match(/^mypage\/record\/(matches|sent|received)$/);
   if (recordListRoute) return { page: "mypage-record-list", section: recordListRoute[1] as "matches" | "sent" | "received" };

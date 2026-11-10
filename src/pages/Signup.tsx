@@ -122,7 +122,7 @@ export default function Signup({
       if (unsupportedSchool) {
         setErrorTitle("아직 가입할 수 없는 학교예요");
         setError(
-          "더 많은 학교에서 Kiiwee를 이용하실 수 있도록 준비하고 있으니 조금만 기다려주세요!\n\n",
+          "전국 4년제 대학교의 학교 메일로 가입할 수 있어요. 학생용 학교 메일이 맞는지 확인해주세요.\n\n",
         );
       } else {
         setErrorTitle("입력 내용을 확인해주세요");
@@ -518,9 +518,18 @@ export default function Signup({
         <p>{error}</p>
         {errorTitle === "아직 가입할 수 없는 학교예요" && (
           <p className="signup-alert-schools">
-            현재 참여 가능한 학교<br />
-            서강대학교 · 연세대학교 · 이화여자대학교 · 홍익대학교
+            학교 메일인데도 가입이 안 되면 오류 제보로 알려주세요.
+            <br />
+            확인 후 학교를 추가해 드릴게요.
           </p>
+        )}
+        {errorTitle === "아직 가입할 수 없는 학교예요" && (
+          <a
+            className="signup-alert-report"
+            href={`/error-report?from=signup&email=${encodeURIComponent(email.trim())}`}
+          >
+            오류 제보하기
+          </a>
         )}
         <button
           autoFocus
@@ -805,6 +814,15 @@ const SignupPage = styled.main`
     color: var(--text-placeholder);
     font-size: 1.1rem;
     line-height: 1.6;
+  }
+  .signup-alert .signup-alert-report {
+    display: block;
+    margin: -1rem 0 1.4rem;
+    color: #2f5d43;
+    font-size: 1.3rem;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: underline;
   }
   .signup-success {
     display: flex;

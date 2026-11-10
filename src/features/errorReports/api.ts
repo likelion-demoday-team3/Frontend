@@ -35,7 +35,19 @@ export const ERROR_REPORTS_PATH = '/api/error-reports'
 export const submitErrorReport = (input: ErrorReportInput) =>
   apiRequest<ErrorReportReceipt>(ERROR_REPORTS_PATH, { method: 'POST', body: input })
 
-export const getAdminErrorReports = (filter: { status?: ErrorReportStatus; kind?: ErrorReportKind } = {}) => {
+/** 로그인하지 않은 사람의 직접 제보 (가입이 안 될 때 등). 답변 받을 이메일이 필요하다 */
+export type GuestErrorReportInput = {
+  contactEmail: string
+  message: string
+  pageUrl?: string
+  userAgent?: string
+  detail?: string
+}
+
+export const submitGuestErrorReport = (input: GuestErrorReportInput) =>
+  apiRequest<ErrorReportReceipt>(`${ERROR_REPORTS_PATH}/guest`, { method: 'POST', body: input })
+
+export const getAdminErrorReports =(filter: { status?: ErrorReportStatus; kind?: ErrorReportKind } = {}) => {
   const query = new URLSearchParams()
   if (filter.status) query.set('status', filter.status)
   if (filter.kind) query.set('kind', filter.kind)
