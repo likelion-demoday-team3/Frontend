@@ -20,13 +20,16 @@ import ItsMe from "./pages/MyPage/ItsMe";
 import RecordList from "./pages/MyPage/RecordList";
 import ErrorReport from "./pages/MyPage/ErrorReport";
 import AdminErrorReports from "./pages/Admin/AdminErrorReports";
+import { TermsDetail, TermsList } from "./pages/Terms/Terms";
 import { restoreAccessToken } from "./features/auth/session";
 
 type Route =
   | { page: "home" | "signup" | "login" | "result" | "result-detail" | "contact" | "store" | "charge-info" | "payment-result" | "mypage" | "mypage-me" | "mypage-card" | "mypage-record" | "mypage-reservation" | "mypage-password" | "mypage-identity" | "mypage-error-report" | "admin-error-reports" }
   | { page: "charge-history"; mode: "usage" | "charge" }
   | { page: "mypage-record-list"; section: "matches" | "sent" | "received" }
-  | { page: "session"; sessionId: number };
+  | { page: "session"; sessionId: number }
+  | { page: "terms" }
+  | { page: "terms-detail"; slug: string };
 
 function routeFromPath(pathname: string): Route {
   const route = pathname.replace(/^\//, "");
@@ -50,6 +53,9 @@ function routeFromPath(pathname: string): Route {
   if (route === "mypage/identity") return { page: "mypage-identity" };
   if (route === "mypage/error-report" || route === "error-report") return { page: "mypage-error-report" };
   if (route === "admin/error-reports") return { page: "admin-error-reports" };
+  if (route === "terms") return { page: "terms" };
+  const termsRoute = route.match(/^terms\/([a-z-]+)$/);
+  if (termsRoute) return { page: "terms-detail", slug: termsRoute[1] };
   const recordListRoute = route.match(/^mypage\/record\/(matches|sent|received)$/);
   if (recordListRoute) return { page: "mypage-record-list", section: recordListRoute[1] as "matches" | "sent" | "received" };
   const sessionRoute = route.match(/^session\/(\d+)$/);
@@ -120,6 +126,8 @@ export default function Router({
   if (route.page === "mypage-identity") return <ItsMe />;
   if (route.page === "mypage-error-report") return <ErrorReport />;
   if (route.page === "admin-error-reports") return <AdminErrorReports />;
+  if (route.page === "terms") return <TermsList />;
+  if (route.page === "terms-detail") return <TermsDetail key={route.slug} slug={route.slug} />;
   if (route.page === "mypage-record-list") return <RecordList section={route.section} />;
   if (route.page === "session")
     return (

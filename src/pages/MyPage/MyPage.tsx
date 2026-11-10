@@ -119,6 +119,9 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
           <a href="/mypage/error-report">
             오류 제보하기 <span>›</span>
           </a>
+          <a href="/terms">
+            약관 및 정책 <span>›</span>
+          </a>
         </section>
         <section className="account-actions" aria-label="계정 관리">
           <button
