@@ -45,6 +45,11 @@ export default function Signup({
   const [year, setYear] = useState("");
   const [month, setMonth] = useState("");
   const [day, setDay] = useState("");
+  const [agreements, setAgreements] = useState({
+    terms: false,
+    privacy: false,
+    thirdParty: false,
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [errorTitle, setErrorTitle] = useState("입력 내용을 확인해주세요");
@@ -67,7 +72,9 @@ export default function Signup({
   const resendRemaining = Math.max(0, Math.ceil((resendAt - now) / 1000));
   const dayCount =
     year && month ? new Date(Number(year), Number(month), 0).getDate() : 31;
+  const allAgreed = agreements.terms && agreements.privacy && agreements.thirdParty;
   const profileValid =
+    allAgreed &&
     !!gender &&
     Boolean(name.trim()) &&
     (phone.trim() ? isPhone(phone) : Boolean(instagramId.trim())) &&
@@ -184,6 +191,9 @@ export default function Signup({
           birthDate: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
           ...(phone.trim() ? { phoneNumber: phone.replace(/-/g, "") } : {}),
           ...(instagramId.trim() ? { instagramId: `@${normalizeInstagramId(instagramId)}` } : {}),
+          agreeTerms: agreements.terms,
+          agreePrivacy: agreements.privacy,
+          agreeThirdParty: agreements.thirdParty,
         });
         setLocalMemberName(email, name);
         onAuthenticated(result.accessToken);
@@ -485,6 +495,63 @@ export default function Signup({
                   </label>
                 </div>
               </fieldset>
+              <fieldset className="signup-agreements">
+                <legend>약관 동의</legend>
+                <label className="signup-agree-all">
+                  <input
+                    type="checkbox"
+                    checked={allAgreed}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setAgreements({ terms: checked, privacy: checked, thirdParty: checked });
+                    }}
+                  />
+                  전체 동의
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={agreements.terms}
+                    onChange={(event) =>
+                      setAgreements((prev) => ({ ...prev, terms: event.target.checked }))
+                    }
+                  />
+                  [필수] 이용약관 동의
+                  <a href="/terms/service" target="_blank" rel="noreferrer">
+                    보기
+                  </a>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={agreements.privacy}
+                    onChange={(event) =>
+                      setAgreements((prev) => ({ ...prev, privacy: event.target.checked }))
+                    }
+                  />
+                  [필수] 개인정보 수집·이용 동의
+                  <a href="/terms/privacy" target="_blank" rel="noreferrer">
+                    보기
+                  </a>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={agreements.thirdParty}
+                    onChange={(event) =>
+                      setAgreements((prev) => ({ ...prev, thirdParty: event.target.checked }))
+                    }
+                  />
+                  [필수] 개인정보 제3자 제공 동의
+                  <a href="/terms/privacy" target="_blank" rel="noreferrer">
+                    보기
+                  </a>
+                </label>
+                <p className="signup-agree-note">
+                  매칭되거나 연락처를 주고받으면 상대에게 연락처가, 같은 세션 회원이 투표 결과를
+                  열람하면 세션 별칭과 투표 순위가 제공돼요.
+                </p>
+              </fieldset>
               <button
                 className="signup-primary"
                 disabled={!profileValid || busy}
@@ -493,7 +560,7 @@ export default function Signup({
               </button>
               <p className="signup-hint">
                 한국 나이 20~28세만 가입할 수 있어요. 전화번호와 인스타그램 중
-                하나는 연락처로 등록해주세요.
+                하나는 연락처로 등록하고, 필수 약관에 동의해주세요.
               </p>
               <button
                 type="button"
@@ -814,6 +881,48 @@ const SignupPage = styled.main`
     color: var(--text-placeholder);
     font-size: 1.1rem;
     line-height: 1.6;
+  }
+  .signup-agreements {
+    display: grid;
+    gap: 1rem;
+    margin: 0 0 2rem;
+    padding: 1.4rem 1.6rem;
+    border: 0.1rem solid #dfe5dc;
+    border-radius: 1.2rem;
+  }
+  .signup-agreements legend {
+    padding: 0 0.4rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+  .signup-agreements label {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 1.3rem;
+  }
+  .signup-agreements input[type="checkbox"] {
+    width: 1.8rem;
+    height: 1.8rem;
+    flex: 0 0 auto;
+    accent-color: var(--green, #b8e986);
+  }
+  .signup-agreements a {
+    margin-left: auto;
+    color: var(--text-placeholder);
+    font-size: 1.15rem;
+    text-decoration: underline;
+  }
+  .signup-agreements .signup-agree-all {
+    padding-bottom: 1rem;
+    border-bottom: 0.1rem solid #eef1ec;
+    font-weight: 700;
+  }
+  .signup-agreements .signup-agree-note {
+    margin: 0;
+    color: var(--text-placeholder);
+    font-size: 1.1rem;
+    line-height: 1.5;
   }
   .signup-alert .signup-alert-report {
     display: block;

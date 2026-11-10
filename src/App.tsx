@@ -5,6 +5,7 @@ import { setAccessToken } from "./features/auth/session";
 import { GlobalStyles } from "./styles/GlobalStyles";
 import ScreenPreviewPanel from "./test/ScreenPreviewPanel";
 import { installErrorCapture } from "./features/errorReports/autoCapture";
+import TermsConsentGate from "./components/common/TermsConsentGate";
 
 // 앱에서 생긴 에러를 자동으로 모아 개발자에게 보낸다 (로그인한 경우에만 전송)
 installErrorCapture();
@@ -16,6 +17,8 @@ export default function App() {
   });
   const [fadingThumbnail, setFadingThumbnail] = useState(false);
   const [thumbnailReady, setThumbnailReady] = useState(false);
+  // 로그인할 때마다 올려서 약관 동의가 필요한지 다시 확인한다
+  const [authVersion, setAuthVersion] = useState(0);
 
   useEffect(() => {
     if (!thumbnailReady) return;
@@ -31,7 +34,13 @@ export default function App() {
   return (
     <>
       <GlobalStyles />
-      <Router onAuthenticated={setAccessToken} />
+      <Router
+        onAuthenticated={(token, remember) => {
+          setAccessToken(token, remember);
+          setAuthVersion((value) => value + 1);
+        }}
+      />
+      <TermsConsentGate checkKey={authVersion} />
       <ScreenPreviewPanel />
       {showThumbnail && (
         <ThumbnailSplash

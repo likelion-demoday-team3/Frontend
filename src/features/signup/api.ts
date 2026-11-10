@@ -18,6 +18,12 @@ export type SignupRequest = {
   birthDate: string
   phoneNumber?: string
   instagramId?: string
+  /** [필수] 이용약관 동의 */
+  agreeTerms: boolean
+  /** [필수] 개인정보 수집·이용 동의 */
+  agreePrivacy: boolean
+  /** [필수] 개인정보 제3자 제공 동의 (매칭·연락처 교환·투표 결과 열람) */
+  agreeThirdParty: boolean
 }
 
 export type AuthTokens = {

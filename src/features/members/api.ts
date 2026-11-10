@@ -12,9 +12,21 @@ export type Member = {
   phoneNumber: string | null
   instagramId: string | null
   identityVerifiedAt?: string | null
+  /** 동의한 약관 버전 (약관 시행일). 동의 기능 이전 가입자는 null */
+  termsVersion?: string | null
+  termsAgreedAt?: string | null
+  /** true면 지금 약관에 다시 동의해야 한다 (로그인 후 동의 창을 띄운다) */
+  termsAgreementRequired?: boolean
 }
 
 export const getMyMember = () => apiRequest<Member>('/members/my')
+
+/** 지금 약관에 (다시) 동의. 필수 동의 3개 모두 true여야 한다 */
+export const agreeToCurrentTerms = () =>
+  apiRequest<null>('/members/my/terms-agreement', {
+    method: 'POST',
+    body: { agreeTerms: true, agreePrivacy: true, agreeThirdParty: true },
+  })
 
 export type IdentityVerificationRequest = {
   storeId: string
