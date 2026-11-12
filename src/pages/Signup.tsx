@@ -226,9 +226,9 @@ export default function Signup({
           <h1 ref={title} tabIndex={-1}>
             가입을 축하해요!
           </h1>
-          <p>Kiiwee에서 새로운 인연을 만나보세요.</p>
-          <a className="signup-primary signup-start" href="/home">
-            Kiiwee 시작하기
+          <p>소개팅 참가를 위해 프로필 카드가 필요해요.</p>
+          <a className="signup-primary signup-start" href="/mypage/card">
+            프로필 카드 작성하기
           </a>
         </section>
       ) : (

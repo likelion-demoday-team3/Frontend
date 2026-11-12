@@ -23,11 +23,9 @@ const demoMember: Member = {
 
 export default function MyPage({ demo = false }: { demo?: boolean }) {
   const [member, setMember] = useState<Member | null>(demo ? demoMember : null);
-  const [loading, setLoading] = useState(!demo && Boolean(getAccessToken()));
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
-  const verified = demo || Boolean(member?.identityVerifiedAt);
 
   useEffect(() => {
     if (demo || !getAccessToken()) return;
@@ -38,9 +36,6 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
       })
       .catch(() => {
         if (active) setMember(null);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -92,13 +87,6 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
                 (member?.email ? getLocalMemberName(member.email) : null) ??
                 "이름")}
           </h1>
-          <span className={`badge ${verified ? "verified" : ""}`}>
-            {loading
-              ? "정보 불러오는 중"
-              : verified
-                ? "인증완료"
-                : "본인인증 필요"}
-          </span>
         </section>
         <section className="menu-card" aria-label="마이페이지 메뉴">
           <a href={`/mypage/me${suffix}`}>
@@ -292,19 +280,6 @@ const Shell = styled.div`
   }
   .identity h1 {
     font: 700 2.2rem/1.3 var(--display-font);
-  }
-  .badge {
-    margin-top: 0.7rem;
-    padding: 0.45rem 1rem;
-    border-radius: 99px;
-    background: #ffe6e5;
-    color: #d85350;
-    font-size: 1.05rem;
-    font-weight: 700;
-  }
-  .badge.verified {
-    background: #e7f5d0;
-    color: #587b22;
   }
   .menu-card {
     margin: 1rem 0;
