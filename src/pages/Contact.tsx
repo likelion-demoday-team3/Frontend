@@ -11,6 +11,7 @@ import {
   getSessionPartners,
   closeResultsWindow,
   requestContact,
+  respondToContactRequest,
   sendContact,
   type ContactRequest,
   type ContactType,
@@ -276,6 +277,38 @@ export default function Contact() {
     }
   }
 
+  // 받은 연락처 요청에 응답한다. 세션 화면을 나간 뒤 알림을 보고 이 화면으로 와도 응답할 수 있다
+  async function respondToRequest(request: ContactRequest, accept: boolean) {
+    setBusyId(request.requesterId);
+    setError("");
+    try {
+      if (preview) {
+        setRequests((items) =>
+          items.map((item) =>
+            item.id === request.id
+              ? {
+                  ...item,
+                  status: accept ? "ACCEPTED" : "REJECTED",
+                  respondedAt: new Date().toISOString(),
+                }
+              : item,
+          ),
+        );
+        return;
+      }
+      await respondToContactRequest(request.sessionId, request.id, accept);
+      await refresh();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "연락처 요청에 응답하지 못했어요.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   function openContactTarget(partner: Partner, action: "send" | "request") {
     setError("");
     setContactType(
@@ -369,6 +402,17 @@ export default function Contact() {
                     item.targetId === partner.memberId &&
                     item.status === "PENDING",
                 );
+                const incomingRequest = requests.find(
+                  (item) =>
+                    item.sessionId === sessionId &&
+                    item.requesterId === partner.memberId &&
+                    item.targetId === myMemberId &&
+                    item.status === "PENDING",
+                );
+                // 요청받은 종류를 등록하지 않았으면 수락할 수 없다 (서버도 거절한다)
+                const canAcceptIncoming =
+                  !!incomingRequest &&
+                  availableContactTypes.includes(incomingRequest.contactType);
                 return (
                   <article className="partner-card" key={partner.memberId}>
                     <div
@@ -397,6 +441,39 @@ export default function Contact() {
                             </small>
                           ))}
                     </div>
+                    {incomingRequest && (
+                      <div className="incoming-request" role="group" aria-label={`${partner.nickname}의 연락처 요청`}>
+                        <p>
+                          {partner.nickname}님이 내{" "}
+                          {contactTypeLabel(incomingRequest.contactType)}를 요청했어요.
+                        </p>
+                        {!canAcceptIncoming && (
+                          <p className="hint">
+                            {contactTypeLabel(incomingRequest.contactType)}가 등록되어 있지 않아요.{" "}
+                            <a href="/mypage/me">마이페이지에서 등록</a>하면 수락할 수 있어요.
+                          </p>
+                        )}
+                        <div className="incoming-actions">
+                          <button
+                            type="button"
+                            disabled={!canAcceptIncoming || busyId === partner.memberId}
+                            aria-label={`${partner.nickname} 연락처 요청 수락`}
+                            onClick={() => void respondToRequest(incomingRequest, true)}
+                          >
+                            수락
+                          </button>
+                          <button
+                            type="button"
+                            className="reject"
+                            disabled={busyId === partner.memberId}
+                            aria-label={`${partner.nickname} 연락처 요청 거절`}
+                            onClick={() => void respondToRequest(incomingRequest, false)}
+                          >
+                            거절
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <div className="actions">
                       <button
                         type="button"
@@ -752,6 +829,47 @@ const ContactPage = styled.div`
     color: #72932f;
     font-size: 0.95rem;
     line-height: 1.4;
+  }
+  .incoming-request {
+    display: grid;
+    grid-column: 1 / -1;
+    gap: 0.8rem;
+    padding: 1.2rem;
+    border-radius: 1.2rem;
+    background: #f2f7e7;
+    color: #2b302c;
+    font-size: 1.2rem;
+    line-height: 1.5;
+  }
+  .incoming-request .hint {
+    color: #8a7a5c;
+    font-size: 1.05rem;
+  }
+  .incoming-request .hint a {
+    color: inherit;
+    text-decoration: underline;
+  }
+  .incoming-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+  }
+  .incoming-actions button {
+    min-height: 4rem;
+    border: 0;
+    border-radius: 1rem;
+    background: var(--green);
+    color: var(--ink);
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .incoming-actions button.reject {
+    border: 1px solid #e2e8dc;
+    background: #fff;
+  }
+  .incoming-actions button:disabled {
+    background: #f0f2ed;
+    color: #a1a89c;
   }
   .actions {
     display: grid;
