@@ -32,6 +32,12 @@ export type ContactRequest = {
   chargedGem: number
   createdAt: string
   respondedAt: string | null
+  /** 아래는 요청 기록(getContactRequests)에서만 온다 */
+  sessionStartTime?: string | null
+  requesterAlias?: string | null
+  targetAlias?: string | null
+  /** 조회한 내가 보낸 요청이면 SENT, 받은 요청이면 RECEIVED */
+  direction?: 'SENT' | 'RECEIVED' | null
 }
 
 type Paged<T> = { items: T[]; hasNext: boolean }

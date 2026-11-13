@@ -17,6 +17,11 @@ const sections = [
     description: "상대가 연락처를 전송한 기록",
     href: "/mypage/record/received",
   },
+  {
+    title: "연락처 요청 기록",
+    description: "보내고 받은 연락처 요청과 응답 상태",
+    href: "/mypage/record/requests",
+  },
 ];
 
 export default function Record() {

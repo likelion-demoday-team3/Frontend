@@ -18,13 +18,14 @@ import Reservation from "./pages/MyPage/Reservation";
 import ChangePW from "./pages/MyPage/ChangePW";
 import ItsMe from "./pages/MyPage/ItsMe";
 import RecordList from "./pages/MyPage/RecordList";
+import RequestList from "./pages/MyPage/RequestList";
 import ErrorReport from "./pages/MyPage/ErrorReport";
 import AdminErrorReports from "./pages/Admin/AdminErrorReports";
 import { TermsDetail, TermsList } from "./pages/Terms/Terms";
 import { restoreAccessToken } from "./features/auth/session";
 
 type Route =
-  | { page: "home" | "signup" | "login" | "result" | "result-detail" | "contact" | "store" | "charge-info" | "payment-result" | "mypage" | "mypage-me" | "mypage-card" | "mypage-record" | "mypage-reservation" | "mypage-password" | "mypage-identity" | "mypage-error-report" | "admin-error-reports" }
+  | { page: "home" | "signup" | "login" | "result" | "result-detail" | "contact" | "store" | "charge-info" | "payment-result" | "mypage" | "mypage-me" | "mypage-card" | "mypage-record" | "mypage-record-requests" | "mypage-reservation" | "mypage-password" | "mypage-identity" | "mypage-error-report" | "admin-error-reports" }
   | { page: "charge-history"; mode: "usage" | "charge" }
   | { page: "mypage-record-list"; section: "matches" | "sent" | "received" }
   | { page: "session"; sessionId: number }
@@ -48,6 +49,7 @@ function routeFromPath(pathname: string): Route {
   if (route === "mypage/me" || route === "me-edit") return { page: "mypage-me" };
   if (route === "mypage/card" || route === "card-edit") return { page: "mypage-card" };
   if (route === "mypage/record" || route === "record") return { page: "mypage-record" };
+  if (route === "mypage/record/requests") return { page: "mypage-record-requests" };
   if (route === "mypage/reservation" || route === "reservation") return { page: "mypage-reservation" };
   if (route === "mypage/change-password") return { page: "mypage-password" };
   if (route === "mypage/identity") return { page: "mypage-identity" };
@@ -128,6 +130,7 @@ export default function Router({
   if (route.page === "admin-error-reports") return <AdminErrorReports />;
   if (route.page === "terms") return <TermsList />;
   if (route.page === "terms-detail") return <TermsDetail key={route.slug} slug={route.slug} />;
+  if (route.page === "mypage-record-requests") return <RequestList />;
   if (route.page === "mypage-record-list") return <RecordList section={route.section} />;
   if (route.page === "session")
     return (
