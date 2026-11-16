@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { createPortal } from "react-dom";
 import GuideBubble from "../../components/Session/GuideBubble";
 import type { LobbyParticipant } from "./sessionUtils";
 
@@ -51,6 +52,30 @@ export default function HeartLobby({
   onSelectProfile,
   onStart,
 }: HeartLobbyProps) {
+  // The modal styles are scoped beneath SessionPage's styled-components class.
+  // Keep that scope on a body-level portal so mobile clipping cannot crop it.
+  const portalScopeClassName =
+    document
+      .querySelector(".lobby-page")
+      ?.className.split(/\s+/)
+      .filter((className) => className && className !== "lobby-page")
+      .join(" ") ?? "";
+  const portalScopeStyle = {
+    position: "fixed" as const,
+    zIndex: 10000,
+    inset: 0,
+    display: "block",
+    width: "100vw",
+    height: "100dvh",
+    maxWidth: "none",
+    minHeight: 0,
+    margin: 0,
+    padding: 0,
+    overflow: "visible",
+    background: "transparent",
+    boxShadow: "none",
+  };
+
   return (
     <section className="lobby-screen" aria-label="하트 보내기 로비">
       <div
@@ -101,95 +126,101 @@ export default function HeartLobby({
       >
         {startLabel}
       </button>
-      {selectedProfile && (
-        <div
-          className="heart-modal-backdrop"
-          role="presentation"
-          onClick={() => setSelectedProfile(null)}
-        >
-          <section
-            className="heart-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="heart-modal-title"
-            onClick={(event) => event.stopPropagation()}
+      {selectedProfile && createPortal(
+        <div className={portalScopeClassName} style={portalScopeStyle}>
+          <div
+            className="heart-modal-backdrop"
+            role="presentation"
+            onClick={() => setSelectedProfile(null)}
           >
-            <button
-              className="heart-modal-close"
-              type="button"
-              aria-label="닫기"
-              onClick={() => setSelectedProfile(null)}
+            <section
+              className="heart-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="heart-modal-title"
+              onClick={(event) => event.stopPropagation()}
             >
-              ×
-            </button>
-            <p className="heart-profile-round">
-              {selectedProfile.roundNumber}번째 대화에서 만났어요
-            </p>
-            <h2 id="heart-modal-title">{selectedProfile.nickname}</h2>
-            <div className="heart-send-summary">
-              <div className="heart-send-summary-row">
-                <span>보낼 하트</span>
-                <strong>
-                  <i aria-hidden="true">♥</i>1개
-                </strong>
+              <button
+                className="heart-modal-close"
+                type="button"
+                aria-label="닫기"
+                onClick={() => setSelectedProfile(null)}
+              >
+                ×
+              </button>
+              <p className="heart-profile-round">
+                {selectedProfile.roundNumber}번째 대화에서 만났어요
+              </p>
+              <h2 id="heart-modal-title">{selectedProfile.nickname}</h2>
+              <div className="heart-send-summary">
+                <div className="heart-send-summary-row">
+                  <span>보낼 하트</span>
+                  <strong>
+                    <i aria-hidden="true">♥</i>1개
+                  </strong>
+                </div>
+                <div className="heart-send-summary-row heart-send-cost-row">
+                  <span>보석 차감</span>
+                  <strong>
+                    <i className="gem-mark" aria-hidden="true">◆</i>
+                    {heartsRemaining > 0 ? 0 : 1}개
+                  </strong>
+                </div>
               </div>
-              <div className="heart-send-summary-row heart-send-cost-row">
-                <span>보석 차감</span>
-                <strong>
-                  <i className="gem-mark" aria-hidden="true">◆</i>
-                  {heartsRemaining > 0 ? 0 : 1}개
-                </strong>
-              </div>
-            </div>
-            <button
-              className="heart-send-button"
-              type="button"
-              disabled={
-                (heartsSent[selectedProfile.memberId] ?? 0) > 0 ||
-                (heartsRemaining < 1 && gemsRemaining < 1)
-              }
-              onClick={() => onSendHeart(selectedProfile)}
-            >
-              {(heartsSent[selectedProfile.memberId] ?? 0) > 0
-                ? "하트를 보냈어요"
-                : heartsRemaining < 1 && gemsRemaining < 1
-                  ? "보석이 부족해요"
-                  : "하트 보내기"}
-            </button>
-          </section>
-        </div>
+              <button
+                className="heart-send-button"
+                type="button"
+                disabled={
+                  (heartsSent[selectedProfile.memberId] ?? 0) > 0 ||
+                  (heartsRemaining < 1 && gemsRemaining < 1)
+                }
+                onClick={() => onSendHeart(selectedProfile)}
+              >
+                {(heartsSent[selectedProfile.memberId] ?? 0) > 0
+                  ? "하트를 보냈어요"
+                  : heartsRemaining < 1 && gemsRemaining < 1
+                    ? "보석이 부족해요"
+                    : "하트 보내기"}
+              </button>
+            </section>
+          </div>
+        </div>,
+        document.body,
       )}
-      {heartRestrictionOpen && (
-        <div
-          className="heart-modal-backdrop"
-          role="presentation"
-          onClick={onCloseHeartRestriction}
-        >
-          <section
-            className="heart-modal heart-restriction-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="heart-restriction-title"
-            onClick={(event) => event.stopPropagation()}
+      {heartRestrictionOpen && createPortal(
+        <div className={portalScopeClassName} style={portalScopeStyle}>
+          <div
+            className="heart-modal-backdrop"
+            role="presentation"
+            onClick={onCloseHeartRestriction}
           >
-            <button
-              className="heart-modal-close"
-              type="button"
-              aria-label="닫기"
-              onClick={onCloseHeartRestriction}
+            <section
+              className="heart-modal heart-restriction-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="heart-restriction-title"
+              onClick={(event) => event.stopPropagation()}
             >
-              ×
-            </button>
-            <h2 id="heart-restriction-title">하트를 보낼 수 없어요</h2>
-            <button
-              className="heart-send-button"
-              type="button"
-              onClick={onCloseHeartRestriction}
-            >
-              확인
-            </button>
-          </section>
-        </div>
+              <button
+                className="heart-modal-close"
+                type="button"
+                aria-label="닫기"
+                onClick={onCloseHeartRestriction}
+              >
+                ×
+              </button>
+              <h2 id="heart-restriction-title">하트를 보낼 수 없어요</h2>
+              <button
+                className="heart-send-button"
+                type="button"
+                onClick={onCloseHeartRestriction}
+              >
+                확인
+              </button>
+            </section>
+          </div>
+        </div>,
+        document.body,
       )}
     </section>
   );

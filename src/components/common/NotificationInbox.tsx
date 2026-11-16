@@ -143,14 +143,19 @@ const InboxList = styled.div`
   ul {
     display: grid;
     gap: 0.8rem;
+    width: 100%;
     max-height: min(50dvh, 40rem);
+    margin: 0;
+    padding: 0;
     overflow-y: auto;
+    scrollbar-gutter: stable both-edges;
     list-style: none;
   }
   .inbox-item {
     display: grid;
     gap: 0.4rem;
-    width: 100%;
+    width: calc(100% - 1.2rem);
+    margin-inline: auto;
     padding: 1.2rem 1.4rem;
     border: 0.1rem solid #e3e8df;
     border-radius: 1.4rem;

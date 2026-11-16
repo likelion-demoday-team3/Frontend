@@ -718,8 +718,11 @@ const SessionPage = styled.div`
   }
   .heart-modal-backdrop {
     position: fixed;
-    z-index: 20;
+    z-index: 10000;
     inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
     display: grid;
     place-items: center;
     padding: 2.4rem;
