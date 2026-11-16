@@ -43,6 +43,11 @@ import type { LobbyParticipant, PeerState, Phase, SessionProps } from "./session
 const PLAYBACK_BLOCKED_MESSAGE =
   "브라우저에서 음성 재생이 막혔어요. 화면을 한 번 누르면 상대 목소리가 나와요.";
 
+const RECONNECTING_MESSAGE =
+  "연결이 끊겨 다시 연결하고 있어요. 이 화면을 켜 둔 채로 잠시만 기다려주세요.";
+/** 10초 간격 기준 약 5분 동안 다시 연결을 시도한다 */
+const MAX_RECONNECT_ATTEMPTS = 30;
+
 const MIC_LOBBY_NOTICE =
   "마이크 권한이 필요해요. 주소창의 🔒(또는 ⓘ) → 마이크 → 허용으로 바꿔주세요. 허용하지 않으면 상대 목소리만 들리고 내 목소리는 전달되지 않아요.";
 
@@ -367,6 +372,13 @@ export default function Session({ sessionId }: SessionProps) {
   const [peerResetKey, setPeerResetKey] = useState(0);
   const awaitRemoteOfferRef = useRef(false);
   const autoReconnectTriedRef = useRef(false);
+  // 로비·대화 중에 실시간 연결이 끊기면 자동으로 다시 연결한다.
+  // 끊긴 채로 로비 마감(시작 시각)을 맞으면 서버는 접속자가 없다고 보고 노쇼 처리한다
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const connectLiveRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -790,6 +802,8 @@ export default function Session({ sessionId }: SessionProps) {
           new CustomEvent("kiiwee:live-notification", { detail: message }),
         );
       } else if (message.kind === "joined") {
+        reconnectAttemptsRef.current = 0;
+        setError((current) => (current === RECONNECTING_MESSAGE ? "" : current));
         setMyLiveMemberId(message.memberId);
         // 서버가 돌려준 지난 상대 목록으로 복원한다 (새 탭·다른 기기로 재입장해도 하트·투표 후보가 유지됨).
         // 이미 아는 라운드는 기존 별칭을 지키고, 모르는 라운드만 채운다
@@ -834,7 +848,7 @@ export default function Session({ sessionId }: SessionProps) {
                   },
                 ],
           );
-          setAssignment({
+          const restored: LiveAssignment = {
             sessionId: message.sessionId,
             roundId: message.roundId,
             roundNumber: message.roundNumber,
@@ -858,7 +872,19 @@ export default function Session({ sessionId }: SessionProps) {
             },
             compatibility: null,
             roundEndsAt: message.roundEndsAt,
-          });
+          };
+          // 대화 중에 실시간 연결만 끊겼다 다시 붙은 경우: 같은 방이고 음성이 살아 있으면
+          // 기존 배정을 그대로 둬서 음성 연결을 다시 만들지 않는다
+          const peerState = peerRef.current?.connection.connectionState;
+          const peerAlive = peerState === "connected" || peerState === "connecting";
+          setAssignment((current) =>
+            peerAlive &&
+            current &&
+            current.roomId === restored.roomId &&
+            current.roundId === restored.roundId
+              ? current
+              : restored,
+          );
           setConversationEndsAt(message.roundEndsAt ? Date.parse(message.roundEndsAt) : null);
           setCurrentRound(message.roundNumber);
           startRequested.current = true;
@@ -1254,6 +1280,8 @@ export default function Session({ sessionId }: SessionProps) {
   useEffect(
     () => () => {
       intentionalClose.current = true;
+      if (reconnectTimerRef.current !== null)
+        window.clearTimeout(reconnectTimerRef.current);
       liveRef.current?.disconnect();
       peerRef.current?.connection.close();
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -1288,6 +1316,7 @@ export default function Session({ sessionId }: SessionProps) {
     setError("");
     setPhase("connecting");
     intentionalClose.current = false;
+    reconnectAttemptsRef.current = 0;
     // 대화가 시작되기 전에 마이크 권한을 미리 받아 둔다 (입장 버튼을 누른 이 순간에 허용 창이 뜬다)
     if (!isMockLiveEnabled) void checkMicrophone();
 
@@ -1304,9 +1333,43 @@ export default function Session({ sessionId }: SessionProps) {
     connectLive();
   }
 
+  /** 입장한 뒤(로비·대화·투표)라서 끊기면 다시 연결해야 하는가 */
+  function shouldReconnect() {
+    const current = phaseRef.current;
+    return (
+      !isMockLiveEnabled &&
+      !intentionalClose.current &&
+      reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS &&
+      (current === "lobby" ||
+        current === "idle" ||
+        current === "assigned" ||
+        current === "voting" ||
+        livePhaseRef.current !== null)
+    );
+  }
+
+  /** 1, 2, 4, 8초 … 최대 10초 간격으로 다시 연결한다. 이미 예약돼 있으면 그대로 둔다 */
+  function scheduleReconnect() {
+    if (reconnectTimerRef.current !== null) return;
+    const attempt = reconnectAttemptsRef.current;
+    reconnectAttemptsRef.current = attempt + 1;
+    setConnectionStatus("다시 연결하는 중");
+    setError(RECONNECTING_MESSAGE);
+    reconnectTimerRef.current = window.setTimeout(
+      () => {
+        reconnectTimerRef.current = null;
+        if (intentionalClose.current || liveRef.current) return;
+        connectLiveRef.current();
+      },
+      Math.min(1000 * 2 ** attempt, 10_000),
+    );
+  }
+
   function connectLive() {
     intentionalClose.current = false;
-    const live = connectLiveSession(
+    // 콜백이 connectLiveSession 안에서 바로 불릴 수도 있어 미리 선언해 둔다
+    let live: LiveConnection | null = null;
+    live = connectLiveSession(
       sessionId,
       handleMessage,
       (status) => {
@@ -1317,21 +1380,52 @@ export default function Session({ sessionId }: SessionProps) {
               ? "서버 연결 완료"
               : "연결 종료",
         );
-        if (status === "CLOSED" && !intentionalClose.current)
-          setPhase((current) => (current === "connecting" ? "ready" : current));
+        if (status !== "CLOSED" || intentionalClose.current) return;
+        if (liveRef.current === live) liveRef.current = null;
+        if (phaseRef.current === "connecting") setPhase("ready");
+        else if (shouldReconnect()) scheduleReconnect();
       },
       (message) => {
+        if (liveRef.current === live) liveRef.current = null;
+        if (shouldReconnect()) {
+          live?.disconnect();
+          scheduleReconnect();
+          return;
+        }
         setError(message);
         setIsStarting(false);
         startRequested.current = false;
-        liveRef.current?.disconnect();
-        liveRef.current = null;
+        live?.disconnect();
         // 하트·투표 화면은 유지하고, 로비·대화 단계에서만 입장 화면으로 돌아간다
         if (!livePhaseRef.current) setPhase("ready");
       },
     );
-    liveRef.current = live;
+    // 토큰이 없으면 onError가 먼저 불리고 null이 돌아온다
+    if (live) liveRef.current = live;
   }
+
+  connectLiveRef.current = connectLive;
+
+  // 화면으로 돌아오거나(앱 전환·화면 켜짐) 네트워크가 돌아오면 기다리지 않고 바로 다시 연결한다
+  useEffect(() => {
+    const reconnectNow = () => {
+      if (
+        document.visibilityState !== "visible" ||
+        reconnectTimerRef.current === null
+      )
+        return;
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+      if (!intentionalClose.current && !liveRef.current)
+        connectLiveRef.current();
+    };
+    document.addEventListener("visibilitychange", reconnectNow);
+    window.addEventListener("online", reconnectNow);
+    return () => {
+      document.removeEventListener("visibilitychange", reconnectNow);
+      window.removeEventListener("online", reconnectNow);
+    };
+  }, []);
 
   // 하트·투표 단계에 새로고침하면 입장 버튼이 없는 화면이 바로 뜬다.
   // 실시간 연결을 자동으로 다시 열어 결과 이동·알림·하트 단계 전환을 계속 받는다

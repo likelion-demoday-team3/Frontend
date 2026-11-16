@@ -153,7 +153,10 @@ export function connectLiveSession(
     }
   })
 
-  socket.addEventListener('error', () => onError('실시간 서버에 연결하지 못했어요.'))
+  // 연결된 뒤의 오류는 곧 close로 이어진다. 화면은 CLOSED를 받고 다시 연결한다
+  socket.addEventListener('error', () => {
+    if (!connected) onError('실시간 서버에 연결하지 못했어요.')
+  })
   socket.addEventListener('close', () => onStatus('CLOSED'))
 
   return {
