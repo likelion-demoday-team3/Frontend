@@ -647,6 +647,31 @@ const SessionPage = styled.div`
     inset: 0;
     pointer-events: none;
   }
+  .keep-screen-notice {
+    position: absolute;
+    z-index: 5;
+    top: 1rem;
+    left: 50%;
+    display: grid;
+    width: min(34rem, calc(100% - 2rem));
+    gap: 0.3rem;
+    margin: 0;
+    padding: 1.1rem 1.4rem;
+    transform: translateX(-50%);
+    border: 0.15rem solid #f0b429;
+    border-radius: 1.4rem;
+    background: #fff8e1;
+    box-shadow: 0 0.6rem 1.8rem #0000001a;
+    color: #5c3d00;
+    text-align: center;
+    text-wrap: balance;
+    font: 400 1.15rem/1.5 var(--font-body);
+  }
+  .keep-screen-notice strong {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #3d2800;
+  }
   .lobby-welcome-note {
     position: absolute;
     z-index: 4;

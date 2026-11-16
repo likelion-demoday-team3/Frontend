@@ -1980,6 +1980,9 @@ export default function Session({ sessionId }: SessionProps) {
                   <MainLobby
                     showWelcome={showLobbyWelcome}
                     micNotice={micUnavailable ? MIC_LOBBY_NOTICE : undefined}
+                    showKeepScreenNotice={
+                      phase === "lobby" && timeUntilConversationStart > 0
+                    }
                     participants={lobbyParticipants}
                     myMemberId={myLiveMemberId}
                     myRealName={myRealName}

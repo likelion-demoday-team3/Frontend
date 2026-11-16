@@ -16,6 +16,8 @@ type MainLobbyProps = {
   showIdleNotice?: boolean;
   /** 마이크 권한이 없을 때 로비에 띄울 안내 */
   micNotice?: string;
+  /** 대화 시작 전: 화면을 켜 두라는 안내 (끊긴 채로 시작 시각을 맞으면 노쇼 처리된다) */
+  showKeepScreenNotice?: boolean;
   onStart: () => void;
 };
 
@@ -33,10 +35,17 @@ export default function MainLobby({
   showParticipantNotice,
   showIdleNotice,
   micNotice,
+  showKeepScreenNotice,
   onStart,
 }: MainLobbyProps) {
   return (
     <section className="lobby-screen" aria-label="로비">
+      {showKeepScreenNotice && (
+        <p className="keep-screen-notice" role="status">
+          <strong>시작 30초 전에는 이 화면을 유지해주세요.</strong>
+          <span>화면이 꺼지는 경우 출석체크가 되지 않을 수 있습니다.</span>
+        </p>
+      )}
       {!showWelcome && (
         <div
           className="profile-group opposite-profiles"
