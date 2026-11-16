@@ -65,3 +65,21 @@ export function submitSessionVotes(sessionId: number, rankedMemberIds: number[])
     body: { rankedMemberIds },
   })
 }
+
+export type CallTestSessionCreated = {
+  sessionId: number
+  startTime: string
+  lobbyClosesAt: string
+  firstRoundAt: string
+}
+
+/**
+ * 관리자 전용 1:1 통화 테스트 세션. 나(운영자)와 상대 운영자 둘만 한 라운드 대화한다.
+ * 참가비 없음, 만들면 바로 두 사람의 예약에 들어가고 시작 10분 전부터 입장할 수 있다
+ */
+export function createOneOnOneTestSession(partnerEmail: string, startTime: string): Promise<CallTestSessionCreated> {
+  return apiRequest<CallTestSessionCreated>('/admin/sessions/test-call/one-on-one', {
+    method: 'POST',
+    body: { partnerEmail, startTime },
+  })
+}

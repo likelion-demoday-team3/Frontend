@@ -4,6 +4,7 @@ import Calender, { getToday } from "../components/Home/Calender";
 import Countdown from "../components/Home/Countdown";
 import Scadule from "../components/Home/Scadule";
 import AdminSessionCreate from "../components/Home/AdminSessionCreate";
+import AdminOneOnOneTestCreate from "../components/Home/AdminOneOnOneTestCreate";
 import NavBar from "../components/common/NavBar";
 import BusinessInfo from "../components/common/BusinessInfo";
 import SessionNoti from "../components/Session/SessionNoti";
@@ -136,6 +137,15 @@ export default function Home() {
         />
         {isLoggedIn && isAdminToken() && (
           <AdminSessionCreate
+            selectedDate={selectedDate}
+            onCreated={(createdDate) => {
+              setSelectedDate(createdDate);
+              setReload((value) => value + 1);
+            }}
+          />
+        )}
+        {isLoggedIn && isAdminToken() && (
+          <AdminOneOnOneTestCreate
             selectedDate={selectedDate}
             onCreated={(createdDate) => {
               setSelectedDate(createdDate);
