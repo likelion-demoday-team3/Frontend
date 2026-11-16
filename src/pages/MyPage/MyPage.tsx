@@ -95,9 +95,6 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
           <a href={`/mypage/me${suffix}`}>
             내 정보 <span>›</span>
           </a>
-          <a href="/mypage/identity">
-            본인인증 <span>›</span>
-          </a>
           <a href={`/mypage/card${suffix}`}>
             프로필 카드 <span>›</span>
           </a>

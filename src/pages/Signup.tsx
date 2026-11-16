@@ -78,7 +78,7 @@ export default function Signup({
     !!gender &&
     Boolean(name.trim()) &&
     (phone.trim() ? isPhone(phone) : Boolean(instagramId.trim())) &&
-    isBirthDate(year, month, day, currentYear);
+    isBirthDate(year, month, day);
   const emailValid = isEmail(email);
   const schoolEmail = isSchoolEmail(email);
 
@@ -445,7 +445,8 @@ export default function Signup({
                     >
                       <option value="">YYYY</option>
                       {Array.from(
-                        { length: 9 },
+                        // 만 19~27세가 태어난 해 (생일에 따라 10개 해에 걸친다)
+                        { length: 10 },
                         (_, index) => currentYear - 19 - index,
                       ).map((value) => (
                         <option key={value} value={value}>
@@ -549,7 +550,7 @@ export default function Signup({
                 </label>
                 <p className="signup-agree-note">
                   매칭되거나 연락처를 주고받으면 상대에게 연락처가, 같은 세션 회원이 투표 결과를
-                  열람하면 세션 별칭과 투표 순위가 제공돼요.
+                  열람하면 세션 별칭과 투표 순위가, 음성 통화 중에는 상대에게 IP 주소가 제공돼요.
                 </p>
               </fieldset>
               <button
@@ -559,7 +560,7 @@ export default function Signup({
                 {busy ? "가입 중…" : "회원가입"}
               </button>
               <p className="signup-hint">
-                한국 나이 20~28세만 가입할 수 있어요. 전화번호와 인스타그램 중
+                만 19~27세만 가입할 수 있어요. 전화번호와 인스타그램 중
                 하나는 연락처로 등록하고, 필수 약관에 동의해주세요.
               </p>
               <button

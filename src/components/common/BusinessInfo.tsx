@@ -10,8 +10,7 @@ const businessDetails = [
   ],
   ["전화", "010-4897-2536"],
   ["이메일", "minjaec1030@gmail.com"],
-  // 신고번호를 받으면 "정보 입력 필요" 자리에 넣는다
-  ["통신판매업신고번호", "정보 입력 필요"],
+  ["통신판매업신고번호", "2026-화성동탄-3973"],
 ];
 
 export default function BusinessInfo() {

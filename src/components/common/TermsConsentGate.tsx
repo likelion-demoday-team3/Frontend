@@ -104,7 +104,7 @@ export default function TermsConsentGate({ checkKey }: { checkKey: number }) {
         </label>
         <p className="note">
           매칭되거나 연락처를 주고받으면 상대에게 연락처가, 같은 세션 회원이 투표 결과를 열람하면
-          세션 별칭과 투표 순위가 제공돼요.
+          세션 별칭과 투표 순위가, 음성 통화 중에는 상대에게 IP 주소가 제공돼요.
         </p>
       </fieldset>
       {error && (

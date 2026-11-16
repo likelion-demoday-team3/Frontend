@@ -641,7 +641,7 @@ export default function Session({ sessionId }: SessionProps) {
           }));
           iceServersRef.current = configuredServers.length
             ? configuredServers
-            : [{ urls: "stun:stun.l.google.com:19302" }];
+            : [{ urls: "stun:kiwiapi.duckdns.org:3478" }];
         }
       })
       .catch(() => {
@@ -1085,7 +1085,7 @@ export default function Session({ sessionId }: SessionProps) {
             }));
             iceServersRef.current = configuredServers.length
               ? configuredServers
-              : [{ urls: "stun:stun.l.google.com:19302" }];
+              : [{ urls: "stun:kiwiapi.duckdns.org:3478" }];
           } catch {
             // Use STUN fallback if the ICE configuration endpoint is unavailable.
           }
@@ -1096,7 +1096,7 @@ export default function Session({ sessionId }: SessionProps) {
         }
         const connection = new RTCPeerConnection({
           iceServers: iceServersRef.current ?? [
-            { urls: "stun:stun.l.google.com:19302" },
+            { urls: "stun:kiwiapi.duckdns.org:3478" },
           ],
         });
         const localStream = stream;
