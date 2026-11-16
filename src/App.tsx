@@ -6,6 +6,7 @@ import { GlobalStyles } from "./styles/GlobalStyles";
 import ScreenPreviewPanel from "./test/ScreenPreviewPanel";
 import { installErrorCapture } from "./features/errorReports/autoCapture";
 import TermsConsentGate from "./components/common/TermsConsentGate";
+import { syncPushSubscription } from "./features/push/push";
 
 // 앱에서 생긴 에러를 자동으로 모아 개발자에게 보낸다 (로그인한 경우에만 전송)
 installErrorCapture();
@@ -38,6 +39,8 @@ export default function App() {
         onAuthenticated={(token, remember) => {
           setAccessToken(token, remember);
           setAuthVersion((value) => value + 1);
+          // 이 기기가 이미 푸시를 구독 중이면 지금 로그인한 회원으로 맞춘다
+          void syncPushSubscription();
         }}
       />
       <TermsConsentGate checkKey={authVersion} />

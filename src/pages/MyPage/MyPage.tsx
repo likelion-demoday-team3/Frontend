@@ -10,6 +10,8 @@ import {
   type Member,
 } from "../../features/members/api";
 import NotificationButton from "../../components/common/NotificationButton";
+import PushToggle from "../../components/common/PushToggle";
+import { disablePush } from "../../features/push/push";
 
 const demoMember: Member = {
   publicId: "kiiwee-demo",
@@ -48,6 +50,7 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
     setWithdrawError("");
     try {
       const account = member ?? (await getMyMember());
+      await disablePush().catch(() => undefined);
       await deleteMyMember();
       removeLocalMemberName(account.email);
       clearAccessToken();
@@ -104,6 +107,7 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
           <a href={`/mypage/reservation${suffix}`}>
             예약 확인 <span>›</span>
           </a>
+          {!demo && <PushToggle />}
           <a href="/mypage/error-report">
             오류 제보하기 <span>›</span>
           </a>
@@ -115,7 +119,9 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
           <button
             className="logout-button"
             type="button"
-            onClick={() => {
+            onClick={async () => {
+              // 이 기기로 다음 로그인한 사람에게 내 알림이 가지 않게 푸시 구독을 먼저 지운다
+              await disablePush().catch(() => undefined);
               clearAccessToken();
               window.location.href = "/login";
             }}

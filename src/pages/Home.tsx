@@ -7,6 +7,7 @@ import AdminSessionCreate from "../components/Home/AdminSessionCreate";
 import NavBar from "../components/common/NavBar";
 import BusinessInfo from "../components/common/BusinessInfo";
 import SessionNoti from "../components/Session/SessionNoti";
+import PushPrompt from "../components/common/PushPrompt";
 import { getMyMember } from "../features/members/api";
 import { getMySessions, getSessions } from "../features/sessions/api";
 import type { MySession, Session } from "../features/sessions/types";
@@ -153,6 +154,9 @@ export default function Home() {
         isLoggedIn={isLoggedIn}
         onLoginRequired={() => setLoginPrompt(true)}
       />
+
+      {/* 로그인했고 이 기기에서 푸시를 아직 켜지 않았으면 알림을 받을지 묻는다 */}
+      {isLoggedIn && <PushPrompt />}
 
       <dialog
         ref={loginDialog}
