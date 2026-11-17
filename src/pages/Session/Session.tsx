@@ -45,6 +45,8 @@ const PLAYBACK_BLOCKED_MESSAGE =
 
 const RECONNECTING_MESSAGE =
   "연결이 끊겨 다시 연결하고 있어요. 이 화면을 켜 둔 채로 잠시만 기다려주세요.";
+const RECONNECT_EXHAUSTED_MESSAGE =
+  "연결이 계속 끊겨 있어요. 네트워크를 확인하고 이 화면을 다시 열면 바로 다시 연결해요.";
 /** 10초 간격 기준 약 5분 동안 다시 연결을 시도한다 */
 const MAX_RECONNECT_ATTEMPTS = 30;
 
@@ -379,6 +381,7 @@ export default function Session({ sessionId }: SessionProps) {
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const connectLiveRef = useRef<() => void>(() => undefined);
+  const isReconnectablePhaseRef = useRef<() => boolean>(() => false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -1333,18 +1336,25 @@ export default function Session({ sessionId }: SessionProps) {
     connectLive();
   }
 
-  /** 입장한 뒤(로비·대화·투표)라서 끊기면 다시 연결해야 하는가 */
-  function shouldReconnect() {
+  /** 입장한 뒤(로비·대화·투표)라서 끊기면 다시 연결해야 하는 단계인가 (시도 횟수는 보지 않는다) */
+  function isReconnectablePhase() {
     const current = phaseRef.current;
     return (
       !isMockLiveEnabled &&
       !intentionalClose.current &&
-      reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS &&
       (current === "lobby" ||
         current === "idle" ||
         current === "assigned" ||
         current === "voting" ||
         livePhaseRef.current !== null)
+    );
+  }
+
+  /** 끊긴 뒤 자동으로 다시 연결을 예약해야 하는가 */
+  function shouldReconnect() {
+    return (
+      isReconnectablePhase() &&
+      reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS
     );
   }
 
@@ -1384,6 +1394,7 @@ export default function Session({ sessionId }: SessionProps) {
         if (liveRef.current === live) liveRef.current = null;
         if (phaseRef.current === "connecting") setPhase("ready");
         else if (shouldReconnect()) scheduleReconnect();
+        else if (isReconnectablePhase()) setError(RECONNECT_EXHAUSTED_MESSAGE);
       },
       (message) => {
         if (liveRef.current === live) liveRef.current = null;
@@ -1406,18 +1417,26 @@ export default function Session({ sessionId }: SessionProps) {
 
   connectLiveRef.current = connectLive;
 
-  // 화면으로 돌아오거나(앱 전환·화면 켜짐) 네트워크가 돌아오면 기다리지 않고 바로 다시 연결한다
+  isReconnectablePhaseRef.current = isReconnectablePhase;
+
+  // 화면으로 돌아오거나(앱 전환·화면 켜짐) 네트워크가 돌아오면 기다리지 않고 바로 다시 연결한다.
+  // 자동 재연결 횟수를 다 써서 예약된 시도가 없더라도, 입장한 상태에서 연결이 없으면
+  // 횟수를 처음부터 다시 세고 연결한다 (오래 끊겼다 돌아온 경우)
   useEffect(() => {
     const reconnectNow = () => {
-      if (
-        document.visibilityState !== "visible" ||
-        reconnectTimerRef.current === null
-      )
-        return;
-      window.clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-      if (!intentionalClose.current && !liveRef.current)
-        connectLiveRef.current();
+      if (document.visibilityState !== "visible") return;
+      const timer = reconnectTimerRef.current;
+      const pending = timer !== null;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        reconnectTimerRef.current = null;
+      }
+      if (intentionalClose.current || liveRef.current) return;
+      if (!pending && !isReconnectablePhaseRef.current()) return;
+      reconnectAttemptsRef.current = 0;
+      setConnectionStatus("다시 연결하는 중");
+      setError(RECONNECTING_MESSAGE);
+      connectLiveRef.current();
     };
     document.addEventListener("visibilitychange", reconnectNow);
     window.addEventListener("online", reconnectNow);
