@@ -3,7 +3,10 @@ import styled from "styled-components";
 import {
   disablePush,
   enablePush,
+  getMarketingConsent,
   getPushState,
+  marketingConsentResult,
+  setMarketingConsent,
   type PushState,
 } from "../../features/push/push";
 
@@ -85,6 +88,85 @@ export default function PushToggle() {
   );
 }
 
+/**
+ * 마이페이지 메뉴 한 줄: 세션 모집 소식(광고성 정보) 푸시 수신 동의·거부.
+ * 바꾸면 처리 결과와 일시를 바로 보여준다 (정보통신망법 제50조 제7항).
+ */
+export function MarketingPushToggle() {
+  const [serverEnabled, setServerEnabled] = useState(false);
+  const [agreed, setAgreed] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([getPushState(), getMarketingConsent()])
+      .then(([state, consent]) => {
+        if (!active) return;
+        setServerEnabled(state.serverEnabled);
+        setAgreed(consent.agreed);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!serverEnabled || agreed === null) return null;
+
+  async function toggle() {
+    if (busy || agreed === null) return;
+    setBusy(true);
+    setMessage("");
+    setResult("");
+    try {
+      const change = await setMarketingConsent(!agreed);
+      setAgreed(change.agreed);
+      setResult(marketingConsentResult(change));
+    } catch (cause) {
+      setMessage(
+        cause instanceof Error ? cause.message : "수신 설정을 바꾸지 못했어요.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Row>
+      <div className="copy">
+        <span className="label">세션 모집 소식 (광고)</span>
+        <span className="hint">
+          매일 오후 6시, 오늘 신청할 수 있는 세션과 남은 자리를 알려드려요. 푸시 알림이 켜져 있어야
+          받을 수 있어요.
+        </span>
+        {result && (
+          <span className="result" role="status">
+            {result}
+          </span>
+        )}
+        {message && (
+          <span className="error" role="alert">
+            {message}
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={agreed}
+        aria-label="세션 모집 소식(광고성 정보) 받기"
+        className={agreed ? "on" : ""}
+        disabled={busy}
+        onClick={() => void toggle()}
+      >
+        <span />
+      </button>
+    </Row>
+  );
+}
+
 const Row = styled.div`
   display: flex;
   min-height: 5.8rem;
@@ -112,6 +194,11 @@ const Row = styled.div`
     color: #2f5d43;
     font-weight: 700;
     text-decoration: none;
+  }
+  .result {
+    color: #2f5d43;
+    font-size: 1.05rem;
+    line-height: 1.5;
   }
   .error {
     color: #c0392b;

@@ -124,6 +124,27 @@ export async function syncPushSubscription() {
   if (subscription) await saveOnServer(subscription).catch(() => undefined)
 }
 
+export type MarketingConsent = { agreed: boolean; agreedAt: string | null }
+export type MarketingConsentChanged = { agreed: boolean; processedAt: string }
+
+/** 광고성 정보(세션 모집 소식) 푸시 수신 동의 여부 */
+export const getMarketingConsent = () => apiRequest<MarketingConsent>('/push/marketing-consent')
+
+/** 광고성 정보 푸시 수신 동의(true)·거부(false). 처리 일시가 돌아온다 */
+export const setMarketingConsent = (agreed: boolean) =>
+  apiRequest<MarketingConsentChanged>('/push/marketing-consent', { method: 'POST', body: { agreed } })
+
+/** 정보통신망법 제50조 제7항: 동의·거부 처리 결과를 알리는 문구 */
+export function marketingConsentResult(change: MarketingConsentChanged) {
+  const date = new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date(change.processedAt))
+  return `키위 광고성 정보(세션 모집 소식) 수신 ${change.agreed ? '동의' : '거부'}가 ${date}에 처리됐어요.`
+}
+
 function sameBytes(a: Uint8Array, b: Uint8Array) {
   return a.length === b.length && a.every((value, index) => value === b[index])
 }

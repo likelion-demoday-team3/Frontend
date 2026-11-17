@@ -10,7 +10,7 @@ import {
   type Member,
 } from "../../features/members/api";
 import NotificationButton from "../../components/common/NotificationButton";
-import PushToggle from "../../components/common/PushToggle";
+import PushToggle, { MarketingPushToggle } from "../../components/common/PushToggle";
 import { disablePush } from "../../features/push/push";
 
 const demoMember: Member = {
@@ -105,6 +105,7 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
             예약 확인 <span>›</span>
           </a>
           {!demo && <PushToggle />}
+          {!demo && <MarketingPushToggle />}
           <a href="/mypage/error-report">
             오류 제보하기 <span>›</span>
           </a>

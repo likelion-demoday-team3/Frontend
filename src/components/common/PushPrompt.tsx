@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { getAccessToken } from "../../features/auth/session";
 import { getMyMember } from "../../features/members/api";
-import { enablePush, getPushState, type PushSupport } from "../../features/push/push";
+import {
+  enablePush,
+  getPushState,
+  marketingConsentResult,
+  setMarketingConsent,
+  type PushSupport,
+} from "../../features/push/push";
 
 // '나중에'를 누르면 이 기간 동안 다시 묻지 않는다
 const DISMISS_KEY = "kiiwee.pushPrompt.dismissedAt";
@@ -38,6 +44,10 @@ export default function PushPrompt() {
   const [mode, setMode] = useState<PushSupport | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // 세션 모집 소식(광고성 정보)은 따로 고르는 선택 동의. 기본은 꺼 둔다
+  const [marketing, setMarketing] = useState(false);
+  // 광고성 정보 동의 처리 결과 (보여준 뒤 [확인]으로 닫는다)
+  const [consentResult, setConsentResult] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -82,6 +92,13 @@ export default function PushPrompt() {
     setError("");
     try {
       await enablePush();
+      if (marketing) {
+        const change = await setMarketingConsent(true).catch(() => null);
+        if (change) {
+          setConsentResult(marketingConsentResult(change));
+          return;
+        }
+      }
       setMode(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "알림을 켜지 못했어요.");
@@ -101,6 +118,20 @@ export default function PushPrompt() {
         later();
       }}
     >
+      {consentResult ? (
+        <>
+          <img src="/kw-wink.svg" alt="" width="72" height="72" />
+          <h2 id="push-prompt-title">알림을 켰어요</h2>
+          <p role="status">{consentResult}</p>
+          <div className="actions single">
+            <button type="button" className="primary" onClick={() => setMode(null)}>
+              확인
+            </button>
+          </div>
+          <small>세션 모집 소식은 마이페이지에서 언제든 끌 수 있어요.</small>
+        </>
+      ) : (
+        <>
       <img src="/kw-wink.svg" alt="" width="72" height="72" />
       <h2 id="push-prompt-title">알림을 받아볼까요?</h2>
       <p>
@@ -111,6 +142,19 @@ export default function PushPrompt() {
           아이폰은 Safari에서 Kiiwee를 <strong>홈 화면에 추가</strong>한 뒤 그 아이콘으로 열어야
           알림을 받을 수 있어요.
         </p>
+      )}
+      {mode === "supported" && (
+        <label className="marketing">
+          <input
+            type="checkbox"
+            checked={marketing}
+            onChange={(event) => setMarketing(event.target.checked)}
+          />
+          <span>
+            (선택) 세션 모집 소식도 받을게요. 매일 오후 6시에 오늘 신청할 수 있는 세션을 알려드려요
+            (광고성 정보 수신 동의).
+          </span>
+        </label>
       )}
       {error && (
         <p className="error" role="alert">
@@ -141,6 +185,8 @@ export default function PushPrompt() {
         )}
       </div>
       <small>마이페이지에서 언제든 끄고 켤 수 있어요.</small>
+        </>
+      )}
     </Dialog>
   );
 }
@@ -180,11 +226,35 @@ const Dialog = styled.dialog`
     color: #c0392b;
     font-size: 1.2rem;
   }
+  .marketing {
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+    margin: 0 0 1.2rem;
+    padding: 1rem 1.2rem;
+    border-radius: 1rem;
+    background: #f5f8ef;
+    color: #536057;
+    font-size: 1.15rem;
+    line-height: 1.5;
+    text-align: left;
+    cursor: pointer;
+  }
+  .marketing input {
+    flex: 0 0 auto;
+    width: 1.8rem;
+    height: 1.8rem;
+    margin: 0.1rem 0 0;
+    accent-color: #2f5d43;
+  }
   .actions {
     display: grid;
     grid-template-columns: 1fr 1.4fr;
     gap: 0.8rem;
     margin-top: 0.4rem;
+  }
+  .actions.single {
+    grid-template-columns: 1fr;
   }
   .actions button,
   .actions a {
