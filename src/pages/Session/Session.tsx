@@ -1047,7 +1047,7 @@ export default function Session({ sessionId }: SessionProps) {
         setPhase("ready");
         setConnectionStatus("세션 취소");
         setError(
-          "입장 인원이 모자라 세션이 취소됐어요. 참가비와 보증금은 돌려드렸어요.",
+          "입장 인원이 모자라 세션이 취소됐어요. 참가비 환불 여부는 보석 이용 내역에서 확인해주세요.",
         );
       } else if (message.kind === "results-ready") {
         liveRef.current?.disconnect();
@@ -1342,7 +1342,8 @@ export default function Session({ sessionId }: SessionProps) {
     return (
       !isMockLiveEnabled &&
       !intentionalClose.current &&
-      (current === "lobby" ||
+      (current === "connecting" ||
+        current === "lobby" ||
         current === "idle" ||
         current === "assigned" ||
         current === "voting" ||
@@ -1392,8 +1393,7 @@ export default function Session({ sessionId }: SessionProps) {
         );
         if (status !== "CLOSED" || intentionalClose.current) return;
         if (liveRef.current === live) liveRef.current = null;
-        if (phaseRef.current === "connecting") setPhase("ready");
-        else if (shouldReconnect()) scheduleReconnect();
+        if (shouldReconnect()) scheduleReconnect();
         else if (isReconnectablePhase()) setError(RECONNECT_EXHAUSTED_MESSAGE);
       },
       (message) => {
@@ -2000,7 +2000,9 @@ export default function Session({ sessionId }: SessionProps) {
                     showWelcome={showLobbyWelcome}
                     micNotice={micUnavailable ? MIC_LOBBY_NOTICE : undefined}
                     showKeepScreenNotice={
-                      phase === "lobby" && timeUntilConversationStart > 0
+                      phase === "lobby" &&
+                      timeUntilConversationStart > 0 &&
+                      timeUntilConversationStart <= 30_000
                     }
                     participants={lobbyParticipants}
                     myMemberId={myLiveMemberId}
