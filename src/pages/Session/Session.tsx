@@ -1047,7 +1047,7 @@ export default function Session({ sessionId }: SessionProps) {
         setPhase("ready");
         setConnectionStatus("세션 취소");
         setError(
-          "입장 인원이 모자라 세션이 취소됐어요. 참가비와 보증금은 돌려드렸어요.",
+          "입장 인원이 모자라 세션이 취소됐어요. 참가비 환불 여부는 보석 이용 내역에서 확인해주세요.",
         );
       } else if (message.kind === "results-ready") {
         liveRef.current?.disconnect();

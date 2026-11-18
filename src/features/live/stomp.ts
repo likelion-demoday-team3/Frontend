@@ -69,13 +69,19 @@ export function connectLiveSession(
   const socketUrl = import.meta.env.VITE_WS_URL?.trim() || defaultSocketUrl
   const socket = new WebSocket(socketUrl)
   let connected = false
+  let joinAcknowledgementTimer: number | null = null
   let sequence = 0
   let buffer = ''
   onStatus('CONNECTING')
 
+  const clearJoinAcknowledgementTimer = () => {
+    if (joinAcknowledgementTimer !== null) window.clearTimeout(joinAcknowledgementTimer)
+    joinAcknowledgementTimer = null
+  }
+
   const sendFrame = (command: string, headers: Record<string, string> = {}, body = '') => {
     const headerLines = Object.entries(headers).map(([name, value]) => `${name}:${value}`).join('\n')
-    socket.send(`${command}\n${headerLines}\n\n${body}\0`)
+    socket.send(`${command}${headerLines ? `\n${headerLines}` : ''}\n\n${body}\0`)
   }
   const subscribe = (destination: string) => sendFrame('SUBSCRIBE', { id: `live-sub-${++sequence}`, destination, ack: 'auto' })
 
@@ -126,12 +132,21 @@ export function connectLiveSession(
         subscribe('/user/queue/live/contact-received')
         if (joinSession) {
           sendFrame('SEND', { destination: '/app/live/join', 'content-type': 'application/json' }, JSON.stringify({ sessionId }))
+          // STOMP CONNECTED는 로비 입장 성공이 아니다. 서버의 joined 확인이 없으면 재시도한다.
+          joinAcknowledgementTimer = window.setTimeout(() => {
+            joinAcknowledgementTimer = null
+            onError('로비 입장 확인을 받지 못했어요. 다시 연결하고 있어요.')
+            socket.close()
+          }, 5_000)
         }
       } else if (command === 'MESSAGE') {
         try {
           const payload = JSON.parse(body)
           const destination = headers.destination
-          if (destination?.endsWith('/joined')) onMessage({ kind: 'joined', ...payload })
+          if (destination?.endsWith('/joined')) {
+            clearJoinAcknowledgementTimer()
+            onMessage({ kind: 'joined', ...payload })
+          }
           else if (destination?.endsWith('/round-assigned')) onMessage({ kind: 'assigned', assignment: payload })
           else if (destination?.endsWith('/round-idle')) onMessage({ kind: 'idle', ...payload })
           else if (destination?.endsWith('/signal')) onMessage({ kind: 'signal', ...payload })
@@ -157,10 +172,14 @@ export function connectLiveSession(
   socket.addEventListener('error', () => {
     if (!connected) onError('실시간 서버에 연결하지 못했어요.')
   })
-  socket.addEventListener('close', () => onStatus('CLOSED'))
+  socket.addEventListener('close', () => {
+    clearJoinAcknowledgementTimer()
+    onStatus('CLOSED')
+  })
 
   return {
     disconnect() {
+      clearJoinAcknowledgementTimer()
       if (socket.readyState === WebSocket.OPEN) sendFrame('DISCONNECT')
       socket.close()
     },
