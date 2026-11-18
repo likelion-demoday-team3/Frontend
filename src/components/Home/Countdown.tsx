@@ -31,6 +31,18 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
     return () => window.clearInterval(interval);
   }, []);
 
+  // 출석해서 진행 중인 세션: 대화·투표 도중 화면을 나갔어도 홈에서 다시 들어갈 수 있게 먼저 보여준다
+  const ongoing = mySessions
+    .filter(
+      (item) =>
+        item.myStatus === "ATTENDED" && item.sessionStatus === "IN_PROGRESS",
+    )
+    .sort(
+      (left, right) =>
+        new Date(right.startTime).getTime() -
+        new Date(left.startTime).getTime(),
+    )[0];
+
   const nextApplication = mySessions
     .filter(
       (item) =>
@@ -58,6 +70,36 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
     (item) => item.sessionId === nextApplication?.sessionId,
   )?.capacityPerGender;
 
+  const goToSession = (sessionId: number) => {
+    window.history.pushState(null, "", `/session/${sessionId}`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
+  if (ongoing) {
+    return (
+      <CountdownCard className="has-application" aria-label="진행 중인 소개팅">
+        <img
+          className="countdown-mascot"
+          src="/kw1.svg"
+          alt=""
+          aria-hidden="true"
+        />
+        <p className="countdown-date">{sessionDateLabel(ongoing.startTime)}</p>
+        <p className="countdown-confirmation">소개팅이 진행 중이에요!</p>
+        <p className="countdown-live">
+          화면을 나왔다면 지금 다시 들어갈 수 있어요.
+        </p>
+        <button
+          className="countdown-enter"
+          type="button"
+          onClick={() => goToSession(ongoing.sessionId)}
+        >
+          다시 입장하기
+        </button>
+      </CountdownCard>
+    );
+  }
+
   return (
     <CountdownCard
       className={nextApplication ? "has-application" : "empty-countdown"}
@@ -76,7 +118,10 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
           </p>
           <p className="countdown-confirmation">
             {capacity ? `${capacity}:${capacity} 로테이션` : "로테이션"}{" "}
-            소개팅이 확정되었습니다!
+            {/* 모집 중에는 아직 확정 전이다. 시작 10분 전에 인원을 보고 진행(READY) 또는 취소가 정해진다 */}
+            {nextApplication.sessionStatus === "RECRUITING"
+              ? "소개팅 신청 완료! 시작 10분 전에 진행 여부가 확정돼요."
+              : "소개팅이 확정되었습니다!"}
           </p>
           <p
             className="countdown-time"
@@ -103,14 +148,7 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
             className="countdown-enter"
             type="button"
             disabled={!canEnter}
-            onClick={() => {
-              window.history.pushState(
-                null,
-                "",
-                `/session/${nextApplication.sessionId}`,
-              );
-              window.dispatchEvent(new PopStateEvent("popstate"));
-            }}
+            onClick={() => goToSession(nextApplication.sessionId)}
           >
             입장하기
           </button>
@@ -177,6 +215,13 @@ const CountdownCard = styled.section`
     margin-left: 0.25rem;
     font-size: 0.48em;
     letter-spacing: 0;
+  }
+  .countdown-live {
+    margin-top: 0.8rem;
+    color: var(--ink);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.4;
   }
   .countdown-enter {
     width: 100%;

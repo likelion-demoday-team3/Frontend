@@ -98,6 +98,18 @@ export default function Home() {
     };
   }, [reload, isLoggedIn]);
 
+  // 내 신청 세션은 시작 10분 전에 확정·취소되므로, 홈을 켜 둔 동안 1분마다 조용히 다시 받는다
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const timer = window.setInterval(() => {
+      if (!getAccessToken()) return;
+      getMySessions()
+        .then(setMySessions)
+        .catch(() => undefined);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [isLoggedIn]);
+
   useEffect(() => {
     if (!loginPrompt) return;
     const element = loginDialog.current;
