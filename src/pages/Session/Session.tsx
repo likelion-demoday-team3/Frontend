@@ -79,6 +79,14 @@ async function requestMicrophoneAccess() {
   stream.getTracks().forEach((track) => track.stop());
 }
 
+function idleRoundDeadline(roundEndsAt: string | null | undefined, previous: number | null, durationSeconds: number) {
+  const serverDeadline = roundEndsAt ? Date.parse(roundEndsAt) : NaN;
+  if (Number.isFinite(serverDeadline)) return serverDeadline;
+  const fallback = Date.now() + durationSeconds * 1000;
+  // 구버전 서버가 종료 시각을 보내지 않아도 재접속할 때 남은 시간을 늘리지 않는다.
+  return previous === null ? fallback : Math.min(previous, fallback);
+}
+
 export default function Session({ sessionId }: SessionProps) {
   const previewParams = new URLSearchParams(window.location.search);
   const isMockLiveEnabled =
@@ -889,6 +897,7 @@ export default function Session({ sessionId }: SessionProps) {
               : restored,
           );
           setConversationEndsAt(message.roundEndsAt ? Date.parse(message.roundEndsAt) : null);
+          setMiniGameEndsAt(null);
           setCurrentRound(message.roundNumber);
           startRequested.current = true;
           setUnmatchedThisRound(false);
@@ -905,10 +914,11 @@ export default function Session({ sessionId }: SessionProps) {
           setConversationEndsAt(null);
           setUnmatchedThisRound(message.status === "IDLE");
           if (message.status === "IDLE" && message.roundNumber !== null) {
-            setMiniGameEndsAt(
-              Date.now() +
-                (sessionRef.current?.roundDurationSeconds ?? 180) * 1000,
-            );
+            setMiniGameEndsAt((previous) => idleRoundDeadline(
+              message.roundEndsAt,
+              previous,
+              sessionRef.current?.roundDurationSeconds ?? 180,
+            ));
             const roundNumber = message.roundNumber;
             setCurrentRound((round) => Math.max(round, roundNumber));
           } else if (message.status === "JOINED") {
@@ -981,10 +991,11 @@ export default function Session({ sessionId }: SessionProps) {
         streamRef.current?.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         setConversationEndsAt(null);
-        setMiniGameEndsAt(
-          Date.now() +
-            (sessionRef.current?.roundDurationSeconds ?? 180) * 1000,
-        );
+        setMiniGameEndsAt((previous) => idleRoundDeadline(
+          message.roundEndsAt,
+          previous,
+          sessionRef.current?.roundDurationSeconds ?? 180,
+        ));
         setIsPartnerSpeaking(false);
         setCurrentRound((round) => Math.max(round, message.roundNumber));
         setAssignment(null);
