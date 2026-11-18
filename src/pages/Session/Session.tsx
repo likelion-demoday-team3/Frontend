@@ -2000,9 +2000,7 @@ export default function Session({ sessionId }: SessionProps) {
                     showWelcome={showLobbyWelcome}
                     micNotice={micUnavailable ? MIC_LOBBY_NOTICE : undefined}
                     showKeepScreenNotice={
-                      phase === "lobby" &&
-                      timeUntilConversationStart > 0 &&
-                      timeUntilConversationStart <= 30_000
+                      phase === "lobby" && timeUntilConversationStart > 0
                     }
                     participants={lobbyParticipants}
                     myMemberId={myLiveMemberId}
