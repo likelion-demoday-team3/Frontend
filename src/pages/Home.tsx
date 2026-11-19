@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import Calender, { getToday } from "../components/Home/Calender";
+import Calender, { getToday, koreaDateOf } from "../components/Home/Calender";
 import Countdown from "../components/Home/Countdown";
 import Scadule from "../components/Home/Scadule";
 import AdminSessionCreate from "../components/Home/AdminSessionCreate";
@@ -19,6 +19,24 @@ import {
 } from "../features/auth/session";
 import { ApiError } from "../features/api/client";
 
+/** 알림(세션 취소·모집 광고)에서 넘어온 신청 제안 세션. /home?apply=12 */
+function readSuggestedSessionId() {
+  const value = Number(new URLSearchParams(window.location.search).get("apply"));
+  return Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function clearSuggestedSessionId() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("apply")) return;
+  params.delete("apply");
+  const query = params.toString();
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+  );
+}
+
 export default function Home() {
   const [selectedDate, setSelectedDate] = useState(getToday);
   const [loginPrompt, setLoginPrompt] = useState(false);
@@ -30,6 +48,14 @@ export default function Home() {
   const [loadError, setLoadError] = useState("");
   const [reload, setReload] = useState(0);
   const loginDialog = useRef<HTMLDialogElement>(null);
+  const [suggestedSessionId, setSuggestedSessionId] = useState(readSuggestedSessionId);
+
+  // 제안받은 세션이 목록에 있으면 그 날짜를 보여준다 (신청 창 제목도 선택한 날짜를 쓴다)
+  useEffect(() => {
+    if (suggestedSessionId == null || loading) return;
+    const suggested = sessions.find((item) => item.sessionId === suggestedSessionId);
+    if (suggested) setSelectedDate(koreaDateOf(suggested.startTime));
+  }, [suggestedSessionId, loading, sessions]);
 
   useEffect(() => {
     let active = true;
@@ -146,6 +172,11 @@ export default function Home() {
           onDataChanged={(items, mine) => {
             setSessions(items);
             setMySessions(mine);
+          }}
+          suggestedSessionId={suggestedSessionId}
+          onSuggestionHandled={() => {
+            setSuggestedSessionId(null);
+            clearSuggestedSessionId();
           }}
         />
         {isLoggedIn && isAdminToken() && (

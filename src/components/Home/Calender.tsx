@@ -23,6 +23,19 @@ function koreaDateKey(value: string) {
   return `${part("year")}-${Number(part("month"))}-${Number(part("day"))}`;
 }
 
+/** 시각(ISO 문자열)의 한국 날짜를 달력과 같은 형태(현지 자정 Date)로 */
+export function koreaDateOf(value: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const part = (name: string) =>
+    Number(parts.find((item) => item.type === name)?.value);
+  return new Date(part("year"), part("month") - 1, part("day"));
+}
+
 export function getToday() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",

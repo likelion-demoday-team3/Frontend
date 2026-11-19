@@ -32,7 +32,8 @@ export default function PaymentChangeNotice() {
   const dialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    if (!getAccessToken() || alreadySeen()) return;
+    // 알림을 눌러 세션 신청 창을 바로 띄우는 경우(/home?apply=)에는 이번에는 넘어간다
+    if (!getAccessToken() || alreadySeen() || new URLSearchParams(window.location.search).has("apply")) return;
     const timer = window.setTimeout(() => {
       if (document.querySelector("dialog[open]")) return;
       setOpen(true);

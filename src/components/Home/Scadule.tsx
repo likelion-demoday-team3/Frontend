@@ -21,6 +21,10 @@ type ScaduleProps = {
   loadError: string;
   onRetry: () => void;
   onDataChanged: (sessions: Session[], mySessions: MySession[]) => void;
+  /** 알림을 눌러 들어왔을 때 바로 신청 창을 띄울 세션 (/home?apply=ID) */
+  suggestedSessionId?: number | null;
+  /** 제안 세션을 처리했다 (창을 띄웠거나 신청할 수 없어 안내만 했다) */
+  onSuggestionHandled?: () => void;
 };
 
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
@@ -94,6 +98,8 @@ export default function Scadule({
   loadError,
   onRetry,
   onDataChanged,
+  suggestedSessionId = null,
+  onSuggestionHandled,
 }: ScaduleProps) {
   const [submitting, setSubmitting] = useState(false);
   const [pendingAction, setPendingAction] = useState<"apply" | "cancel">(
@@ -106,6 +112,43 @@ export default function Scadule({
   const sessionsForDay = sessions.filter(
     (session) => koreaDateKey(session.startTime) === dateKey(selectedDate),
   );
+
+  // 알림(세션 취소·모집 광고)을 눌러 들어오면 안내한 세션의 신청 창을 바로 띄운다.
+  // 그새 마감됐거나 이미 신청했으면 창 대신 짧게 알려준다
+  useEffect(() => {
+    if (suggestedSessionId == null || loading) return;
+    if (!isLoggedIn) {
+      onLoginRequired();
+      onSuggestionHandled?.();
+      return;
+    }
+    const session = sessions.find((item) => item.sessionId === suggestedSessionId);
+    const applied = mySessions.some(
+      (item) => item.sessionId === suggestedSessionId && item.myStatus === "APPLIED",
+    );
+    const seatsLeft = !session
+      ? 0
+      : myGender === "MALE"
+        ? session.maleRemaining
+        : myGender === "FEMALE"
+          ? session.femaleRemaining
+          : session.maleRemaining + session.femaleRemaining;
+    if (applied) {
+      setNotice("이미 신청한 세션이에요.");
+    } else if (
+      !session ||
+      session.status !== "RECRUITING" ||
+      seatsLeft <= 0 ||
+      new Date(session.applyDeadline).getTime() <= Date.now()
+    ) {
+      setNotice("안내드린 세션은 마감돼서 신청할 수 없어요. 다른 세션을 확인해보세요.");
+    } else {
+      lastTrigger.current = null;
+      setPendingAction("apply");
+      setPending(session);
+    }
+    onSuggestionHandled?.();
+  }, [suggestedSessionId, loading, isLoggedIn, sessions, mySessions, myGender, onLoginRequired, onSuggestionHandled]);
 
   useEffect(() => {
     if (!notice) return;
