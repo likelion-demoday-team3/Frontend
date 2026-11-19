@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { getMyPayments, type PaymentHistoryItem } from '../../features/payments/nicepay'
 import { getWalletHistory, type WalletHistoryItem } from '../../features/wallet/api'
+import { cancelBankTransfer } from '../../features/payments/bankTransfer'
 
+const formatWon = (amount: number) => amount.toLocaleString('ko-KR') + '원'
 const formatDate = (value: string) => new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value))
 type HistoryFilter = 'all' | 'deduction' | 'return' | 'purchase' | 'refund'
 type HistoryMode = 'usage' | 'charge'
@@ -39,6 +41,26 @@ export default function ChargeHistory({ mode }: { mode: HistoryMode }) {
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
   const [filter, setFilter] = useState<HistoryFilter>('all')
+  const [cancellingId, setCancellingId] = useState('')
+  const [cancelError, setCancelError] = useState('')
+
+  // 보석이 아직 들어오지 않은 계좌이체 신청 (입금 대기·거절·취소). 승인된 건은 보석 구매 내역으로 보인다
+  const transferRequests = payments.filter(payment =>
+    payment.method === 'BANK_TRANSFER' && (payment.status === 'READY' || payment.status === 'FAILED'))
+
+  async function cancelTransfer(orderId: string) {
+    if (cancellingId || !window.confirm('이 입금 신청을 취소할까요? 이미 입금했다면 취소하지 마세요.')) return
+    setCancellingId(orderId)
+    setCancelError('')
+    try {
+      await cancelBankTransfer(orderId)
+      setReload(value => value + 1)
+    } catch (cause) {
+      setCancelError(cause instanceof Error ? cause.message : '입금 신청을 취소하지 못했어요.')
+    } finally {
+      setCancellingId('')
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -86,6 +108,22 @@ export default function ChargeHistory({ mode }: { mode: HistoryMode }) {
           <button key={value} type="button" className={filter === value ? 'active' : ''} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>
         ))}
       </nav>
+      {mode === 'charge' && !loading && !error && transferRequests.length > 0 && <section className="transfer-requests" aria-label="계좌이체 입금 신청">
+        <h2>입금 신청</h2>
+        {cancelError && <p className="transfer-error" role="alert">{cancelError}</p>}
+        {transferRequests.map(request => <article className="transfer-row" data-status={request.status.toLowerCase()} key={request.orderId}>
+          <div className="charge-info">
+            <time dateTime={request.createdAt}>{formatDate(request.createdAt)}</time>
+            <strong>보석 {request.grantedGem}개 · {request.amount != null ? formatWon(request.amount) : ''}</strong>
+            <span>입금자명 {request.depositorName ?? '-'}</span>
+            {request.status === 'FAILED' && request.cancelReason && <span>{request.cancelReason}</span>}
+          </div>
+          <div className="row-end">
+            <b className={request.status === 'READY' ? 'pending' : 'debit'}>{request.status === 'READY' ? '입금 확인 중' : '처리 안 됨'}</b>
+            {request.status === 'READY' && <button type="button" disabled={cancellingId === request.orderId} onClick={() => void cancelTransfer(request.orderId)}>{cancellingId === request.orderId ? '취소 중…' : '신청 취소'}</button>}
+          </div>
+        </article>)}
+      </section>}
       {loading ? <p className="state">{mode === 'usage' ? '이용내역' : '충전내역'}을 불러오는 중이에요…</p> : error ? <div className="state error" role="alert"><p>{error}</p><button type="button" onClick={() => setReload(value => value + 1)}>다시 불러오기</button></div> : visibleRecords.length ? <div className="charge-list">
         {visibleRecords.map(({ record, index, payment }) => {
           const refunded = isUsageReturn(record) || isPurchaseRefund(record)
@@ -124,7 +162,13 @@ const HistoryPage = styled.div`
   .row-end { display: grid; flex: 0 0 auto; justify-items: end; gap: .7rem; }
   .charge-row b { font-size: 1.4rem; }
   .row-end a { color: #6b782f; font-size: 1.1rem; }
-  .credit { color: #66852b; } .debit { color: #647065; }
+  .credit { color: #66852b; } .debit { color: #647065; } .pending { color: #b07a12; }
+  .transfer-requests { display: grid; gap: 1rem; margin: 1.4rem 0 2rem; }
+  .transfer-requests h2 { color: #536057; font-size: 1.3rem; font-weight: 700; }
+  .transfer-row { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; padding: 1.5rem; border: 1px dashed #d9c9a0; border-radius: 1.6rem; background: #fffdf6; }
+  .transfer-row[data-status='failed'] { border-color: #e1e8dc; background: #fafbf8; }
+  .transfer-row button { padding: .6rem 1rem; border: 1px solid #dfe6da; border-radius: 99rem; background: #fff; color: #647065; font-size: 1.1rem; }
+  .transfer-error { color: #bd5547; font-size: 1.15rem; }
   .state { margin-top: 4rem; color: #899188; font-size: 1.35rem; text-align: center; line-height: 1.7; }
   .state button { margin-top: 1rem; padding: 1rem 1.6rem; border: 0; border-radius: 1rem; background: var(--green); font-weight: 700; }
 `

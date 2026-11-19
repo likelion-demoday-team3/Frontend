@@ -9,6 +9,7 @@ import NavBar from "../components/common/NavBar";
 import BusinessInfo from "../components/common/BusinessInfo";
 import SessionNoti from "../components/Session/SessionNoti";
 import PushPrompt from "../components/common/PushPrompt";
+import PaymentChangeNotice from "../components/common/PaymentChangeNotice";
 import { getMyMember } from "../features/members/api";
 import { getMySessions, getSessions } from "../features/sessions/api";
 import type { MySession, Session } from "../features/sessions/types";
@@ -168,6 +169,9 @@ export default function Home() {
         {isLoggedIn && isAdminToken() && (
           <AdminLink href="/admin/error-reports">오류 제보 관리 →</AdminLink>
         )}
+        {isLoggedIn && isAdminToken() && (
+          <AdminLink href="/admin/bank-transfers">계좌이체 입금 확인 →</AdminLink>
+        )}
       </main>
 
       <BusinessInfo />
@@ -179,6 +183,9 @@ export default function Home() {
 
       {/* 로그인했고 이 기기에서 푸시를 아직 켜지 않았으면 알림을 받을지 묻는다 */}
       {isLoggedIn && <PushPrompt />}
+
+      {/* 결제 방식이 계좌이체로 바뀐 것을 이 기기에서 한 번 알린다 (알림 받기 팝업보다 먼저 뜬다) */}
+      {isLoggedIn && <PaymentChangeNotice />}
 
       <dialog
         ref={loginDialog}

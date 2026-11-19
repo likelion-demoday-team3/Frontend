@@ -22,11 +22,12 @@ import RequestList from "./pages/MyPage/RequestList";
 import PushGuide from "./pages/PushGuide";
 import ErrorReport from "./pages/MyPage/ErrorReport";
 import AdminErrorReports from "./pages/Admin/AdminErrorReports";
+import AdminBankTransfers from "./pages/Admin/AdminBankTransfers";
 import { TermsDetail, TermsList } from "./pages/Terms/Terms";
 import { restoreAccessToken } from "./features/auth/session";
 
 type Route =
-  | { page: "home" | "signup" | "login" | "result" | "result-detail" | "contact" | "store" | "charge-info" | "payment-result" | "mypage" | "mypage-me" | "mypage-card" | "mypage-record" | "mypage-record-requests" | "mypage-reservation" | "mypage-password" | "mypage-identity" | "mypage-error-report" | "admin-error-reports" }
+  | { page: "home" | "signup" | "login" | "result" | "result-detail" | "contact" | "store" | "charge-info" | "payment-result" | "mypage" | "mypage-me" | "mypage-card" | "mypage-record" | "mypage-record-requests" | "mypage-reservation" | "mypage-password" | "mypage-identity" | "mypage-error-report" | "admin-error-reports" | "admin-bank-transfers" }
   | { page: "charge-history"; mode: "usage" | "charge" }
   | { page: "mypage-record-list"; section: "matches" | "sent" | "received" }
   | { page: "session"; sessionId: number }
@@ -57,6 +58,7 @@ function routeFromPath(pathname: string): Route {
   if (route === "mypage/identity") return { page: "mypage-identity" };
   if (route === "mypage/error-report" || route === "error-report") return { page: "mypage-error-report" };
   if (route === "admin/error-reports") return { page: "admin-error-reports" };
+  if (route === "admin/bank-transfers") return { page: "admin-bank-transfers" };
   if (route === "push-guide") return { page: "push-guide" };
   if (route === "terms") return { page: "terms" };
   const termsRoute = route.match(/^terms\/([a-z-]+)$/);
@@ -131,6 +133,7 @@ export default function Router({
   if (route.page === "mypage-identity") return <ItsMe />;
   if (route.page === "mypage-error-report") return <ErrorReport />;
   if (route.page === "admin-error-reports") return <AdminErrorReports />;
+  if (route.page === "admin-bank-transfers") return <AdminBankTransfers />;
   if (route.page === "push-guide") return <PushGuide />;
   if (route.page === "terms") return <TermsList />;
   if (route.page === "terms-detail") return <TermsDetail key={route.slug} slug={route.slug} />;

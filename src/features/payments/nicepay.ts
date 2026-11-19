@@ -22,9 +22,13 @@ export type PaymentHistoryItem = {
   productName: string
   grantedGem: number
   amount?: number
-  status: 'PAID' | 'REFUNDED'
+  // 계좌이체(method: 'BANK_TRANSFER')는 READY = 입금 대기, FAILED = 거절·취소도 내려온다
+  status: 'PAID' | 'REFUNDED' | 'READY' | 'FAILED'
+  method?: 'NICEPAY' | 'BANK_TRANSFER'
+  depositorName?: string | null
+  cancelReason?: string | null
   refundable: boolean
-  paidAt: string
+  paidAt: string | null
   canceledAt: string | null
   createdAt: string
 }

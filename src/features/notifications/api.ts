@@ -17,6 +17,10 @@ export type NotificationType =
   | 'CONTACT_REQUEST_ACCEPTED'
   | 'CONTACT_REQUEST_REJECTED'
   | 'CONTACT_RECEIVED'
+  // 계좌이체 충전 결과 (누르면 /store/charge-history). 운영자는 새 입금 신청 알림 (/admin/bank-transfers)
+  | 'BANK_TRANSFER_APPROVED'
+  | 'BANK_TRANSFER_REJECTED'
+  | 'BANK_TRANSFER_REQUESTED'
 
 export type InboxNotification = {
   id: number

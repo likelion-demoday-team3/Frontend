@@ -5,16 +5,14 @@ import SessionNoti from "../../components/Session/SessionNoti";
 import { getAccessToken } from "../../features/auth/session";
 import { getMyWallet } from "../../features/wallet/api";
 import {
-  clearPaymentReturnLocation,
-  savePaymentReturnLocation,
-} from "../../features/payments/returnLocation";
-import {
-  abortPaymentOrder,
-  createNicePayOrder,
   getShopProducts,
-  openNicePayCheckout,
   type ShopProduct,
 } from "../../features/payments/nicepay";
+import {
+  copyText,
+  requestBankTransfer,
+  type BankTransferDeposit,
+} from "../../features/payments/bankTransfer";
 
 type PaymentNotice = {
   status: "success" | "cancelled" | "failed";
@@ -71,6 +69,10 @@ export default function Store({
   const [paymentPending, setPaymentPending] = useState(false);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  // 계좌이체: 입금자명을 받아 입금 신청하고, 신청이 되면 입금할 계좌를 보여준다
+  const [depositorName, setDepositorName] = useState("");
+  const [deposit, setDeposit] = useState<BankTransferDeposit | null>(null);
+  const [copied, setCopied] = useState(false);
   const [paymentNotice, setPaymentNotice] = useState<PaymentNotice | null>(
     readPaymentNotice,
   );
@@ -132,55 +134,49 @@ export default function Store({
     if (paymentNotice?.gemBalance != null) setGems(paymentNotice.gemBalance);
   }, [paymentNotice]);
   useEffect(() => {
-    if (!open) setSelectedPackage(null);
+    if (!open) {
+      setSelectedPackage(null);
+      setDeposit(null);
+    }
   }, [open]);
 
   async function confirmPurchase() {
     if (!selectedPackage || paymentPending || purchasesDisabled) return;
     if (!isLoggedIn) {
-      setPaymentError("결제는 로그인 후 이용할 수 있어요.");
+      setPaymentError("충전은 로그인 후 이용할 수 있어요.");
+      return;
+    }
+    const name = depositorName.trim();
+    if (!name) {
+      setPaymentError("입금자명을 입력해주세요.");
       return;
     }
     setPaymentPending(true);
     setPaymentError("");
-    savePaymentReturnLocation(embedded);
-    let orderId = "";
     try {
-      const order = await createNicePayOrder(selectedPackage.productId);
-      orderId = order.orderId;
-      if (
-        !order.orderId ||
-        !Number.isSafeInteger(order.amount) ||
-        order.amount <= 0 ||
-        !order.clientId ||
-        !order.goodsName ||
-        !order.returnUrl
-      ) {
-        throw new Error(
-          "결제 주문 정보를 확인할 수 없어요. 백엔드 결제 설정을 확인해주세요.",
-        );
-      }
-      // 인증이 끝나면 나이스페이가 백엔드(returnUrl)로 이동시키므로 이 화면으로는 돌아오지 않는다.
-      // 결제창을 닫거나 오류가 나면 reject되어 아래에서 주문을 정리한다.
-      await openNicePayCheckout(order);
+      setDeposit(await requestBankTransfer(selectedPackage.productId, name));
+      setCopied(false);
     } catch (cause) {
-      clearPaymentReturnLocation();
-      // SDK 결제창을 닫거나 열지 못한 경우에도 대기 주문을 정리합니다.
-      if (orderId) {
-        try {
-          await abortPaymentOrder(orderId);
-        } catch {
-          // Best effort cleanup; preserve the original checkout error.
-        }
-      }
       setPaymentError(
         cause instanceof Error
           ? cause.message
-          : "결제를 시작하지 못했어요. 다시 시도해주세요.",
+          : "입금 신청을 하지 못했어요. 다시 시도해주세요.",
       );
     } finally {
       setPaymentPending(false);
     }
+  }
+
+  function closePurchaseDialog() {
+    setSelectedPackage(null);
+    setDeposit(null);
+    setPaymentError("");
+    setCopied(false);
+  }
+
+  async function copyAccountNumber() {
+    const number = deposit?.account.accountNumber;
+    if (number) setCopied(await copyText(number));
   }
 
   function closePaymentNotice() {
@@ -264,7 +260,7 @@ export default function Store({
               ) : purchasesDisabled ? (
                 "세션이 끝난 뒤 보석을 충전할 수 있어요."
               ) : (
-                "원하는 보석 상품을 선택하고 결제를 진행해요."
+                "원하는 보석 상품을 고르고 계좌이체로 충전해요. 입금이 확인되면 보석이 들어와요."
               )}
             </p>
           </div>
@@ -365,7 +361,7 @@ export default function Store({
         <div
           className="modal-backdrop"
           role="presentation"
-          onClick={() => setSelectedPackage(null)}
+          onClick={closePurchaseDialog}
         >
           <section
             className="purchase-dialog"
@@ -378,31 +374,99 @@ export default function Store({
               className="close"
               type="button"
               aria-label="닫기"
-              onClick={() => setSelectedPackage(null)}
+              onClick={closePurchaseDialog}
             >
               ×
             </button>
-            <h2 id="purchase-title">보석 충전</h2>
-            <p>{selectedPackage.gemAmount}개</p>
-            <strong className="purchase-price">
-              {formatWon(selectedPackage.salePrice ?? selectedPackage.price)}
-            </strong>
-            <p className="demo-note">
-              결제창에서 결제를 완료하면 보석이 충전돼요.
-            </p>
-            {paymentError && (
-              <p className="payment-error" role="alert">
-                {paymentError}
-              </p>
+            {deposit ? (
+              <>
+                <h2 id="purchase-title">입금 신청 완료</h2>
+                <p>아래 계좌로 입금해 주세요.</p>
+                <dl className="deposit-info">
+                  <div>
+                    <dt>은행</dt>
+                    <dd>{deposit.account.bankName}</dd>
+                  </div>
+                  <div>
+                    <dt>계좌번호</dt>
+                    <dd>
+                      {deposit.account.accountNumber}
+                      <button
+                        type="button"
+                        className="copy"
+                        onClick={() => void copyAccountNumber()}
+                      >
+                        {copied ? "복사됨" : "복사"}
+                      </button>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>예금주</dt>
+                    <dd>{deposit.account.accountHolder}</dd>
+                  </div>
+                  <div>
+                    <dt>입금 금액</dt>
+                    <dd>
+                      <strong>{formatWon(deposit.amount)}</strong>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>입금자명</dt>
+                    <dd>
+                      <strong>{deposit.depositorName}</strong>
+                    </dd>
+                  </div>
+                </dl>
+                <p className="demo-note">
+                  금액과 입금자명이 위와 같아야 빨리 확인할 수 있어요. 운영자가
+                  입금을 확인하면 보석 {deposit.grantedGem}개가 충전되고 알림을
+                  보내드려요. 진행 상황은 충전내역에서 볼 수 있어요.
+                </p>
+                <button
+                  className="confirm"
+                  type="button"
+                  onClick={closePurchaseDialog}
+                >
+                  확인
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 id="purchase-title">보석 충전</h2>
+                <p>{selectedPackage.gemAmount}개</p>
+                <strong className="purchase-price">
+                  {formatWon(selectedPackage.salePrice ?? selectedPackage.price)}
+                </strong>
+                <label className="depositor-field">
+                  <span>입금자명</span>
+                  <input
+                    type="text"
+                    value={depositorName}
+                    maxLength={50}
+                    placeholder="통장에 찍힐 이름"
+                    autoComplete="name"
+                    onChange={(event) => setDepositorName(event.target.value)}
+                  />
+                </label>
+                <p className="demo-note">
+                  카드 결제는 잠시 중단돼 계좌이체로 충전받고 있어요. 입금
+                  신청을 하면 입금할 계좌를 알려드려요.
+                </p>
+                {paymentError && (
+                  <p className="payment-error" role="alert">
+                    {paymentError}
+                  </p>
+                )}
+                <button
+                  className="confirm"
+                  type="button"
+                  disabled={paymentPending}
+                  onClick={() => void confirmPurchase()}
+                >
+                  {paymentPending ? "신청하고 있어요…" : "입금 신청하기"}
+                </button>
+              </>
             )}
-            <button
-              className="confirm"
-              type="button"
-              disabled={paymentPending}
-              onClick={confirmPurchase}
-            >
-              {paymentPending ? "결제창을 준비하고 있어요…" : "결제하기"}
-            </button>
           </section>
         </div>
       )}
@@ -833,6 +897,58 @@ const StorePage = styled.div<{
   .purchase-dialog .balance-result {
     font-weight: 750;
     color: #536d25;
+  }
+  .purchase-dialog .depositor-field {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 1.8rem;
+    color: #536057;
+    font-size: 1.15rem;
+    text-align: left;
+  }
+  .purchase-dialog .depositor-field input {
+    min-height: 4.4rem;
+    padding: 0 1.2rem;
+    border: 0.1rem solid #dfe6da;
+    border-radius: 1rem;
+    background: #fff;
+    font-size: 1.4rem;
+  }
+  .purchase-dialog .deposit-info {
+    display: grid;
+    gap: 0.8rem;
+    margin: 1.6rem 0 0;
+    padding: 1.4rem;
+    border-radius: 1.2rem;
+    background: #f3f6ee;
+    text-align: left;
+  }
+  .purchase-dialog .deposit-info div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    font-size: 1.25rem;
+  }
+  .purchase-dialog .deposit-info dt {
+    flex: 0 0 auto;
+    color: #7e897c;
+  }
+  .purchase-dialog .deposit-info dd {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+  .purchase-dialog .deposit-info .copy {
+    flex: 0 0 auto;
+    padding: 0.3rem 0.8rem;
+    border: 0.1rem solid #cfd8c8;
+    border-radius: 99rem;
+    background: #fff;
+    font-size: 1.05rem;
   }
   .purchase-dialog .payment-error {
     margin-top: 1rem;

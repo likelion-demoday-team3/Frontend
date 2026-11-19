@@ -119,6 +119,9 @@ export default function ChargeInfo() {
         <div><dt>{isRefunded ? '환불금액' : '결제금액'}</dt><dd>{paymentAmount != null ? formatWon(paymentAmount) : '확인할 수 없음'}</dd></div>
         <div><dt>{isRefunded ? '환불일시' : '결제일시'}</dt><dd>{displayDate ? formatDate(displayDate) : '확인할 수 없음'}</dd></div>
       </dl></section>
+      {payment?.method === 'BANK_TRANSFER' && payment.status === 'PAID' && <section className="refund-section">
+        <p className="refund-policy">계좌이체로 충전한 보석은 앱에서 바로 환불할 수 없어요. 결제일로부터 7일 이내이고 보석을 아직 사용하지 않았다면, 마이페이지의 오류 제보로 환불을 요청해 주세요. 확인 후 환불해 드려요.</p>
+      </section>}
       {isPurchase && (payment?.refundable || payment?.status === 'REFUNDED') && <section className="refund-section">
         <p className="refund-policy">구매 취소는 결제일로부터 7일 이내이고, 구매한 보석을 아직 사용하지 않은 경우에만 가능합니다.</p>
         <button
