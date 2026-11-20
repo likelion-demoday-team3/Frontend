@@ -74,9 +74,12 @@ export default function NotificationInbox({
       }
       onReadChange();
     }
-    if (item.link) {
+    const link = item.type.startsWith("CONTACT_")
+      ? "/mypage/record/received"
+      : item.link;
+    if (link) {
       onNavigate();
-      navigate(item.link);
+      navigate(link);
     }
   }
 

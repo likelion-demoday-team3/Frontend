@@ -419,7 +419,7 @@ export default function Scadule({
             </h2>
             <p className="dialog-description" id="booking-description">
               {pendingAction === "apply"
-                ? "신청 시 참가비와 보증금이 바로 차감됩니다."
+                ? "시작 10분 전 신청자 수에 따라 진행 여부가 확정됩니다."
                 : "취소 환불액은 세션 시작까지 남은 시간에 따라 정해져요."}
             </p>
             <div className="gem-summary">

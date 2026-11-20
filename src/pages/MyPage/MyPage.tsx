@@ -10,7 +10,6 @@ import {
   type Member,
 } from "../../features/members/api";
 import NotificationButton from "../../components/common/NotificationButton";
-import PushToggle, { MarketingPushToggle } from "../../components/common/PushToggle";
 import { disablePush } from "../../features/push/push";
 
 const demoMember: Member = {
@@ -91,7 +90,7 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
                 "이름")}
           </h1>
         </section>
-        <section className="menu-card" aria-label="마이페이지 메뉴">
+        <section className="menu-card" aria-label="내 정보 메뉴">
           <a href={`/mypage/me${suffix}`}>
             내 정보 <span>›</span>
           </a>
@@ -104,8 +103,11 @@ export default function MyPage({ demo = false }: { demo?: boolean }) {
           <a href={`/mypage/reservation${suffix}`}>
             예약 확인 <span>›</span>
           </a>
-          {!demo && <PushToggle />}
-          {!demo && <MarketingPushToggle />}
+        </section>
+        <section className="menu-card" aria-label="알림 및 기타 설정">
+          <a href="/mypage/notifications">
+            알림 설정 <span>›</span>
+          </a>
           <a href="/mypage/error-report">
             오류 제보하기 <span>›</span>
           </a>

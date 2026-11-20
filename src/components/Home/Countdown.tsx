@@ -118,10 +118,7 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
           </p>
           <p className="countdown-confirmation">
             {capacity ? `${capacity}:${capacity} 로테이션` : "로테이션"}{" "}
-            {/* 모집 중에는 아직 확정 전이다. 시작 10분 전에 인원을 보고 진행(READY) 또는 취소가 정해진다 */}
-            {nextApplication.sessionStatus === "RECRUITING"
-              ? "소개팅 신청 완료! 시작 10분 전에 진행 여부가 확정돼요."
-              : "소개팅이 확정되었습니다!"}
+            소개팅 신청 완료!
           </p>
           <p
             className="countdown-time"
