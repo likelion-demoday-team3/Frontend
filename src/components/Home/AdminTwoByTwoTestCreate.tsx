@@ -46,7 +46,7 @@ const initialForm = (selectedDate: Date) => {
 /**
  * 운영자 전용: 남자 2명·여자 2명이 들어가는 2:2 통화 테스트 세션을 만든다.
  * 참가자는 운영자 계정이나 test-male-*@test.kiwi 계정만. 참가비 없음, 두 라운드(각 3분) 동안 서로 한 번씩 대화
- * → 투표 → 결과. 시작 10분 전부터 네 사람만 입장할 수 있고, 넷이 모두 들어와야 시작한다.
+ * → 투표 → 결과. 시작 3분 전부터 네 사람만 입장할 수 있고, 넷이 모두 들어와야 시작한다.
  */
 export default function AdminTwoByTwoTestCreate({ selectedDate, onCreated }: Props) {
   const [open, setOpen] = useState(false);
@@ -137,7 +137,7 @@ export default function AdminTwoByTwoTestCreate({ selectedDate, onCreated }: Pro
                 세션 #{created.sessionId} · {timeLabel(created.startTime)} 시작
               </p>
               <p className="hint">
-                시작 10분 전부터 네 계정의 홈 화면에서 입장할 수 있어요. 넷이 모두 들어와야 시작하고,
+                시작 3분 전부터 네 계정의 홈 화면에서 입장할 수 있어요. 넷이 모두 들어와야 시작하고,
                 다른 회원에게는 보이지 않아요.
               </p>
               <div className="actions single">

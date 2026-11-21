@@ -42,7 +42,7 @@ const initialForm = (selectedDate: Date) => {
 
 /**
  * 운영자 전용: 나와 다른 운영자 한 명만 들어가는 1:1 통화 테스트 세션을 만든다.
- * 참가비 없음, 한 라운드(3분) 대화 → 투표 → 결과. 시작 10분 전부터 두 사람만 입장할 수 있다.
+ * 참가비 없음, 한 라운드(3분) 대화 → 투표 → 결과. 시작 3분 전부터 두 사람만 입장할 수 있다.
  */
 export default function AdminOneOnOneTestCreate({ selectedDate, onCreated }: Props) {
   const [open, setOpen] = useState(false);
@@ -127,7 +127,7 @@ export default function AdminOneOnOneTestCreate({ selectedDate, onCreated }: Pro
                 세션 #{created.sessionId} · {timeLabel(created.startTime)} 시작
               </p>
               <p className="hint">
-                시작 10분 전부터 나와 상대 운영자의 홈 화면에서 입장할 수 있어요. 다른 회원에게는
+                시작 3분 전부터 나와 상대 운영자의 홈 화면에서 입장할 수 있어요. 다른 회원에게는
                 보이지 않아요.
               </p>
               <div className="actions single">

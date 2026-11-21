@@ -21,6 +21,8 @@ export type SessionDetail = Session & {
   myStatus: MyStatus | null
   myAlias: string | null
   liveStatus?: 'WAITING' | 'LOBBY' | 'IN_ROUND' | 'HEART' | 'VOTING' | 'RESULT_AND_SHARE' | 'CLOSED'
+  // 로비가 열리는 시각 (일반 세션은 시작 10분 전, 운영자 테스트 세션은 3분 전). 예전 서버면 없다
+  lobbyOpenAt?: string | null
   currentRoundNumber?: number
   phaseEndsAt?: string | null
 }
@@ -32,6 +34,8 @@ export type MySession = {
   myStatus: MyStatus
   alias: string
   appliedAt: string
+  // 로비가 열리는 시각 (일반 세션은 시작 10분 전, 운영자 테스트 세션은 3분 전). 예전 서버면 없다
+  lobbyOpenAt?: string | null
 }
 
 export type ParticipationResult = {

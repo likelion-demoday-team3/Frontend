@@ -1304,8 +1304,11 @@ export default function Session({ sessionId }: SessionProps) {
   );
 
   const startTime = session ? new Date(session.startTime).getTime() : 0;
-  const opensAt = startTime - 10 * 60 * 1000;
-  // 백엔드 규칙: 로비는 시작 10분 전 ~ 시작 시각(미포함), 시작 시각에 출석 확정 후 15초 뒤 1라운드
+  // 백엔드 규칙: 로비는 시작 10분 전(운영자 테스트 세션은 3분 전) ~ 시작 시각(미포함),
+  // 시작 시각에 출석 확정 후 15초 뒤 1라운드. 열리는 시각은 서버가 알려준다
+  const opensAt = session?.lobbyOpenAt
+    ? new Date(session.lobbyOpenAt).getTime()
+    : startTime - 10 * 60 * 1000;
   const closesAt = startTime;
   const joinWindowOpen = now >= opensAt && now < closesAt;
   const canEnterLobby = joinWindowOpen ||

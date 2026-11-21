@@ -65,7 +65,11 @@ export default function Countdown({ sessions, mySessions }: CountdownProps) {
   const hours = Math.floor((remaining / (60 * 60 * SECOND)) % 24);
   const minutes = Math.floor((remaining / (60 * SECOND)) % 60);
   const seconds = Math.floor((remaining / SECOND) % 60);
-  const canEnter = Boolean(nextApplication && remaining <= ENTRY_WINDOW);
+  // 로비가 열리는 시각은 서버가 알려준다 (운영자 테스트 세션은 3분 전). 예전 서버면 10분 전
+  const entryWindow = nextApplication?.lobbyOpenAt
+    ? startTime - new Date(nextApplication.lobbyOpenAt).getTime()
+    : ENTRY_WINDOW;
+  const canEnter = Boolean(nextApplication && remaining <= entryWindow);
   const capacity = sessions.find(
     (item) => item.sessionId === nextApplication?.sessionId,
   )?.capacityPerGender;
