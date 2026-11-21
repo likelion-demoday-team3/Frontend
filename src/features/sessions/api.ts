@@ -83,3 +83,20 @@ export function createOneOnOneTestSession(partnerEmail: string, startTime: strin
     body: { partnerEmail, startTime },
   })
 }
+
+/**
+ * 관리자 전용 2:2 통화 테스트 세션. 남자 2명·여자 2명이 두 라운드 동안 서로 한 번씩 대화한다.
+ * 참가자는 운영자 계정이나 test-male-*@test.kiwi 계정만. 참가비 없음, 만들면 바로 네 사람의 예약에 들어간다
+ */
+export function createTwoByTwoTestSession(input: {
+  startTime: string
+  firstMaleEmail: string
+  secondMaleEmail: string
+  firstFemaleEmail: string
+  secondFemaleEmail: string
+}): Promise<CallTestSessionCreated> {
+  return apiRequest<CallTestSessionCreated>('/admin/sessions/test-call/two-by-two', {
+    method: 'POST',
+    body: input,
+  })
+}
