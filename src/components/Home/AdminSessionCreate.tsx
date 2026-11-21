@@ -9,7 +9,7 @@ type AdminSessionCreateProps = {
 
 // 서버 규칙: 성별 정원 3~6명, 신청 마감(시작 10분 전) 이후엔 모집 시작 불가.
 // 서버의 entryFeeGem은 신청 시 차감액(보증금 포함)이다. 폼에서는 참가비와 보증금을 따로 받고 합쳐서 보낸다.
-const MIN_CAPACITY = 3;
+const MIN_CAPACITY = 2; // 2:2 세션은 남녀 2명씩 모두 있어야 진행
 const MAX_CAPACITY = 6;
 const APPLY_DEADLINE_MINUTES = 10;
 // 결과·공유 단계는 사용자가 직접 닫을 때까지 이어져서 이 값은 진행에 쓰이지 않는다.
